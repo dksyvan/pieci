@@ -1,0 +1,7 @@
+# OS / éditeur
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Installeurs locaux PostgreSQL/PostGIS (binaires volumineux, non versionnés)
+*.exe

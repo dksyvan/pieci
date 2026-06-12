@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pièci — Ta pièce retrouvée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root{
+    --orange:#F77F2E; --orange-soft:#FF9A4D; --green:#13A05C; --green-d:#0E7E48;
+    --night:#0F2A43; --night-2:#1D3D58; --cream:#F7F5F0; --sun:#FFC542; --red:#E5484D;
+    --ink:#16324A; --muted:#6E8398; --line:#E4E0D6; --card:#FFFFFF;
+    --shadow:0 10px 30px -12px rgba(15,42,67,.25);
+    --shadow-sm:0 4px 14px -8px rgba(15,42,67,.30);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased}
+  h1,h2,h3,h4,.font-head{font-family:'Sora',sans-serif}
+  a{color:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+
+  /* ---- Top bar ---- */
+  .nav{position:sticky;top:0;z-index:40;background:rgba(247,245,240,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;gap:18px;height:66px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'Sora';font-weight:800;font-size:24px;color:var(--night);letter-spacing:-.5px}
+  .brand .ci{color:var(--orange)}
+  .tabs{display:flex;gap:4px;margin-left:auto}
+  .tab{border:0;background:transparent;font-family:'Sora';font-weight:600;font-size:14.5px;color:var(--muted);padding:9px 15px;border-radius:999px;cursor:pointer;transition:.18s}
+  .tab:hover{color:var(--night);background:rgba(15,42,67,.06)}
+  .tab.active{color:#fff;background:var(--night)}
+  @media(max-width:820px){.tabs{display:none}}
+
+  /* ---- Hero ---- */
+  .hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#0F2A43 0%,#163b5b 60%,#1d4368 100%);color:#fff;border-radius:0 0 34px 34px}
+  .hero .blob{position:absolute;border-radius:50%;filter:blur(8px);opacity:.5}
+  .b1{width:340px;height:340px;background:radial-gradient(circle,rgba(247,127,46,.55),transparent 65%);top:-90px;right:-60px}
+  .b2{width:300px;height:300px;background:radial-gradient(circle,rgba(19,160,92,.5),transparent 65%);bottom:-120px;left:-70px}
+  .hero-in{position:relative;padding:70px 0 84px;display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+  @media(max-width:880px){.hero-in{grid-template-columns:1fr;padding:48px 0 64px}}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:6px 13px;border-radius:999px;font-size:13px;font-weight:600;margin-bottom:18px}
+  .hero h1{font-size:46px;line-height:1.06;font-weight:800;letter-spacing:-1.2px}
+  @media(max-width:880px){.hero h1{font-size:34px}}
+  .hero h1 .hl{color:var(--sun)}
+  .hero p.lead{margin-top:16px;font-size:17.5px;line-height:1.6;color:#D8E3EE;max-width:520px}
+  .cta-row{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+  .btn{border:0;cursor:pointer;font-family:'Sora';font-weight:600;font-size:15px;padding:14px 22px;border-radius:14px;display:inline-flex;align-items:center;gap:9px;transition:.18s;text-decoration:none}
+  .btn-primary{background:var(--orange);color:#fff;box-shadow:0 10px 24px -10px rgba(247,127,46,.8)}
+  .btn-primary:hover{background:#ff8c40;transform:translateY(-1px)}
+  .btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.22)}
+  .btn-ghost:hover{background:rgba(255,255,255,.18)}
+  .btn-green{background:var(--green);color:#fff;box-shadow:0 10px 24px -10px rgba(19,160,92,.7)}
+  .btn-green:hover{background:#15ad65;transform:translateY(-1px)}
+  .btn-dark{background:var(--night);color:#fff}
+  .btn-outline{background:#fff;color:var(--night);border:1.5px solid var(--line)}
+  .btn-outline:hover{border-color:var(--night)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+  .stats{display:flex;gap:22px;margin-top:34px;flex-wrap:wrap}
+  .stat .n{font-family:'Sora';font-weight:800;font-size:26px;color:#fff}
+  .stat .l{font-size:12.5px;color:#AFC1D2;margin-top:2px}
+
+  /* hero visual card */
+  .glass{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:18px;backdrop-filter:blur(6px)}
+  .mini-card{background:#fff;color:var(--ink);border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;box-shadow:var(--shadow)}
+  .mini-card+.mini-card{margin-top:12px}
+  .thumb{width:54px;height:40px;border-radius:8px;background:linear-gradient(135deg,#c9d6e2,#9fb3c8);flex:none;position:relative;overflow:hidden}
+  .thumb.blur::after{content:"🔒";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,42,67,.35);font-size:15px;filter:none}
+  .mc-t{font-family:'Sora';font-weight:700;font-size:14.5px}
+  .mc-s{font-size:12.5px;color:var(--muted)}
+  .pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px}
+  .pill-orange{background:#FDEADB;color:#b85e16}
+  .pill-green{background:#DBF3E7;color:var(--green-d)}
+  .pill-night{background:#E6EBF1;color:var(--night)}
+
+  /* ---- Sections ---- */
+  section.block{padding:54px 0}
+  .sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:26px;flex-wrap:wrap}
+  .sec-head h2{font-size:30px;font-weight:800;letter-spacing:-.6px;color:var(--night)}
+  .sec-head p{color:var(--muted);font-size:15px;margin-top:6px;max-width:560px}
+
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px;align-items:center}
+  .search{flex:1;min-width:220px;display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid var(--line);border-radius:13px;padding:11px 14px}
+  .search input{border:0;outline:0;font-size:15px;width:100%;font-family:'Inter';background:transparent}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;font-family:'Sora'}
+  .chip:hover{border-color:var(--night);color:var(--night)}
+  .chip.on{background:var(--night);color:#fff;border-color:var(--night)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow-sm);transition:.2s;display:flex;flex-direction:column;gap:12px}
+  .card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:#d8d2c4}
+  .card-top{display:flex;gap:13px}
+  .doc-thumb{width:84px;height:60px;border-radius:11px;flex:none;position:relative;overflow:hidden;background:linear-gradient(135deg,#cdd9e4,#aebfce)}
+  .doc-thumb .lines{position:absolute;inset:0;padding:9px 10px}
+  .doc-thumb .av{width:18px;height:18px;border-radius:50%;background:#8aa0b4}
+  .doc-thumb .ln{height:5px;border-radius:3px;background:#8aa0b4;margin-top:5px}
+  .doc-thumb .ln.s{width:60%}
+  .doc-thumb.blurred{filter:blur(4px)}
+  .lock-badge{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(15,42,67,.34);color:#fff;font-size:10px;font-weight:600;text-align:center}
+  .card h3{font-family:'Sora';font-size:17px;font-weight:700;color:var(--night)}
+  .meta{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-top:3px}
+  .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:6px;border-top:1px dashed var(--line)}
+  .date{font-size:12px;color:var(--muted)}
+  .linkbtn{border:0;background:transparent;color:var(--orange);font-weight:600;font-family:'Sora';font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .linkbtn:hover{text-decoration:underline}
+
+  /* map */
+  #map{height:460px;border-radius:20px;border:1px solid var(--line);box-shadow:var(--shadow-sm);z-index:1}
+  .legend{display:flex;gap:18px;margin-top:14px;flex-wrap:wrap;font-size:13.5px;color:var(--ink)}
+  .legend i{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:middle}
+
+  /* forms */
+  .form-wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:34px;align-items:start}
+  @media(max-width:880px){.form-wrap{grid-template-columns:1fr}}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px;box-shadow:var(--shadow-sm)}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-family:'Sora';font-weight:600;font-size:13.5px;color:var(--night);margin-bottom:7px}
+  .field input,.field select{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;font-size:15px;font-family:'Inter';outline:0;background:#fff;transition:.15s}
+  .field input:focus,.field select:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(247,127,46,.15)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .geo-box{display:flex;align-items:center;gap:10px;background:#F2F6F4;border:1px dashed var(--green);border-radius:12px;padding:11px 13px;font-size:13px;color:var(--green-d)}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.5}
+  .upload{border:1.5px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted);font-size:13.5px;background:#FBFAF6}
+
+  .info-side h3{font-family:'Sora';font-size:18px;color:var(--night);margin-bottom:10px}
+  .info-side ul{list-style:none;display:flex;flex-direction:column;gap:13px}
+  .info-side li{display:flex;gap:12px;font-size:14px;color:var(--ink);line-height:1.5}
+  .num{width:28px;height:28px;border-radius:9px;background:var(--orange);color:#fff;font-family:'Sora';font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none}
+  .num.g{background:var(--green)}
+
+  /* match results */
+  .match{display:flex;gap:14px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow-sm);margin-bottom:13px}
+  .conf{flex:none;width:64px;text-align:center}
+  .conf .pct{font-family:'Sora';font-weight:800;font-size:21px}
+  .conf .lbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+  .ring{--p:0;width:54px;height:54px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),#EAEDF1 0);display:flex;align-items:center;justify-content:center;margin:0 auto 4px}
+  .ring span{width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-family:'Sora';font-weight:700;font-size:13px}
+  .empty{text-align:center;padding:42px 20px;color:var(--muted)}
+  .empty .big{font-size:40px;margin-bottom:8px}
+
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--night);color:#fff;padding:14px 20px;border-radius:14px;box-shadow:var(--shadow);z-index:90;display:flex;gap:11px;align-items:center;font-size:14.5px;font-family:'Sora';font-weight:500;animation:pop .3s ease}
+  @keyframes pop{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+
+  /* mobile bottom nav */
+  .mobnav{display:none}
+  @media(max-width:820px){
+    .mobnav{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:50;padding:8px 6px;justify-content:space-around;box-shadow:0 -8px 24px -16px rgba(15,42,67,.3)}
+    .mob{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-family:'Sora';font-weight:600;color:var(--muted);cursor:pointer;flex:1;padding:4px}
+    .mob.active{color:var(--orange)}
+    .mob svg{width:21px;height:21px}
+    body{padding-bottom:64px}
+  }
+  .foot{background:var(--night);color:#B9C8D6;padding:34px 0;margin-top:30px;border-radius:30px 30px 0 0}
+  .foot .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
+  .foot .brand{color:#fff}.foot .brand .ci{color:var(--orange)}
+  .foot small{font-size:12.5px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const {useState,useEffect,useRef,useMemo} = React;
+
+/* ============ DONNÉES ============ */
+const COMMUNES = {
+  "Cocody":[5.345,-3.978],"Yopougon":[5.345,-4.071],"Abobo":[5.420,-4.020],
+  "Plateau":[5.323,-4.022],"Treichville":[5.293,-4.005],"Marcory":[5.300,-3.983],
+  "Koumassi":[5.300,-3.948],"Adjamé":[5.360,-4.022],"Port-Bouët":[5.255,-3.930],
+  "Attécoubé":[5.340,-4.040],"Bingerville":[5.355,-3.900],
+  "Bouaké":[7.690,-5.030],"Yamoussoukro":[6.820,-5.276],"San-Pédro":[4.748,-6.636],
+  "Daloa":[6.877,-6.450],"Korhogo":[9.458,-5.629]
+};
+const TYPES = ["CNI","Passeport","Permis de conduire","Carte étudiante","Carte consulaire"];
+const TYPE_ICON = {"CNI":"🪪","Passeport":"📘","Permis de conduire":"🚗","Carte étudiante":"🎓","Carte consulaire":"🛂"};
+
+const today = new Date('2026-06-10');
+const daysAgo = d => new Date(today.getTime()-d*864e5).toISOString();
+
+let _id=1;
+const mk=(typePiece,prenom,nom,commune,d,depot)=>({
+  id:_id++,typePiece,prenom,nom,commune,
+  lat:COMMUNES[commune][0]+(Math.random()-.5)*.01,
+  lng:COMMUNES[commune][1]+(Math.random()-.5)*.01,
+  date:daysAgo(d),depot,contact:"+225 0700000000"
+});
+
+const SEED = [
+  mk("CNI","Adjoua","Kouassi","Cocody",2,"Commissariat du 12e – Cocody"),
+  mk("Passeport","Yao","Koffi","Yopougon",5,"Mairie de Yopougon"),
+  mk("Permis de conduire","Mariam","Traoré","Abobo",1,"Commissariat Abobo Avocatier"),
+  mk("Carte étudiante","Akissi","N'Guessan","Plateau",3,"Mairie du Plateau"),
+  mk("CNI","Ibrahim","Bamba","Treichville",6,"Commissariat Treichville"),
+  mk("Carte consulaire","Sékou","Diomandé","Marcory",4,"Mairie de Marcory"),
+  mk("CNI","Désiré","Aké","Bouaké",2,"Préfecture de police – Bouaké"),
+  mk("Permis de conduire","Aminata","Ouattara","Yamoussoukro",8,"Mairie de Yamoussoukro"),
+  mk("Passeport","Patrick","Gnagne","San-Pédro",7,"Commissariat du Port – San-Pédro"),
+  mk("CNI","Fanta","Konaté","Adjamé",1,"Mairie d'Adjamé"),
+  mk("Carte étudiante","Christelle","Brou","Cocody",3,"Bureau Pièci – Université FHB"),
+  mk("CNI","Serge","Yapi","Koumassi",5,"Commissariat Koumassi Remblais"),
+];
+
+const DEPOTS = [
+  {nom:"Commissariat du 12e – Cocody",commune:"Cocody"},
+  {nom:"Mairie du Plateau",commune:"Plateau"},
+  {nom:"Commissariat Yopougon Toits Rouges",commune:"Yopougon"},
+  {nom:"Mairie d'Abobo",commune:"Abobo"},
+  {nom:"Préfecture de police – Bouaké",commune:"Bouaké"},
+];
+
+/* ============ ALGORITHME DE MATCHING ============ */
+const normaliser = s => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
+  .replace(/['’\-]/g," ").replace(/\s+/g," ").trim();
+
+function levenshtein(a,b){
+  a=normaliser(a);b=normaliser(b);
+  if(!a.length||!b.length) return a.length===b.length?1:0;
+  const m=a.length,n=b.length,dp=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){
+    const c=a[i-1]===b[j-1]?0:1;
+    dp[i][j]=Math.min(dp[i-1][j]+1,dp[i][j-1]+1,dp[i-1][j-1]+c);
+  }
+  return 1 - dp[m][n]/Math.max(m,n);
+}
+function tokenSet(a,b){
+  const A=new Set(normaliser(a).split(" ").filter(Boolean));
+  const B=new Set(normaliser(b).split(" ").filter(Boolean));
+  if(!A.size||!B.size) return 0;
+  let inter=0; A.forEach(x=>{if(B.has(x))inter++});
+  return inter/new Set([...A,...B]).size;
+}
+const simNom=(a,b)=>Math.max(levenshtein(a,b),tokenSet(a,b));
+
+function haversine(la1,lo1,la2,lo2){
+  const R=6371,r=Math.PI/180;
+  const dLa=(la2-la1)*r,dLo=(lo2-lo1)*r;
+  const h=Math.sin(dLa/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function scoreMatch(perte,trouv){
+  const sN=simNom(perte.nom,trouv.nom);
+  const sP=simNom(perte.prenom,trouv.prenom);
+  const sT=perte.typePiece===trouv.typePiece?1:0;
+  const dist=haversine(perte.lat,perte.lng,trouv.lat,trouv.lng);
+  const pGeo=Math.exp(-dist/25);
+  const dJours=Math.abs((new Date(perte.date)-new Date(trouv.date))/864e5);
+  const pTmp=Math.exp(-dJours/30);
+  const score=0.45*sN+0.20*sP+0.20*sT+0.10*pGeo+0.05*pTmp;
+  return {score,dist};
+}
+function trouverMatches(perte,base){
+  return base.map(t=>({...t,...scoreMatch(perte,t)}))
+    .filter(x=>x.score>=0.55)
+    .sort((a,b)=>b.score-a.score);
+}
+
+/* ============ UTILITAIRES UI ============ */
+const maskNom = n => n[0].toUpperCase()+".";
+const relDate = iso => {
+  const d=Math.round((today-new Date(iso))/864e5);
+  return d<=0?"aujourd'hui":d===1?"hier":`il y a ${d} jours`;
+};
+const confBand = s => s>=.80?{t:"Forte",c:"var(--green)"}:s>=.65?{t:"Probable",c:"var(--orange)"}:{t:"À vérifier",c:"var(--sun)"};
+
+/* ============ COMPOSANTS ============ */
+function Logo({foot}){
+  return (<div className="brand">
+    <svg width="30" height="30" viewBox="0 0 180 200" aria-hidden="true">
+      <path d="M90 0C40 0 0 40 0 90c0 60 90 110 90 110s90-50 90-110C180 40 140 0 90 0Z" fill="#F77F2E"/>
+      <rect x="38" y="58" width="104" height="70" rx="10" fill="#F7F5F0"/>
+      <circle cx="62" cy="82" r="12" fill="#0F2A43"/><path d="M50 108a12 12 0 0 1 24 0Z" fill="#0F2A43"/>
+      <rect x="84" y="74" width="48" height="7" rx="3.5" fill="#0F2A43"/>
+      <rect x="84" y="90" width="40" height="6" rx="3" fill="#9FB3C8"/>
+      <circle cx="138" cy="122" r="20" fill="#13A05C" stroke="#F7F5F0" strokeWidth="5"/>
+      <path d="M129 122l6 7 13-15" fill="none" stroke="#F7F5F0" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+    <span>Piè<span className="ci">ci</span></span>
+  </div>);
+}
+
+function DocThumb({type,big}){
+  return (<div className={"doc-thumb blurred"} style={big?{width:84,height:60}:{}}>
+    <div className="lines"><div className="av"></div><div className="ln"></div><div className="ln s"></div></div>
+    <div className="lock-badge">🔒<span>Floutée</span></div>
+  </div>);
+}
+
+function PieceCard({p,onContact}){
+  return (<div className="card">
+    <div className="card-top">
+      <DocThumb type={p.typePiece} big />
+      <div style={{minWidth:0}}>
+        <h3>{p.prenom} {maskNom(p.nom)}</h3>
+        <div className="meta">📍 {p.commune}</div>
+        <div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap'}}>
+          <span className="pill pill-orange">{TYPE_ICON[p.typePiece]} {p.typePiece}</span>
+        </div>
+      </div>
+    </div>
+    <div className="card-foot">
+      <span className="date">Trouvée {relDate(p.date)}</span>
+      <button className="linkbtn" onClick={()=>onContact(p)}>C'est ma pièce →</button>
+    </div>
+  </div>);
+}
+
+function Accueil({go,base}){
+  return (<>
+    <div className="hero">
+      <div className="blob b1"></div><div className="blob b2"></div>
+      <div className="wrap hero-in">
+        <div>
+          <span className="eyebrow">🇨🇮 Fait en Côte d'Ivoire</span>
+          <h1>Ta pièce égarée<br/>a une <span className="hl">deuxième chance</span>.</h1>
+          <p className="lead">Fini les statuts WhatsApp qui se perdent. Sur Pièci, ceux qui trouvent une pièce la déclarent, et ceux qui l'ont perdue sont prévenus <b style={{color:'#fff'}}>automatiquement</b>. Simple, rapide, et sûr.</p>
+          <div className="cta-row">
+            <button className="btn btn-primary" onClick={()=>go('declarer')}>✋ J'ai trouvé une pièce</button>
+            <button className="btn btn-green" onClick={()=>go('perdu')}>🔎 J'ai perdu ma pièce</button>
+          </div>
+          <div className="stats">
+            <div className="stat"><div className="n">{base.length}</div><div className="l">pièces déclarées</div></div>
+            <div className="stat"><div className="n">16</div><div className="l">communes & villes</div></div>
+            <div className="stat"><div className="n">5</div><div className="l">points de dépôt sûrs</div></div>
+          </div>
+        </div>
+        <div className="glass">
+          <div style={{fontFamily:'Sora',fontWeight:600,fontSize:13,color:'#CdDAE6',marginBottom:12,letterSpacing:'.3px'}}>DÉCLARATIONS RÉCENTES</div>
+          {base.slice(0,3).map(p=>(
+            <div className="mini-card" key={p.id}>
+              <div className="thumb blur"></div>
+              <div style={{flex:1,minWidth:0}}>
+                <div className="mc-t">{p.prenom} {maskNom(p.nom)}</div>
+                <div className="mc-s">{TYPE_ICON[p.typePiece]} {p.typePiece} · {p.commune}</div>
+              </div>
+              <span className="pill pill-green">{relDate(p.date)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <section className="block wrap">
+      <div className="sec-head"><div>
+        <h2>Comment ça marche</h2>
+        <p>Trois étapes, moins d'une minute. La solidarité ivoirienne, rendue efficace.</p>
+      </div></div>
+      <div className="grid">
+        {[["1","Tu trouves","Prends une photo, indique le type et la commune. La position se remplit toute seule.","var(--orange)"],
+          ["2","On rapproche","Notre algorithme compare avec les pièces recherchées et prévient le bon propriétaire.","var(--green)"],
+          ["3","On restitue","Rendez-vous dans un point de dépôt sûr (mairie, commissariat). Aucune donnée exposée.","var(--night)"]].map(s=>(
+          <div className="card" key={s[0]} style={{flexDirection:'row',alignItems:'flex-start',gap:14}}>
+            <div className="num" style={{background:s[3],width:40,height:40,borderRadius:12,fontSize:18}}>{s[0]}</div>
+            <div><h3 style={{marginBottom:5}}>{s[1]}</h3><div style={{fontSize:14,color:'var(--muted)',lineHeight:1.55}}>{s[2]}</div></div>
+          </div>
+        ))}
+      </div>
+    </section>
+  </>);
+}
+
+function Trouvees({base,onContact}){
+  const [q,setQ]=useState(""); const [type,setType]=useState("Tous"); const [commune,setCommune]=useState("Toutes");
+  const list=useMemo(()=>base.filter(p=>{
+    const okT=type==="Tous"||p.typePiece===type;
+    const okC=commune==="Toutes"||p.commune===commune;
+    const okQ=!q||normaliser(p.prenom+" "+p.nom+" "+p.commune+" "+p.typePiece).includes(normaliser(q));
+    return okT&&okC&&okQ;
+  }),[base,q,type,commune]);
+  return (<section className="block wrap">
+    <div className="sec-head"><div>
+      <h2>Pièces trouvées</h2>
+      <p>Parcours les pièces déclarées. Les données sensibles restent floutées — elles ne se révèlent qu'à toi, après vérification.</p>
+    </div></div>
+    <div className="filters">
+      <div className="search">🔎<input placeholder="Rechercher un nom, une commune…" value={q} onChange={e=>setQ(e.target.value)}/></div>
+    </div>
+    <div className="chips" style={{marginBottom:14}}>
+      {["Tous",...TYPES].map(t=><button key={t} className={"chip"+(type===t?" on":"")} onClick={()=>setType(t)}>{t==="Tous"?"Tous les types":t}</button>)}
+    </div>
+    <div className="chips" style={{marginBottom:24}}>
+      {["Toutes",...Object.keys(COMMUNES)].slice(0,10).map(c=><button key={c} className={"chip"+(commune===c?" on":"")} onClick={()=>setCommune(c)}>{c}</button>)}
+    </div>
+    {list.length? <div className="grid">{list.map(p=><PieceCard key={p.id} p={p} onContact={onContact}/>)}</div>
+      : <div className="empty"><div className="big">🤷🏾</div>Aucune pièce ne correspond. Essaie un autre filtre, ou crée une alerte dans « J'ai perdu ».</div>}
+  </section>);
+}
+
+function Carte({base}){
+  const ref=useRef(null); const map=useRef(null);
+  useEffect(()=>{
+    if(map.current) return;
+    map.current=L.map(ref.current).setView([5.345,-4.0],11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map.current);
+    const dot=(c)=>L.divIcon({className:'',html:`<div style="width:16px;height:16px;border-radius:50%;background:${c};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,iconSize:[16,16]});
+    base.forEach(p=>L.marker([p.lat,p.lng],{icon:dot('#F77F2E')}).addTo(map.current)
+      .bindPopup(`<b>${p.prenom} ${maskNom(p.nom)}</b><br>${TYPE_ICON[p.typePiece]} ${p.typePiece}<br><small>${p.commune} · trouvée ${relDate(p.date)}</small>`));
+    DEPOTS.forEach(d=>{const c=COMMUNES[d.commune];L.marker([c[0],c[1]],{icon:dot('#13A05C')}).addTo(map.current).bindPopup(`<b>🏛️ Point de dépôt</b><br>${d.nom}`);});
+  },[]);
+  return (<section className="block wrap">
+    <div className="sec-head"><div>
+      <h2>Carte des trouvailles</h2>
+      <p>Visualise où les pièces ont été trouvées et où les récupérer en toute sécurité.</p>
+    </div></div>
+    <div id="map" ref={ref}></div>
+    <div className="legend">
+      <span><i style={{background:'#F77F2E'}}></i>Pièce trouvée</span>
+      <span><i style={{background:'#13A05C'}}></i>Point de dépôt sûr (mairie / commissariat)</span>
+    </div>
+  </section>);
+}
+
+function GeoField({commune,setCommune,coords,setCoords}){
+  const [state,setState]=useState("idle");
+  const locate=()=>{
+    if(!navigator.geolocation){setState("err");return;}
+    setState("loading");
+    navigator.geolocation.getCurrentPosition(
+      pos=>{
+        const {latitude,longitude}=pos.coords;
+        let best=null,bd=1e9;
+        Object.entries(COMMUNES).forEach(([c,[la,lo]])=>{const d=haversine(latitude,longitude,la,lo);if(d<bd){bd=d;best=c;}});
+        setCoords([latitude,longitude]); setCommune(best); setState("ok");
+      },
+      ()=>setState("err"),{timeout:8000});
+  };
+  return (<div className="field">
+    <label>Commune / Zone</label>
+    <div className="row2">
+      <select value={commune} onChange={e=>{setCommune(e.target.value);setCoords(COMMUNES[e.target.value]);}}>
+        <option value="">— Choisir —</option>
+        {Object.keys(COMMUNES).map(c=><option key={c} value={c}>{c}</option>)}
+      </select>
+      <button type="button" className="btn btn-outline" onClick={locate} style={{justifyContent:'center'}}>
+        {state==="loading"?"📡 …":"📍 Ma position"}
+      </button>
+    </div>
+    {state==="ok"&&<div className="geo-box" style={{marginTop:10}}>✓ Position détectée — commune la plus proche : <b style={{marginLeft:4}}>{commune}</b></div>}
+    {state==="err"&&<div className="hint" style={{color:'var(--red)'}}>Position indisponible — choisis ta commune manuellement.</div>}
+  </div>);
+}
+
+function Declarer({onPublish}){
+  const [typePiece,setType]=useState(""); const [prenom,setP]=useState(""); const [nom,setN]=useState("");
+  const [commune,setCommune]=useState(""); const [coords,setCoords]=useState(null); const [depot,setDepot]=useState("");
+  const valid=typePiece&&prenom&&nom&&commune;
+  const submit=e=>{e.preventDefault();if(!valid)return;
+    onPublish({typePiece,prenom,nom,commune,lat:(coords||COMMUNES[commune])[0],lng:(coords||COMMUNES[commune])[1],depot:depot||("Point Pièci – "+commune)});
+  };
+  return (<section className="block wrap">
+    <div className="sec-head"><div>
+      <h2>J'ai trouvé une pièce ✋</h2>
+      <p>Merci pour ton geste 🙏🏾. Renseigne le minimum — les données resteront protégées.</p>
+    </div></div>
+    <div className="form-wrap">
+      <form className="panel" onSubmit={submit}>
+        <div className="field"><label>Type de pièce</label>
+          <select value={typePiece} onChange={e=>setType(e.target.value)}>
+            <option value="">— Choisir —</option>{TYPES.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="row2">
+          <div className="field"><label>Prénom (sur la pièce)</label><input value={prenom} onChange={e=>setP(e.target.value)} placeholder="Ex : Adjoua"/></div>
+          <div className="field"><label>Nom (sur la pièce)</label><input value={nom} onChange={e=>setN(e.target.value)} placeholder="Ex : Kouassi"/></div>
+        </div>
+        <GeoField commune={commune} setCommune={setCommune} coords={coords} setCoords={setCoords}/>
+        <div className="field"><label>Point de dépôt (optionnel)</label><input value={depot} onChange={e=>setDepot(e.target.value)} placeholder="Mairie, commissariat, bureau…"/></div>
+        <div className="field"><label>Photo de la pièce</label>
+          <div className="upload">📷 Glisse une photo ici<br/><span style={{fontSize:12}}>Le numéro et les données sensibles seront <b>floutés automatiquement</b>.</span></div>
+        </div>
+        <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} disabled={!valid}>Publier la déclaration</button>
+      </form>
+      <div className="info-side">
+        <div className="panel">
+          <h3>🔒 Pourquoi c'est sûr</h3>
+          <ul>
+            <li><span className="num">1</span><div>En public, on n'affiche que le <b>prénom + l'initiale du nom</b>, le type et la commune. Jamais le numéro.</div></li>
+            <li><span className="num g">2</span><div>La photo est <b>floutée</b> : impossible d'y lire les informations sensibles.</div></li>
+            <li><span className="num">3</span><div>Le propriétaire est <b>notifié automatiquement</b> si ça correspond à sa recherche.</div></li>
+            <li><span className="num g">4</span><div>La remise se fait dans un <b>point de dépôt sûr</b>, sans rencontre privée risquée.</div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>);
+}
+
+function Perdu({base,onContact}){
+  const [typePiece,setType]=useState(""); const [prenom,setP]=useState(""); const [nom,setN]=useState("");
+  const [commune,setCommune]=useState(""); const [coords,setCoords]=useState(null);
+  const [results,setResults]=useState(null);
+  const valid=typePiece&&prenom&&nom;
+  const search=e=>{e.preventDefault();if(!valid)return;
+    const perte={typePiece,prenom,nom,commune,lat:(coords||COMMUNES[commune]||[5.345,-4.0])[0],lng:(coords||COMMUNES[commune]||[5.345,-4.0])[1],date:today.toISOString()};
+    setResults(trouverMatches(perte,base));
+  };
+  return (<section className="block wrap">
+    <div className="sec-head"><div>
+      <h2>J'ai perdu ma pièce 🔎</h2>
+      <p>Crée ton alerte. On la compare instantanément aux pièces déclarées — et on te préviendra des prochaines.</p>
+    </div></div>
+    <div className="form-wrap">
+      <form className="panel" onSubmit={search}>
+        <div className="field"><label>Type de pièce perdue</label>
+          <select value={typePiece} onChange={e=>setType(e.target.value)}>
+            <option value="">— Choisir —</option>{TYPES.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="row2">
+          <div className="field"><label>Ton prénom</label><input value={prenom} onChange={e=>setP(e.target.value)} placeholder="Ex : Adjoua"/></div>
+          <div className="field"><label>Ton nom</label><input value={nom} onChange={e=>setN(e.target.value)} placeholder="Ex : Kouassi"/></div>
+        </div>
+        <GeoField commune={commune} setCommune={setCommune} coords={coords} setCoords={setCoords}/>
+        <button className="btn btn-green" style={{width:'100%',justifyContent:'center'}} disabled={!valid}>Lancer la recherche</button>
+        <div className="hint">💡 L'algorithme tolère les fautes d'orthographe et les variantes de noms (ex. « Nguessan » / « N'Guessan »).</div>
+      </form>
+      <div>
+        {results===null && <div className="panel empty"><div className="big">🪪</div>Remplis le formulaire et lance la recherche pour voir les correspondances classées par niveau de confiance.</div>}
+        {results!==null && results.length===0 && <div className="panel empty"><div className="big">😌</div><b>Aucune correspondance pour l'instant.</b><br/>Ton alerte est enregistrée — tu seras notifié dès qu'une pièce correspondante est déclarée.</div>}
+        {results!==null && results.length>0 && <>
+          <div style={{fontFamily:'Sora',fontWeight:700,color:'var(--night)',marginBottom:12}}>{results.length} correspondance{results.length>1?"s":""} trouvée{results.length>1?"s":""}</div>
+          {results.map(r=>{const b=confBand(r.score);const pct=Math.round(r.score*100);return(
+            <div className="match" key={r.id}>
+              <div className="conf">
+                <div className="ring" style={{"--p":pct,"--c":b.c}}><span style={{color:b.c}}>{pct}%</span></div>
+                <div className="lbl" style={{color:b.c}}>{b.t}</div>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'Sora',fontWeight:700,fontSize:16,color:'var(--night)'}}>{r.prenom} {maskNom(r.nom)}</div>
+                <div className="meta">{TYPE_ICON[r.typePiece]} {r.typePiece} · 📍 {r.commune} · à ~{r.dist.toFixed(0)} km</div>
+                <div style={{fontSize:12.5,color:'var(--muted)',marginTop:3}}>🏛️ {r.depot} · trouvée {relDate(r.date)}</div>
+              </div>
+              <button className="btn btn-dark" onClick={()=>onContact(r)} style={{padding:'10px 16px'}}>Contacter</button>
+            </div>
+          );})}
+        </>}
+      </div>
+    </div>
+  </section>);
+}
+
+/* ============ APP ============ */
+function App(){
+  const [tab,setTab]=useState('accueil');
+  const [base,setBase]=useState(SEED);
+  const [toast,setToast]=useState(null);
+  const go=t=>{setTab(t);window.scrollTo({top:0,behavior:'smooth'});};
+  const showToast=m=>{setToast(m);setTimeout(()=>setToast(null),3400);};
+  const publish=p=>{const np={...p,id:_id++,date:today.toISOString(),contact:"+225 0700000000"};setBase([np,...base]);showToast("✅ Déclaration publiée ! Recherche d'un propriétaire en cours…");go('trouvees');};
+  const contact=p=>showToast(`🤝 Mise en relation initiée pour ${p.prenom} ${maskNom(p.nom)} — le contact est révélé en privé.`);
+
+  const TABS=[['accueil','Accueil','🏠'],['trouvees','Pièces trouvées','🪪'],['carte','Carte','🗺️'],['declarer',"J'ai trouvé",'✋'],['perdu',"J'ai perdu",'🔎']];
+  return (<>
+    <header className="nav"><div className="wrap nav-in">
+      <Logo/>
+      <nav className="tabs">{TABS.map(t=><button key={t[0]} className={"tab"+(tab===t[0]?" active":"")} onClick={()=>go(t[0])}>{t[1]}</button>)}</nav>
+    </div></header>
+
+    {tab==='accueil'&&<Accueil go={go} base={base}/>}
+    {tab==='trouvees'&&<Trouvees base={base} onContact={contact}/>}
+    {tab==='carte'&&<Carte base={base}/>}
+    {tab==='declarer'&&<Declarer onPublish={publish}/>}
+    {tab==='perdu'&&<Perdu base={base} onContact={contact}/>}
+
+    <footer className="foot"><div className="wrap">
+      <Logo foot/>
+      <small>Pièci — la solidarité ivoirienne, rendue efficace. © 2026 · Prototype.</small>
+    </div></footer>
+
+    {toast&&<div className="toast">{toast}</div>}
+
+    <nav className="mobnav">{TABS.map(t=>(
+      <button key={t[0]} className={"mob"+(tab===t[0]?" active":"")} onClick={()=>go(t[0])}>
+        <div style={{fontSize:20}}>{t[2]}</div>{t[1].split(' ')[0]}
+      </button>
+    ))}</nav>
+  </>);
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

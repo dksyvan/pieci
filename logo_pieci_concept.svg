@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="Poppins, Sora, sans-serif">
+  <defs>
+    <linearGradient id="pin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF9A4D"/>
+      <stop offset="1" stop-color="#F77F2E"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0F2A43" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="720" height="360" fill="#F7F5F0"/>
+
+  <!-- Pin shape -->
+  <g filter="url(#soft)" transform="translate(150 70)">
+    <path d="M90 0 C40 0 0 40 0 90 C0 150 90 200 90 200 C90 200 180 150 180 90 C180 40 140 0 90 0 Z" fill="url(#pin)"/>
+    <!-- ID card inside the pin -->
+    <rect x="38" y="58" width="104" height="70" rx="10" fill="#F7F5F0"/>
+    <circle cx="62" cy="82" r="12" fill="#0F2A43"/>
+    <path d="M50 108 a12 12 0 0 1 24 0 Z" fill="#0F2A43"/>
+    <rect x="84" y="74" width="48" height="7" rx="3.5" fill="#0F2A43"/>
+    <rect x="84" y="88" width="40" height="6" rx="3" fill="#9FB3C8"/>
+    <rect x="84" y="100" width="44" height="6" rx="3" fill="#9FB3C8"/>
+    <!-- green check badge -->
+    <circle cx="138" cy="120" r="22" fill="#13A05C" stroke="#F7F5F0" stroke-width="5"/>
+    <path d="M128 120 l7 8 l14 -16" fill="none" stroke="#F7F5F0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="370" y="175" font-size="92" font-weight="700" fill="#0F2A43" letter-spacing="-2">Piè<tspan fill="#F77F2E">ci</tspan></text>
+  <text x="372" y="220" font-size="26" font-weight="500" fill="#13A05C" letter-spacing="0.5">Ta pièce retrouvée.</text>
+</svg>
