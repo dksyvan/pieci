@@ -15,6 +15,7 @@ const ONGLETS: Onglet[] = [
   { chemin: '/carte', label: 'Carte', labelMobile: 'Carte', icone: '🗺️' },
   { chemin: '/declarer', label: "J'ai trouvé", labelMobile: 'Trouvé', icone: '✋' },
   { chemin: '/perdu', label: "J'ai perdu", labelMobile: 'Perdu', icone: '🔎' }, //TODO: remove icone
+  { chemin: '/suivi', label: 'Suivi', labelMobile: 'Suivi', icone: '🔔' },
 ];
 
 /** Ossature commune : barre de navigation, contenu de la page, pied de page, nav mobile et toast. */
