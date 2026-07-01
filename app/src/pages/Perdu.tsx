@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { TYPES_PIECE, type TypePiece } from '../types';
 import type { LatLng } from '../data/communes';
 import { GeoField } from '../components/GeoField';
+import { BandeauPush } from '../components/BandeauPush';
 import { ListeCorrespondances } from '../components/ListeCorrespondances';
 import { useApp } from '../context/AppContext';
 import { ApiError, creerAlertePerte, getCorrespondances, type Correspondance } from '../lib/api';
@@ -20,6 +21,7 @@ export function Perdu() {
   const [resultats, setResultats] = useState<Correspondance[] | null>(null);
   const [telephoneRecherche, setTelephoneRecherche] = useState<string | null>(null);
   const [rechercheEnCours, setRechercheEnCours] = useState(false);
+  const [pushDismisse, setPushDismisse] = useState(false);
 
   const valide = Boolean(typePiece && prenom && nom && telephone);
 
@@ -116,19 +118,24 @@ export function Perdu() {
             </div>
           )}
           {resultats !== null && telephoneRecherche && (
-            <ListeCorrespondances
-              resultats={resultats}
-              telephone={telephoneRecherche}
-              onChange={remplacer}
-              messageVide={
-                <>
-                  <b>Aucune correspondance pour l'instant.</b>
-                  <br />
-                  Ton alerte est enregistrée — reviens vérifier sur l'onglet « Suivi » dès qu'une pièce correspondante
-                  est déclarée.
-                </>
-              }
-            />
+            <>
+              {!pushDismisse && (
+                <BandeauPush telephone={telephoneRecherche} onTermine={() => setPushDismisse(true)} />
+              )}
+              <ListeCorrespondances
+                resultats={resultats}
+                telephone={telephoneRecherche}
+                onChange={remplacer}
+                messageVide={
+                  <>
+                    <b>Aucune correspondance pour l'instant.</b>
+                    <br />
+                    Ton alerte est enregistrée — reviens vérifier sur l'onglet « Suivi » dès qu'une pièce correspondante
+                    est déclarée.
+                  </>
+                }
+              />
+            </>
           )}
         </div>
       </div>

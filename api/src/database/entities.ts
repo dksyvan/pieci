@@ -5,6 +5,7 @@ import { AlertePerte } from '../alertes-perte/entities/alerte-perte.entity';
 import { Correspondance } from '../correspondances/entities/correspondance.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { JournalAccesContact } from '../journal-acces-contact/entities/journal-acces-contact.entity';
+import { PushSubscription } from '../push/entities/push-subscription.entity';
 
 export const ENTITIES = [
   Utilisateur,
@@ -14,4 +15,5 @@ export const ENTITIES = [
   Correspondance,
   Notification,
   JournalAccesContact,
+  PushSubscription,
 ];

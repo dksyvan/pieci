@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { TYPES_PIECE, type TypePiece } from '../types';
 import { COMMUNES, type LatLng } from '../data/communes';
 import { GeoField } from '../components/GeoField';
+import { BandeauPush } from '../components/BandeauPush';
 import { useApp } from '../context/AppContext';
 import { ApiError, uploaderPhotoPiece } from '../lib/api';
 
@@ -30,6 +31,7 @@ export function Declarer() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [declarationOk, setDeclarationOk] = useState(false);
 
   const valide = Boolean(typePiece && prenom && nom && commune && monPrenom && monNom && monTelephone);
 
@@ -83,13 +85,26 @@ export function Declarer() {
         photoOriginaleUrl: photoUrls?.photoOriginaleUrl,
         photoFlouteeUrl: photoUrls?.photoFlouteeUrl,
       });
-      navigate('/trouvees');
+      setDeclarationOk(true);
     } catch (err) {
       afficherToast(`⚠️ ${err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie stp.'}`);
     } finally {
       setEnvoiEnCours(false);
     }
   };
+
+  if (declarationOk) {
+    return (
+      <section className="block wrap" style={{ maxWidth: 520 }}>
+        <div className="panel" style={{ textAlign: 'center', padding: '28px 20px' }}>
+          <div className="big">✅</div>
+          <h2 style={{ marginTop: 8 }}>Déclaration publiée !</h2>
+          <p>Merci pour ton geste. L'algorithme va comparer aux alertes actives.</p>
+        </div>
+        <BandeauPush telephone={monTelephone} onTermine={() => navigate('/trouvees')} />
+      </section>
+    );
+  }
 
   return (
     <section className="block wrap">

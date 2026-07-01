@@ -33,3 +33,29 @@ registerRoute(
 
 self.skipWaiting();
 self.addEventListener('activate', () => self.clients.claim());
+
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() ?? { title: 'Pièci', body: 'Nouvelle correspondance !' };
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      tag: 'pieci-correspondance',
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const existing = clientList.find((c) => 'focus' in c);
+      if (existing) {
+        existing.navigate('/suivi');
+        return existing.focus();
+      }
+      return self.clients.openWindow('/suivi');
+    }),
+  );
+});

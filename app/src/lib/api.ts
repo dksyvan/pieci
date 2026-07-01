@@ -233,3 +233,21 @@ export function obtenirContact(id: string, telephone: string): Promise<ContactIn
     body: JSON.stringify({ telephone }),
   });
 }
+
+export function getVapidPublicKey(): Promise<{ key: string }> {
+  return requete('/push/vapid-public-key');
+}
+
+export function enregistrerAbonnementPush(
+  telephone: string,
+  sub: PushSubscriptionJSON,
+): Promise<void> {
+  return requete('/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({
+      telephone,
+      endpoint: sub.endpoint,
+      keys: { p256dh: sub.keys?.p256dh, auth: sub.keys?.auth },
+    }),
+  });
+}

@@ -10,6 +10,7 @@ import { AlertesPerteModule } from './alertes-perte/alertes-perte.module';
 import { MatchingModule } from './matching/matching.module';
 import { CorrespondancesModule } from './correspondances/correspondances.module';
 import { ExpirationModule } from './expiration/expiration.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ExpirationModule } from './expiration/expiration.module';
     MatchingModule,
     CorrespondancesModule,
     ExpirationModule,
+    PushModule,
   ],
 })
 export class AppModule {}

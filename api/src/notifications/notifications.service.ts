@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
 import { Utilisateur } from '../utilisateurs/entities/utilisateur.entity';
 import { Correspondance } from '../correspondances/entities/correspondance.entity';
+import { PushService } from '../push/push.service';
 
 export interface CreerNotificationParams {
   utilisateurId: string;
@@ -17,10 +18,12 @@ export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private readonly notifications: Repository<Notification>,
+    @InjectRepository(Utilisateur)
+    private readonly utilisateurs: Repository<Utilisateur>,
+    private readonly push: PushService,
   ) {}
 
-  /** Création interne, appelée par MatchingService et CorrespondancesService. */
-  creer(params: CreerNotificationParams): Promise<Notification> {
+  async creer(params: CreerNotificationParams): Promise<Notification> {
     const notification = this.notifications.create({
       utilisateur: { id: params.utilisateurId } as Utilisateur,
       correspondance: params.correspondanceId
@@ -29,7 +32,17 @@ export class NotificationsService {
       titre: params.titre,
       contenu: params.contenu,
     });
-    return this.notifications.save(notification);
+    const saved = await this.notifications.save(notification);
+
+    // Envoi push sans bloquer ni faire échouer la création de notification
+    this.utilisateurs
+      .findOne({ where: { id: params.utilisateurId }, select: ['telephone'] })
+      .then((u) => {
+        if (u) this.push.sendToTelephone(u.telephone, params.titre, params.contenu);
+      })
+      .catch(() => undefined);
+
+    return saved;
   }
 
   findByTelephone(telephone: string): Promise<Notification[]> {
@@ -39,11 +52,6 @@ export class NotificationsService {
     });
   }
 
-  /**
-   * Marque une notification comme lue. Le filtre combiné `id` +
-   * `utilisateur.telephone` renvoie 404 (et non 403) si la notification
-   * appartient à quelqu'un d'autre, pour ne pas confirmer son existence.
-   */
   async marquerLue(id: string, telephone: string): Promise<Notification> {
     const notification = await this.notifications.findOne({
       where: { id, utilisateur: { telephone } },
