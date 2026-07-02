@@ -8,21 +8,28 @@ import { PushSubscription } from './entities/push-subscription.entity';
 @Injectable()
 export class PushService {
   private readonly logger = new Logger(PushService.name);
+  private readonly pushEnabled: boolean;
 
   constructor(
     @InjectRepository(PushSubscription)
     private readonly subscriptions: Repository<PushSubscription>,
     private readonly config: ConfigService,
   ) {
-    webpush.setVapidDetails(
-      config.get<string>('VAPID_SUBJECT')!,
-      config.get<string>('VAPID_PUBLIC_KEY')!,
-      config.get<string>('VAPID_PRIVATE_KEY')!,
-    );
+    const subject = config.get<string>('VAPID_SUBJECT');
+    const publicKey = config.get<string>('VAPID_PUBLIC_KEY');
+    const privateKey = config.get<string>('VAPID_PRIVATE_KEY');
+
+    if (subject && publicKey && privateKey) {
+      webpush.setVapidDetails(subject, publicKey, privateKey);
+      this.pushEnabled = true;
+    } else {
+      this.logger.warn('VAPID keys not configured — push notifications disabled');
+      this.pushEnabled = false;
+    }
   }
 
   vapidPublicKey(): string {
-    return this.config.get<string>('VAPID_PUBLIC_KEY')!;
+    return this.config.get<string>('VAPID_PUBLIC_KEY') ?? '';
   }
 
   async subscribe(telephone: string, endpoint: string, p256dh: string, auth: string): Promise<void> {
@@ -40,6 +47,7 @@ export class PushService {
   }
 
   async sendToTelephone(telephone: string, title: string, body: string): Promise<void> {
+    if (!this.pushEnabled) return;
     const subs = await this.subscriptions.findBy({ telephone });
     await Promise.all(
       subs.map((sub) =>
