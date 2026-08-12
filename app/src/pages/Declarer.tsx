@@ -4,10 +4,35 @@ import { TYPES_PIECE, type TypePiece } from '../types';
 import { COMMUNES, type LatLng } from '../data/communes';
 import { GeoField } from '../components/GeoField';
 import { BandeauPush } from '../components/BandeauPush';
+import { IconeValide } from '../components/Icones';
 import { useApp } from '../context/AppContext';
 import { ApiError, uploaderPhotoPiece } from '../lib/api';
 
 const AUTRE_DEPOT = '__autre__';
+
+/** Garanties de confidentialité — l'ordre suit celui du formulaire. */
+const GARANTIES = [
+  {
+    cote: '01',
+    texte:
+      'En public, on n’affiche que le prénom et l’initiale du nom. Le nom complet, c’est seulement le propriétaire qui le voit, après confirmation.',
+  },
+  {
+    cote: '02',
+    texte:
+      'La photo est floutée par le serveur : le numéro, la date de naissance et la signature deviennent illisibles. Impossible d’y lire quoi que ce soit.',
+  },
+  {
+    cote: '03',
+    texte:
+      'Ton numéro n’est jamais publié. Il ne part chez le propriétaire que si vous confirmez tous les deux.',
+  },
+  {
+    cote: '04',
+    texte:
+      'La remise se fait dans un point de dépôt sûr — mairie, commissariat, pharmacie. Pas de rencontre privée risquée. C’est mieux non ?',
+  },
+];
 
 export function Declarer() {
   const { pointsDepot, publier, afficherToast } = useApp();
@@ -20,53 +45,53 @@ export function Declarer() {
   const [quartier, setQuartier] = useState('');
   const [coords, setCoords] = useState<LatLng | null>(null);
   const [pointDepotId, setPointDepotId] = useState('');
-  const [pointDepotAutreTexte, setPointDepotAutreTexte] = useState('');
+  const [depotAutre, setDepotAutre] = useState('');
 
   const [monPrenom, setMonPrenom] = useState('');
   const [monNom, setMonNom] = useState('');
   const [monTelephone, setMonTelephone] = useState('');
 
   const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [apercu, setApercu] = useState<string | null>(null);
+  const champPhoto = useRef<HTMLInputElement>(null);
 
-  const [envoiEnCours, setEnvoiEnCours] = useState(false);
-  const [declarationOk, setDeclarationOk] = useState(false);
+  const [enCours, setEnCours] = useState(false);
+  const [publiee, setPubliee] = useState(false);
 
-  const valide = Boolean(typePiece && prenom && nom && commune && monPrenom && monNom && monTelephone);
+  const valide = Boolean(
+    typePiece && prenom.trim() && nom.trim() && commune && monPrenom.trim() && monNom.trim() && monTelephone.trim(),
+  );
 
   useEffect(() => {
-    if (!photoPreview) return;
-    return () => URL.revokeObjectURL(photoPreview);
-  }, [photoPreview]);
+    if (!apercu) return;
+    return () => URL.revokeObjectURL(apercu);
+  }, [apercu]);
 
-  const choisirPhoto = (file: File | undefined) => {
-    if (!file || !file.type.startsWith('image/')) return;
-    setPhoto(file);
-    setPhotoPreview(URL.createObjectURL(file));
+  const choisirPhoto = (fichier: File | undefined) => {
+    if (!fichier || !fichier.type.startsWith('image/')) return;
+    setPhoto(fichier);
+    setApercu(URL.createObjectURL(fichier));
   };
 
-  const onPhotoChange = (e: ChangeEvent<HTMLInputElement>) => choisirPhoto(e.target.files?.[0]);
-
-  const onDropPhoto = (e: DragEvent<HTMLDivElement>) => {
+  const deposer = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     choisirPhoto(e.dataTransfer.files?.[0]);
   };
 
   const retirerPhoto = () => {
     setPhoto(null);
-    setPhotoPreview(null);
-    if (photoInputRef.current) photoInputRef.current.value = '';
+    setApercu(null);
+    if (champPhoto.current) champPhoto.current.value = '';
   };
 
   const soumettre = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!valide || !typePiece || envoiEnCours) return;
+    if (!valide || !typePiece || enCours) return;
     const [lat, lng] = coords ?? COMMUNES[commune];
 
-    setEnvoiEnCours(true);
+    setEnCours(true);
     try {
-      const photoUrls = photo ? await uploaderPhotoPiece(photo) : null;
+      const urls = photo ? await uploaderPhotoPiece(photo) : null;
 
       await publier({
         declarant: { telephone: monTelephone, prenom: monPrenom, nom: monNom },
@@ -78,213 +103,249 @@ export function Declarer() {
         lat,
         lng,
         pointDepotId: pointDepotId && pointDepotId !== AUTRE_DEPOT ? pointDepotId : undefined,
-        pointDepotAutre:
-          pointDepotId === AUTRE_DEPOT && pointDepotAutreTexte.trim()
-            ? pointDepotAutreTexte.trim()
-            : undefined,
-        photoOriginaleUrl: photoUrls?.photoOriginaleUrl,
-        photoFlouteeUrl: photoUrls?.photoFlouteeUrl,
+        pointDepotAutre: pointDepotId === AUTRE_DEPOT && depotAutre.trim() ? depotAutre.trim() : undefined,
+        photoOriginaleUrl: urls?.photoOriginaleUrl,
+        photoFlouteeUrl: urls?.photoFlouteeUrl,
       });
-      setDeclarationOk(true);
+      setPubliee(true);
     } catch (err) {
-      afficherToast(`⚠️ ${err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie stp.'}`);
+      afficherToast(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
     } finally {
-      setEnvoiEnCours(false);
+      setEnCours(false);
     }
   };
 
-  if (declarationOk) {
+  if (publiee) {
     return (
-      <section className="block wrap" style={{ maxWidth: 520 }}>
-        <div className="panel" style={{ textAlign: 'center', padding: '28px 20px' }}>
-          <div className="big">✅</div>
-          <h2 style={{ marginTop: 8 }}>Déclaration publiée !</h2>
-          <p>Merci pour ton geste. L'algorithme va comparer aux alertes actives.</p>
+      <section className="section wrap">
+        <div className="grille">
+          <div className="col-a">
+            <span className="timbre">
+              <IconeValide taille={14} />
+              Entrée enregistrée
+            </span>
+            <h2 style={{ fontSize: 'var(--t-title)', letterSpacing: '-0.038em', marginTop: 'var(--s-3)', lineHeight: 'var(--lh-title)' }}>
+              C’est fait, la pièce de {prenom} {nom.charAt(0).toUpperCase()}. est au registre.
+            </h2>
+            <p style={{ color: 'var(--color-sourdine)', maxWidth: '52ch', marginTop: 'var(--s-2)', lineHeight: 'var(--lh-lead)' }}>
+              Merci pour ton geste. L’algorithme compare déjà avec les alertes en cours — si quelqu’un
+              cherche cette pièce, on te le signale, et c’est lui qui te contactera.
+            </p>
+
+            <div style={{ marginTop: 'var(--s-5)' }}>
+              <BandeauPush telephone={monTelephone} onTermine={() => navigate('/trouvees')} />
+            </div>
+          </div>
         </div>
-        <BandeauPush telephone={monTelephone} onTermine={() => navigate('/trouvees')} />
       </section>
     );
   }
 
   return (
-    <section className="block wrap">
-      <div className="sec-head">
-        <div>
-          <h2>J'ai trouvé une pièce </h2>
-          <p>Merci pour ton geste.Le bienfait n'est jamais perdu, Renseigne le minimum — les données resteront protégées.</p>
-        </div>
+    <section className="section wrap">
+      <div className="section-tete">
+        <span className="cote">Déclarer une pièce trouvée</span>
+        <h2 style={{ marginTop: 6 }}>J’ai trouvé une pièce hein</h2>
+        <p>
+          Merci pour ton geste — le bienfait n’est jamais perdu. Renseigne juste le minimum : ce que tu
+          écris ici sert uniquement à retrouver le propriétaire, et les données restent protégées.
+        </p>
       </div>
-      <div className="form-wrap">
-        <form className="panel" onSubmit={soumettre}>
-          <div className="field">
-            <label>Type de pièce</label>
-            <select value={typePiece} onChange={(e) => setTypePiece(e.target.value as TypePiece | '')}>
+
+      <div className="dossier">
+        <form className="panneau" onSubmit={soumettre} noValidate>
+          <div className="panneau-tete">
+            <span className="label">La pièce</span>
+            <span className="cote">Partie 1 / 2</span>
+          </div>
+
+          <div className="champ">
+            <label htmlFor="type">Type de pièce</label>
+            <select id="type" value={typePiece} onChange={(e) => setTypePiece(e.target.value as TypePiece | '')}>
               <option value="">— Choisir —</option>
               {TYPES_PIECE.map((t) => (
                 <option key={t}>{t}</option>
               ))}
             </select>
           </div>
-          <div className="row2">
-            <div className="field">
-              <label>Prénom (sur la pièce)</label>
-              <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Ex : Adjoua" />
+
+          <div className="duo">
+            <div className="champ">
+              <label htmlFor="prenom">Prénom inscrit</label>
+              <input id="prenom" value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Adjoua" />
             </div>
-            <div className="field">
-              <label>Nom (sur la pièce)</label>
-              <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex : Kouassi" />
+            <div className="champ">
+              <label htmlFor="nom">Nom inscrit</label>
+              <input id="nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="N’Guessan" />
             </div>
           </div>
+
           <GeoField commune={commune} setCommune={setCommune} setCoords={setCoords} />
-          <div className="field">
-            <label>Quartier (optionnel)</label>
+
+          <div className="champ">
+            <label htmlFor="quartier">Quartier (facultatif)</label>
             <input
+              id="quartier"
               value={quartier}
               onChange={(e) => setQuartier(e.target.value)}
-              placeholder="Ex : Niangon Sud à Gauche"
+              placeholder="Niangon Sud à Gauche"
             />
-            <div className="hint">Plus c'est précis, plus vite le propriétaire se repère.</div>
+            <p className="aide">Plus c’est précis, plus vite le propriétaire se repère.</p>
           </div>
-          <div className="field">
-            <label>Point de dépôt (optionnel)</label>
+
+          <div className="champ">
+            <label htmlFor="depot">Où la pièce se trouve-t-elle&nbsp;?</label>
             <select
+              id="depot"
               value={pointDepotId}
               onChange={(e) => {
                 setPointDepotId(e.target.value);
-                if (e.target.value !== AUTRE_DEPOT) setPointDepotAutreTexte('');
+                if (e.target.value !== AUTRE_DEPOT) setDepotAutre('');
               }}
             >
-              <option value="">— Je la garde, à convenir avec le propriétaire —</option>
+              <option value="">Je la garde — à convenir avec le propriétaire</option>
               {pointsDepot.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.nom} ({d.commune})
                 </option>
               ))}
-              <option value={AUTRE_DEPOT}>Autre (préciser)</option>
+              <option value={AUTRE_DEPOT}>Autre lieu — préciser</option>
             </select>
             {pointDepotId === AUTRE_DEPOT && (
               <input
                 style={{ marginTop: 8 }}
-                value={pointDepotAutreTexte}
-                onChange={(e) => setPointDepotAutreTexte(e.target.value)}
-                placeholder="Ex : Pharmacie du Carrefour, Cocody Angré 8e Tranche"
+                value={depotAutre}
+                onChange={(e) => setDepotAutre(e.target.value)}
+                placeholder="Pharmacie du Carrefour, Cocody Angré 8e Tranche"
+                aria-label="Préciser le lieu de dépôt"
               />
             )}
           </div>
-          <div className="field">
-            <label>Photo de la pièce</label>
+
+          <div className="champ">
+            <label htmlFor="photo">Photo de la pièce (facultatif)</label>
             <input
-              ref={photoInputRef}
+              ref={champPhoto}
+              id="photo"
               type="file"
               accept="image/*"
-              onChange={onPhotoChange}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => choisirPhoto(e.target.files?.[0])}
               style={{ display: 'none' }}
             />
-            {photoPreview ? (
-              <div className="upload" style={{ textAlign: 'left' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <img
-                    src={photoPreview}
-                    alt="Aperçu de la pièce"
-                    style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-night)' }}>
-                      {photo?.name}
-                    </div>
-                    <span style={{ fontSize: 12 }}>
-                      Le numéro et les données sensibles seront <b>floutés automatiquement</b>.
-                    </span>
+            {apercu ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--s-3)',
+                  border: '1px solid var(--color-filet-2)',
+                  padding: 'var(--s-2)',
+                }}
+              >
+                <img
+                  src={apercu}
+                  alt="Aperçu avant floutage"
+                  style={{ width: 64, height: 44, objectFit: 'cover', border: '1px solid var(--color-filet-2)' }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      fontSize: 'var(--t-fine)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {photo?.name}
                   </div>
-                  <button type="button" className="linkbtn" onClick={retirerPhoto}>
-                    Retirer
-                  </button>
+                  <div className="ligne-meta">Le floutage est appliqué à l’envoi.</div>
                 </div>
+                <button type="button" className="lien" onClick={retirerPhoto}>
+                  Retirer
+                </button>
               </div>
             ) : (
               <div
-                className="upload"
+                className="depot"
                 role="button"
                 tabIndex={0}
-                onClick={() => photoInputRef.current?.click()}
+                onClick={() => champPhoto.current?.click()}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    photoInputRef.current?.click();
+                    champPhoto.current?.click();
                   }
                 }}
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={onDropPhoto}
-                style={{ cursor: 'pointer' }}
+                onDrop={deposer}
               >
-                📷 Glisse une photo ici, ou clique pour choisir
+                <b style={{ color: 'var(--color-encre)' }}>Mets une photo du recto</b>
                 <br />
-                <span style={{ fontSize: 12 }}>
-                  Le numéro et les données sensibles seront <b>floutés automatiquement</b>.
-                </span>
+                Le numéro et les données sensibles seront floutés automatiquement. Personne ne pourra
+                rien y lire.
               </div>
             )}
           </div>
-          <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 15, color: 'var(--color-night)', marginBottom: 4 }}>
-            Tes coordonnées
+
+          <div className="panneau-tete" style={{ marginTop: 'var(--s-5)' }}>
+            <span className="label">Toi</span>
+            <span className="cote">Partie 2 / 2</span>
           </div>
-          <p className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
-            Pour qu'on puisse te recontacter si on identifie le propriétaire — Ca ne sera jamais affichées publiquement.
+
+          <p className="aide" style={{ marginTop: 0, marginBottom: 'var(--s-3)' }}>
+            Pour qu’on puisse te recontacter si on identifie le propriétaire. Ça ne sera jamais
+            affiché publiquement.
           </p>
-          <div className="row2">
-            <div className="field">
-              <label>Ton prénom</label>
-              <input value={monPrenom} onChange={(e) => setMonPrenom(e.target.value)} placeholder="Ex : Justine" />
+
+          <div className="duo">
+            <div className="champ">
+              <label htmlFor="monPrenom">Ton prénom</label>
+              <input id="monPrenom" value={monPrenom} onChange={(e) => setMonPrenom(e.target.value)} placeholder="Justine" />
             </div>
-            <div className="field">
-              <label>Ton nom</label>
-              <input value={monNom} onChange={(e) => setMonNom(e.target.value)} placeholder="Ex : Diby" />
+            <div className="champ">
+              <label htmlFor="monNom">Ton nom</label>
+              <input id="monNom" value={monNom} onChange={(e) => setMonNom(e.target.value)} placeholder="Diby" />
             </div>
           </div>
-          <div className="field">
-            <label>Ton numéro de téléphone</label>
+
+          <div className="champ">
+            <label htmlFor="monTel">Ton numéro de téléphone</label>
             <input
+              id="monTel"
               type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={monTelephone}
               onChange={(e) => setMonTelephone(e.target.value)}
-              placeholder="Ex : 0700000000"
+              placeholder="07 00 00 00 00"
             />
           </div>
-          <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={!valide || envoiEnCours}>
-            {envoiEnCours ? 'Publication…' : 'Publier la déclaration'}
+
+          <button className="btn btn-plein btn-large" disabled={!valide || enCours}>
+            {enCours ? 'Publication…' : 'Publier la déclaration'}
           </button>
         </form>
-        <div className="info-side">
-          <div className="panel">
-            <h3>Pourquoi c'est sûr</h3>
-            <ul>
-              <li>
-                <span className="num">1</span>
-                <div>
-                  En public, on n'affiche que le <b>prénom + l'initiale du nom</b>, le type et l'adresse complète. Jamais le numéro.
-                </div>
-              </li>
-              <li>
-                <span className="num g">2</span>
-                <div>
-                  La photo est <b>floutée</b> : impossible d'y lire les informations sensibles.
-                </div>
-              </li>
-              <li>
-                <span className="num">3</span>
-                <div>
-                  Le propriétaire est <b>notifié automatiquement</b> si ça correspond à sa recherche.
-                </div>
-              </li>
-              <li>
-                <span className="num g">4</span>
-                <div>
-                  La remise se fait dans un <b>point de dépôt sûr</b>, sans rencontre privée risquée... C'est mieux non ?😏.
-                </div>
-              </li>
-            </ul>
+
+        <aside>
+          <div className="section-tete" style={{ borderTopWidth: 1 }}>
+            <span className="cote">Ce qui est publié, ce qui ne l’est pas</span>
           </div>
-        </div>
+          <dl className="lignes">
+            {GARANTIES.map(({ cote, texte }) => (
+              <div
+                key={cote}
+                className="ligne"
+                style={{ gridTemplateColumns: '30px 1fr' }}
+              >
+                <dt className="cote" style={{ paddingTop: 3 }}>
+                  {cote}
+                </dt>
+                <dd style={{ fontSize: 'var(--t-fine)', lineHeight: 'var(--lh-lead)' }}>{texte}</dd>
+              </div>
+            ))}
+          </dl>
+        </aside>
       </div>
     </section>
   );

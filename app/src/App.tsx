@@ -6,6 +6,7 @@ import { Carte } from './pages/Carte';
 import { Declarer } from './pages/Declarer';
 import { Perdu } from './pages/Perdu';
 import { Suivi } from './pages/Suivi';
+import { Soutenir } from './pages/Soutenir';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="declarer" element={<Declarer />} />
         <Route path="perdu" element={<Perdu />} />
         <Route path="suivi" element={<Suivi />} />
+        <Route path="soutenir" element={<Soutenir />} />
       </Route>
     </Routes>
   );

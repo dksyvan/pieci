@@ -1,5 +1,4 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
-import { TYPE_ICONES } from '../types';
 import { bandeConfiance } from '../lib/matching';
 import { relDate } from '../lib/format';
 import {
@@ -11,6 +10,8 @@ import {
   type Correspondance,
 } from '../lib/api';
 import { useApp } from '../context/AppContext';
+import { PanneauDon } from './PanneauDon';
+import { IconeFleche } from './Icones';
 
 interface Props {
   resultats: Correspondance[];
@@ -19,16 +20,19 @@ interface Props {
   messageVide?: ReactNode;
 }
 
-/** Affiche et gère une liste de correspondances (confirmer/rejeter/contact) pour un numéro donné. */
+/** Affiche et gère une liste de correspondances (confirmer / rejeter / contact). */
 export function ListeCorrespondances({ resultats, telephone, onChange, messageVide }: Props) {
   const { afficherToast } = useApp();
   const [contacts, setContacts] = useState<Record<string, ContactInfo>>({});
   const [actionEnCours, setActionEnCours] = useState<string | null>(null);
 
   const erreur = (err: unknown) =>
-    afficherToast(`⚠️ ${err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.'}`);
+    afficherToast(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
 
-  const executer = async (id: string, action: (id: string, telephone: string) => Promise<Correspondance>) => {
+  const executer = async (
+    id: string,
+    action: (id: string, telephone: string) => Promise<Correspondance>,
+  ) => {
     setActionEnCours(id);
     try {
       onChange(await action(id, telephone));
@@ -53,62 +57,89 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
 
   if (resultats.length === 0) {
     return (
-      <div className="panel empty">
-        <div className="big">😌</div>
-        {messageVide ?? <b>Aucune correspondance pour l'instant.</b>}
+      <div className="vide">
+        {messageVide ?? (
+          <>
+            <h3>Aucune correspondance pour l’instant.</h3>
+            <p>
+              Ton alerte reste active : dès qu’une pièce à ce nom est déclarée, elle apparaît ici.
+            </p>
+          </>
+        )}
       </div>
     );
   }
 
+  /* Un don n'est proposé qu'après une restitution réellement aboutie — jamais avant. */
+  const aRecupere = resultats.some((r) => r.statut === 'confirmee' && contacts[r.id]);
+
   return (
     <>
-      <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, color: 'var(--color-night)', marginBottom: 12 }}>
-        {resultats.length} correspondance{resultats.length > 1 ? 's' : ''} trouvée{resultats.length > 1 ? 's' : ''}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          gap: 'var(--s-3)',
+          borderBottom: '2px solid var(--color-encre)',
+          paddingBottom: 6,
+        }}
+      >
+        <span className="label">Correspondances</span>
+        <span className="donnee">{String(resultats.length).padStart(2, '0')}</span>
       </div>
+
       {resultats.map((r) => {
-        const b = bandeConfiance(r.score);
+        const bande = bandeConfiance(r.score);
         const pct = Math.round(r.score * 100);
+        const occupe = actionEnCours === r.id;
+        const contact = contacts[r.id];
 
         let action: ReactNode;
+
         if (r.statut === 'rejetee') {
-          action = <span className="meta">Correspondance écartée</span>;
-        } else if (r.statut === 'confirmee') {
-          const contact = contacts[r.id];
-          action = contact ? (
-            <div style={{ textAlign: 'right', fontSize: 13.5 }}>
-              <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, color: 'var(--color-night)' }}>
+          action = <span className="pastille p-encre">Écartée</span>;
+        } else if (r.statut === 'confirmee' && contact) {
+          action = (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 600 }}>
                 {contact.prenom} {contact.nom}
               </div>
-              <div className="meta">{contact.telephone}</div>
-              {contact.email && <div className="meta">{contact.email}</div>}
+              <a className="donnee lien" href={`tel:${contact.telephone}`} style={{ marginTop: 4 }}>
+                {contact.telephone}
+              </a>
+              {contact.email && <div className="ligne-meta">{contact.email}</div>}
             </div>
-          ) : (
+          );
+        } else if (r.statut === 'confirmee') {
+          action = (
             <button
-              className="btn btn-dark"
+              type="button"
+              className="btn btn-plein"
               onClick={() => gererContact(r.id)}
-              disabled={actionEnCours === r.id}
-              style={{ padding: '10px 16px' }}
+              disabled={occupe}
             >
-              📞 Voir les coordonnées
+              {occupe ? 'Ouverture…' : 'Voir les coordonnées'}
             </button>
           );
         } else if (r.confirmeParMoi) {
-          action = <span className="meta">⏳ En attente de l'autre partie pour confirmer la correspondance</span>;
+          action = <span className="pastille p-ambre">En attente de l’autre partie</span>;
         } else {
           action = (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, alignItems: 'flex-end' }}>
               <button
-                className="btn btn-dark"
+                type="button"
+                className="btn btn-plein"
                 onClick={() => executer(r.id, confirmerCorrespondance)}
-                disabled={actionEnCours === r.id}
-                style={{ padding: '10px 16px' }}
+                disabled={occupe}
               >
-                C'est ma pièce →
+                {occupe ? 'Envoi…' : 'C’est ma pièce'}
               </button>
               <button
-                className="linkbtn"
+                type="button"
+                className="lien"
                 onClick={() => executer(r.id, rejeterCorrespondance)}
-                disabled={actionEnCours === r.id}
+                disabled={occupe}
               >
                 Pas la mienne
               </button>
@@ -117,31 +148,49 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
         }
 
         return (
-          <div className="match" key={r.id}>
-            <div className="conf">
-              <div className="ring" style={{ '--p': pct, '--c': b.couleur } as CSSProperties}>
-                <span style={{ color: b.couleur }}>{pct}%</span>
+          <div className="corr" key={r.id}>
+            <div className="jauge" style={{ color: bande.couleur }}>
+              <div className="jauge-val">{pct}%</div>
+              <div className="jauge-barre">
+                <span style={{ width: `${pct}%` } as CSSProperties} />
               </div>
-              <div className="lbl" style={{ color: b.couleur }}>
-                {b.label}
-              </div>
+              <div className="jauge-lbl">{bande.label}</div>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 16, color: 'var(--color-night)' }}>
+
+            <div>
+              <div className="ligne-nom">
                 {r.pieceTrouvee.prenom} {r.pieceTrouvee.nom}
               </div>
-              <div className="meta">
-                {TYPE_ICONES[r.pieceTrouvee.typePiece]} {r.pieceTrouvee.typePiece} · 📍 {r.pieceTrouvee.commune}
-                {r.pieceTrouvee.quartier ? `, ${r.pieceTrouvee.quartier}` : ''}
+              <div
+                className="ligne-meta donnee"
+                style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}
+              >
+                {r.pieceTrouvee.typePiece}
               </div>
-              <div style={{ fontSize: 12.5, color: 'var(--color-muted)', marginTop: 3 }}>
-                trouvée {relDate(r.pieceTrouvee.dateTrouvaille)}
+              <div className="ligne-meta">
+                {r.pieceTrouvee.commune}
+                {r.pieceTrouvee.quartier ? `, ${r.pieceTrouvee.quartier}` : ''} · déclarée{' '}
+                {relDate(r.pieceTrouvee.dateTrouvaille)}
               </div>
             </div>
-            {action}
+
+            <div className="corr-action">{action}</div>
           </div>
         );
       })}
+
+      {aRecupere && (
+        <div style={{ marginTop: 'var(--s-5)' }}>
+          <PanneauDon
+            titre="Ta pièce est retrouvée !"
+            intro="Appelle la personne et convenez d’un point de dépôt sûr pour la remise. Si Pièci t’a évité de refaire le document, tu peux participer aux frais — c’est facultatif, et ça ne change rien au service."
+          />
+          <p className="aide" style={{ marginTop: 'var(--s-2)' }}>
+            <IconeFleche taille={13} /> Et n’oublie pas de dire merci à la personne qui a pris le temps
+            de déclarer ta pièce. Le bienfait n’est jamais perdu.
+          </p>
+        </div>
+      )}
     </>
   );
 }

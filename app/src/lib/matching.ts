@@ -216,7 +216,7 @@ export interface BandeConfiance {
  * >= 0.80 Forte · 0.65-0.80 Probable · 0.55-0.65 À vérifier.
  */
 export function bandeConfiance(score: number): BandeConfiance {
-  if (score >= SEUIL_FORTE) return { label: 'Forte', couleur: 'var(--color-green)' };
-  if (score >= SEUIL_PROBABLE) return { label: 'Probable', couleur: 'var(--color-orange)' };
-  return { label: 'À vérifier', couleur: 'var(--color-sun)' };
+  if (score >= SEUIL_FORTE) return { label: 'Forte', couleur: 'var(--color-officiel)' };
+  if (score >= SEUIL_PROBABLE) return { label: 'Probable', couleur: 'var(--color-ambre)' };
+  return { label: 'À vérifier', couleur: 'var(--color-sourdine)' };
 }

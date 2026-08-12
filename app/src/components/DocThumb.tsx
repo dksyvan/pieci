@@ -1,37 +1,35 @@
 import { urlMedia } from '../lib/api';
 
 interface DocThumbProps {
-  /** Affiche la vignette en grand format (utilisé dans les cartes de résultat). */
-  big?: boolean;
-  /** URL relative de la photo déjà floutée par le serveur, si la pièce en a une. */
+  /** Format réduit, pour les extraits de registre en colonne étroite. */
+  petite?: boolean;
+  /** URL de la photo déjà floutée par le serveur, si la pièce en a une. */
   photoFlouteeUrl?: string | null;
 }
 
-/** Vignette de pièce d'identité floutée (aucune donnée sensible n'est jamais affichée). */
-export function DocThumb({ big, photoFlouteeUrl }: DocThumbProps) {
-  const style = big ? { width: 84, height: 60 } : undefined;
+/**
+ * Vignette d'une pièce déclarée. Aucune donnée sensible n'est jamais rendue :
+ * soit la photo floutée par le serveur, soit une trame neutre.
+ */
+export function DocThumb({ petite, photoFlouteeUrl }: DocThumbProps) {
+  const classe = 'vignette' + (petite ? ' petite' : '');
 
   if (photoFlouteeUrl) {
     return (
-      <div className="doc-thumb" style={style}>
-        <img src={urlMedia(photoFlouteeUrl)} alt="Photo de la pièce (floutée)" />
-        <div className="lock-badge">
-          🔒<span>Floutée</span>
-        </div>
-      </div>
+      <span className={classe}>
+        <img src={urlMedia(photoFlouteeUrl)} alt="Pièce déclarée, photo floutée" loading="lazy" />
+        <span className="vignette-sceau">Floutée</span>
+      </span>
     );
   }
 
   return (
-    <div className="doc-thumb blurred" style={style}>
-      <div className="lines">
-        <div className="av" />
-        <div className="ln" />
-        <div className="ln s" />
-      </div>
-      <div className="lock-badge">
-        🔒<span>Floutée</span>
-      </div>
-    </div>
+    <span className={classe} role="img" aria-label="Aucune photo fournie">
+      <span className="vignette-trames" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+    </span>
   );
 }

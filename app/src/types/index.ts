@@ -16,14 +16,6 @@ export const TYPES_PIECE: TypePiece[] = [
   'Carte consulaire',
 ];
 
-export const TYPE_ICONES: Record<TypePiece, string> = {
-  CNI: '',
-  Passeport: '📘',
-  'Permis de conduire': '🚗',
-  'Carte étudiante': '🎓',
-  'Carte consulaire': '🛂',
-};
-
 /** Coordonnées géographiques (latitude / longitude). */
 export interface Coordonnees {
   lat: number;

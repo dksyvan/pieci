@@ -1,43 +1,45 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type { PieceTrouveePublique } from '../lib/api';
-import { TYPE_ICONES } from '../types';
 import { relDate } from '../lib/format';
 import { DocThumb } from './DocThumb';
+import { IconeFleche } from './Icones';
 
 interface PieceCardProps {
   piece: PieceTrouveePublique;
 }
 
-/** Carte d'une pièce trouvée, dans le respect du principe de confidentialité. */
+/** Une entrée du registre. Identité partiellement masquée, comme sur un extrait. */
 export function PieceCard({ piece }: PieceCardProps) {
-  const navigate = useNavigate();
+  const lieu = piece.quartier ? `${piece.commune}, ${piece.quartier}` : piece.commune;
 
   return (
-    <div className="card">
-      <div className="card-top">
-        <DocThumb big photoFlouteeUrl={piece.photoFlouteeUrl} />
-        <div style={{ minWidth: 0 }}>
-          <h3>
-            {piece.prenom} {piece.nomInitiale}
-          </h3>
-          <div className="meta">
-            📍 {piece.commune}
-            {piece.quartier ? `, ${piece.quartier}` : ''}
-          </div>
-          <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <span className="pill pill-orange">
-              {TYPE_ICONES[piece.typePiece]} {piece.typePiece}
-            </span>
-            {piece.depotNom && <span className="pill pill-green">📦 {piece.depotNom}</span>}
-          </div>
-        </div>
+    <article className="ligne">
+      <DocThumb photoFlouteeUrl={piece.photoFlouteeUrl} />
+
+      <div>
+        <h3 className="ligne-nom">
+          {piece.prenom} {piece.nomInitiale}.
+        </h3>
+        <p className="ligne-meta donnee" style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {piece.typePiece}
+        </p>
+        <p className="ligne-meta">{lieu}</p>
+        {piece.depotNom && (
+          <p style={{ marginTop: 6 }}>
+            <span className="pastille p-officiel">Déposée · {piece.depotNom}</span>
+          </p>
+        )}
       </div>
-      <div className="card-foot">
-        <span className="date">Trouvée {relDate(piece.dateTrouvaille)}</span>
-        <button className="linkbtn" onClick={() => navigate('/perdu')}>
-          C'est ma pièce →
-        </button>
+
+      <div className="ligne-fin">
+        <time className="donnee" style={{ color: 'var(--color-sourdine)' }} dateTime={piece.dateTrouvaille}>
+          {relDate(piece.dateTrouvaille)}
+        </time>
+        <Link to="/perdu" className="lien">
+          C’est la mienne
+          <IconeFleche taille={15} />
+        </Link>
       </div>
-    </div>
+    </article>
   );
 }

@@ -1,19 +1,42 @@
-export function Logo() {
+interface LogoProps {
+  /** Masque le mot-symbole : utilisé quand le nom est déjà écrit à côté. */
+  seul?: boolean;
+}
+
+/**
+ * Marque Pièci — une pièce d'identité frappée d'un cachet.
+ * Angles vifs, filets 1px, un seul aplat rouge : la même grammaire que le reste
+ * du registre.
+ */
+export function Logo({ seul }: LogoProps) {
   return (
-    <div className="brand">
-      <svg width="30" height="30" viewBox="0 0 180 200" aria-hidden="true">
-        <path d="M90 0C40 0 0 40 0 90c0 60 90 110 90 110s90-50 90-110C180 40 140 0 90 0Z" fill="#F77F2E" />
-        <rect x="38" y="58" width="104" height="70" rx="10" fill="#F7F5F0" />
-        <circle cx="62" cy="82" r="12" fill="#0F2A43" />
-        <path d="M50 108a12 12 0 0 1 24 0Z" fill="#0F2A43" />
-        <rect x="84" y="74" width="48" height="7" rx="3.5" fill="#0F2A43" />
-        <rect x="84" y="90" width="40" height="6" rx="3" fill="#9FB3C8" />
-        <circle cx="138" cy="122" r="20" fill="#13A05C" stroke="#F7F5F0" strokeWidth="5" />
-        <path d="M129 122l6 7 13-15" fill="none" stroke="#F7F5F0" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+    <span className="marque">
+      <svg width="30" height="24" viewBox="0 0 40 32" aria-hidden="true" focusable="false">
+        {/* la pièce */}
+        <rect x="0.5" y="0.5" width="31" height="23" fill="none" stroke="currentColor" />
+        {/* le portrait */}
+        <circle cx="9.5" cy="9" r="3.2" fill="currentColor" />
+        <path d="M5.4 16.5c.5-2.2 2.1-3.4 4.1-3.4s3.6 1.2 4.1 3.4Z" fill="currentColor" />
+        {/* les champs */}
+        <rect x="17" y="7" width="11" height="1.8" fill="currentColor" />
+        <rect x="17" y="11.5" width="8" height="1.6" fill="currentColor" opacity="0.42" />
+        <rect x="17" y="15.5" width="10" height="1.6" fill="currentColor" opacity="0.42" />
+        {/* le cachet, seul aplat de couleur */}
+        <circle cx="29" cy="22" r="9" fill="var(--color-papier)" />
+        <circle cx="29" cy="22" r="7.6" fill="var(--color-cachet)" />
+        <path
+          d="m25.4 22.2 2.6 2.7 5-5.6"
+          fill="none"
+          stroke="var(--color-papier)"
+          strokeWidth="2"
+          strokeLinecap="square"
+        />
       </svg>
-      <span>
-        Piè<span className="ci">ci</span>
-      </span>
-    </div>
+      {!seul && (
+        <span>
+          Piè<span className="ci">ci</span>
+        </span>
+      )}
+    </span>
   );
 }

@@ -1,26 +1,33 @@
 import { useEffect, useRef } from 'react';
 import * as L from 'leaflet';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { TYPE_ICONES } from '../types';
 import { echapperHtml, relDate } from '../lib/format';
 import { urlMedia } from '../lib/api';
+import { IconeFleche } from '../components/Icones';
 
-function iconePoint(couleur: string): L.DivIcon {
+const ENCRE = '#14202E';
+const CACHET = '#B03A22';
+const OFFICIEL = '#1B6B4A';
+
+/** Repère carré — la même grammaire que le reste : aucun rayon, un filet. */
+function repere(couleur: string): L.DivIcon {
   return L.divIcon({
     className: '',
-    html: `<div style="width:16px;height:16px;border-radius:50%;background:${couleur};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,
-    iconSize: [16, 16],
+    html: `<span style="display:block;width:11px;height:11px;background:${couleur};border:1px solid ${ENCRE}"></span>`,
+    iconSize: [11, 11],
+    iconAnchor: [6, 6],
   });
 }
 
 export function Carte() {
   const { piecesTrouvees, pointsDepot } = useApp();
-  const conteneurRef = useRef<HTMLDivElement>(null);
+  const conteneur = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!conteneurRef.current) return;
+    if (!conteneur.current) return;
 
-    const carte = L.map(conteneurRef.current).setView([5.345, -4.0], 11);
+    const carte = L.map(conteneur.current).setView([5.345, -4.0], 11);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap',
@@ -28,20 +35,27 @@ export function Carte() {
 
     piecesTrouvees.forEach((p) => {
       const photo = p.photoFlouteeUrl
-        ? `<img src="${urlMedia(p.photoFlouteeUrl)}" alt="Photo de la pièce (floutée)" style="width:100%;border-radius:8px;margin-top:6px;display:block">`
+        ? `<img src="${urlMedia(p.photoFlouteeUrl)}" alt="Pièce déclarée, photo floutée" style="width:100%;margin-top:6px;display:block;border:1px solid #A9A294">`
         : '';
+      const lieu = p.quartier
+        ? `${echapperHtml(p.commune)}, ${echapperHtml(p.quartier)}`
+        : echapperHtml(p.commune);
 
-      L.marker([p.lat, p.lng], { icon: iconePoint('#F77F2E') })
+      L.marker([p.lat, p.lng], { icon: repere(CACHET), alt: `${p.prenom} ${p.nomInitiale}.` })
         .addTo(carte)
         .bindPopup(
-          `<b>${echapperHtml(p.prenom)} ${echapperHtml(p.nomInitiale)}</b><br>${TYPE_ICONES[p.typePiece]} ${p.typePiece}<br><small>${echapperHtml(p.commune)}${p.quartier ? ', ' + echapperHtml(p.quartier) : ''} · trouvée ${relDate(p.dateTrouvaille)}</small>${photo}`,
+          `<b>${echapperHtml(p.prenom)} ${echapperHtml(p.nomInitiale)}.</b><br>` +
+            `<span style="text-transform:uppercase;letter-spacing:.06em;font-size:11px">${echapperHtml(p.typePiece)}</span><br>` +
+            `<small>${lieu} · déclarée ${relDate(p.dateTrouvaille)}</small>${photo}`,
         );
     });
 
     pointsDepot.forEach((d) => {
-      L.marker([d.lat, d.lng], { icon: iconePoint('#13A05C') })
+      L.marker([d.lat, d.lng], { icon: repere(OFFICIEL), alt: d.nom })
         .addTo(carte)
-        .bindPopup(`<b>Point de dépôt</b><br>${echapperHtml(d.nom)}`);
+        .bindPopup(
+          `<b>${echapperHtml(d.nom)}</b><br><small>Point de dépôt · ${echapperHtml(d.commune)}</small>`,
+        );
     });
 
     return () => {
@@ -50,22 +64,34 @@ export function Carte() {
   }, [piecesTrouvees, pointsDepot]);
 
   return (
-    <section className="block wrap">
-      <div className="sec-head">
-        <div>
-          <h2>Carte des trouvailles</h2>
-          <p>Visualise où les pièces ont été trouvées et où les récupérer en toute sécurité.</p>
+    <section className="section wrap">
+      <div className="section-tete">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s-3)', flexWrap: 'wrap' }}>
+          <div>
+            <span className="cote">Le registre sur la carte</span>
+            <h2 style={{ marginTop: 6 }}>Carte des trouvailles</h2>
+          </div>
+          <Link to="/trouvees" className="lien" style={{ alignSelf: 'flex-end' }}>
+            Revenir à la liste
+            <IconeFleche taille={15} />
+          </Link>
         </div>
+        <p>
+          Vois où les pièces ont été trouvées et où les récupérer en sécurité. Les repères montrent la
+          commune, jamais l’adresse exacte de quelqu’un.
+        </p>
       </div>
-      <div id="map" ref={conteneurRef} />
-      <div className="legend">
+
+      <div id="carte" ref={conteneur} role="application" aria-label="Carte des pièces déclarées" />
+
+      <div className="legende">
         <span>
-          <i style={{ background: '#F77F2E' }} />
-          Pièce trouvée
+          <i style={{ background: CACHET, border: `1px solid ${ENCRE}` }} />
+          Pièce déclarée ({piecesTrouvees.length})
         </span>
         <span>
-          <i style={{ background: '#13A05C' }} />
-          Point de dépôt sûr (mairie / commissariat)
+          <i style={{ background: OFFICIEL, border: `1px solid ${ENCRE}` }} />
+          Point de dépôt sûr — mairie, commissariat ({pointsDepot.length})
         </span>
       </div>
     </section>
