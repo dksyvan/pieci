@@ -6,6 +6,7 @@ import { Correspondance } from '../correspondances/entities/correspondance.entit
 import { Notification } from '../notifications/entities/notification.entity';
 import { JournalAccesContact } from '../journal-acces-contact/entities/journal-acces-contact.entity';
 import { PushSubscription } from '../push/entities/push-subscription.entity';
+import { ExpoPushToken } from '../push/entities/expo-push-token.entity';
 
 export const ENTITIES = [
   Utilisateur,
@@ -16,4 +17,5 @@ export const ENTITIES = [
   Notification,
   JournalAccesContact,
   PushSubscription,
+  ExpoPushToken,
 ];
