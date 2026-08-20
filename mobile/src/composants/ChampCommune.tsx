@@ -4,8 +4,8 @@ import * as Location from 'expo-location';
 import { Bouton, Erreur, Texte } from './primitives';
 import { Selecteur } from './Formulaire';
 import { IconeValide } from './Icones';
-import { COMMUNES, type LatLng } from '../data/communes';
-import { haversine } from '../lib/matching';
+import { COMMUNES, type LatLng } from '@partage/communes';
+import { haversine } from '@partage/matching';
 import { couleurs, espace } from '../design/theme';
 
 interface Props {

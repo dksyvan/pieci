@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { COMMUNES } from '../data/communes';
-import { compteurValorisant } from '../config/vitrine';
+import { COMMUNES } from '@partage/communes';
+import { compteurValorisant } from '@partage/vitrine';
 import { relDate } from '../lib/format';
 import { CartePiece } from '../components/CartePiece';
 import { IconeFleche } from '../components/Icones';

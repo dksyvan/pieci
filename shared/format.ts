@@ -18,7 +18,7 @@ export function relDate(iso: string): string {
 export function formaterTelephone(numero: string): string {
   const chiffres = numero.replace(/\D/g, '');
   if (chiffres.length !== 10) return numero;
-  return chiffres.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+  return chiffres.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
 }
 
 /** `4` → `0004` — les compteurs du registre sont cadrés sur quatre chiffres. */

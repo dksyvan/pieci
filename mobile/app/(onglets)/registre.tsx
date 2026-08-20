@@ -6,9 +6,9 @@ import { Lien, Pastille, Texte, Vide } from '../../src/composants/primitives';
 import { VignettePiece } from '../../src/composants/CartePiece';
 import { IconeRecherche } from '../../src/composants/Icones';
 import { useApp } from '../../src/contexte/AppContext';
-import { normaliser } from '../../src/lib/matching';
-import { relDate, cadrer } from '../../src/lib/format';
-import { TYPES_PIECE, type TypePiece } from '../../src/lib/types';
+import { normaliser } from '@partage/matching';
+import { relDate, cadrer } from '@partage/format';
+import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import { corps, couleurs, espace, lettrage, marge, polices, rayon } from '../../src/design/theme';
 
 const FILTRES: Array<'Tous' | TypePiece> = ['Tous', ...TYPES_PIECE];

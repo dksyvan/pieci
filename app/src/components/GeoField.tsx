@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { COMMUNES, type LatLng } from '../data/communes';
-import { haversine } from '../lib/matching';
+import { COMMUNES, type LatLng } from '@partage/communes';
+import { haversine } from '@partage/matching';
 import { IconeCarte, IconeValide } from './Icones';
 
 interface GeoFieldProps {

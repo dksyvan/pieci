@@ -5,7 +5,7 @@ import {
   OPERATEURS,
   formaterMontant,
   formaterNumero,
-} from '../config/dons';
+} from '@partage/dons';
 import { IconeCopier, IconeFleche, IconeValide } from './Icones';
 
 interface Props {

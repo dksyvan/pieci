@@ -1,10 +1,22 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+/** Code partagé avec l'application mobile — voir shared/README.md */
+const partage = fileURLToPath(new URL('../shared', import.meta.url))
+
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: { '@partage': partage },
+  },
+  // Le dossier partagé vit hors de la racine du projet : il faut l'autoriser
+  // explicitement, sinon le serveur de dev refuse de le servir.
+  server: {
+    fs: { allow: ['..', partage] },
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -37,5 +49,8 @@ export default defineConfig({
   ],
   test: {
     environment: 'node',
+    // Les tests du code partagé tournent avec la suite du web : c'est ici que
+    // vivent Vitest et ses types.
+    include: ['src/**/*.test.{ts,tsx}', '../shared/**/*.test.ts'],
   },
 })

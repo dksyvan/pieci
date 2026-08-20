@@ -14,8 +14,8 @@ import {
   ReseauError,
   type Correspondance,
 } from '../../src/lib/api';
-import { TYPES_PIECE, type TypePiece } from '../../src/lib/types';
-import type { LatLng } from '../../src/data/communes';
+import { TYPES_PIECE, type TypePiece } from '@partage/types';
+import type { LatLng } from '@partage/communes';
 import { couleurs, espace, marge } from '../../src/design/theme';
 
 export default function Perdu() {

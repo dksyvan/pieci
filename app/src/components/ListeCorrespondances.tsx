@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
-import { bandeConfiance } from '../lib/matching';
+import { bandeConfiance } from '@partage/matching';
 import { relDate } from '../lib/format';
 import {
   ApiError,

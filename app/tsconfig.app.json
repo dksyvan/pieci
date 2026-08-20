@@ -19,7 +19,17 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Code partagé avec mobile/ — voir shared/README.md.
+       Sans baseUrl : déprécié en TypeScript 6, les chemins sont désormais
+       résolus relativement à ce fichier. */
+    "paths": {
+      "@partage/*": ["../shared/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../shared"],
+  /* Les tests ne font pas partie du build : Vitest les résout depuis app/,
+     où vivent ses types — shared/ n'a pas de node_modules. */
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "../shared/**/*.test.ts"]
 }

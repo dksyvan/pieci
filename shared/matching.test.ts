@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PersonnePiece, Trouvaille } from '../types';
+import type { PersonnePiece, Trouvaille } from './types';
 import {
   bandeConfiance,
   haversine,

@@ -4,7 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import { Bouton, Erreur, Filet, Panneau, TetePanneau, Texte } from './primitives';
 import { IconeCopier, IconeValide } from './Icones';
-import { LIEN_WAVE, MONTANTS, OPERATEURS, formaterMontant, formaterNumero } from '../lib/dons';
+import { LIEN_WAVE, MONTANTS, OPERATEURS, formaterMontant, formaterNumero } from '@partage/dons';
 import { corps, couleurs, espace, lettrage, polices, rayon } from '../design/theme';
 
 interface Props {

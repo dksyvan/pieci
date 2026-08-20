@@ -5,9 +5,9 @@ import { Lien, Texte, Vide } from '../../src/composants/primitives';
 import { CartePiece, VignettePiece } from '../../src/composants/CartePiece';
 import { Marque } from '../../src/composants/Icones';
 import { useApp } from '../../src/contexte/AppContext';
-import { COMMUNES } from '../../src/data/communes';
-import { compteurValorisant } from '../../src/lib/vitrine';
-import { relDate } from '../../src/lib/format';
+import { COMMUNES } from '@partage/communes';
+import { compteurValorisant } from '@partage/vitrine';
+import { relDate } from '@partage/format';
 import { corps, couleurs, espace, lettrage, marge, polices } from '../../src/design/theme';
 
 /** Les trois temps de la procédure — une séquence réelle, d'où la numérotation. */

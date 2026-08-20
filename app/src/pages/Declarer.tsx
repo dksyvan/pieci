@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TYPES_PIECE, type TypePiece } from '../types';
-import { COMMUNES, type LatLng } from '../data/communes';
+import { TYPES_PIECE, type TypePiece } from '@partage/types';
+import { COMMUNES, type LatLng } from '@partage/communes';
 import { GeoField } from '../components/GeoField';
 import { BandeauPush } from '../components/BandeauPush';
 import { CartePiece } from '../components/CartePiece';

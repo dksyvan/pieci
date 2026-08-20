@@ -1,19 +1,15 @@
-const UN_JOUR_MS = 24 * 60 * 60 * 1000;
-
 /**
- * Date relative ("aujourd'hui", "hier", "il y a N jours") à partir d'une
- * date ISO 8601.
+ * Formatage — la partie commune vient de `shared/`, ce fichier n'ajoute que ce
+ * qui dépend du DOM et ne peut donc pas être partagé avec l'application mobile.
  */
-export function relDate(iso: string): string {
-  const jours = Math.round((Date.now() - new Date(iso).getTime()) / UN_JOUR_MS);
-  if (jours <= 0) return "aujourd'hui";
-  if (jours === 1) return 'hier';
-  return `il y a ${jours} jours`;
-}
+export { cadrer, formaterTelephone, relDate } from '@partage/format';
 
 /**
- * Échappe une chaîne pour une insertion sûre dans du HTML (ex. popups
- * Leaflet construites via template string à partir de saisies utilisateur).
+ * Échappe une chaîne pour une insertion sûre dans du HTML.
+ *
+ * Propre au web : les popups Leaflet sont construites par concaténation de
+ * chaînes à partir de saisies utilisateur. L'application mobile n'en a pas
+ * besoin — `react-native-maps` reçoit des props, pas du balisage.
  */
 export function echapperHtml(valeur: string): string {
   const div = document.createElement('div');

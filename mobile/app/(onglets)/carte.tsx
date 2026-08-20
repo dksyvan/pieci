@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lien, Texte } from '../../src/composants/primitives';
 import { useApp } from '../../src/contexte/AppContext';
-import { relDate } from '../../src/lib/format';
+import { relDate } from '@partage/format';
 import { couleurs, espace, marge } from '../../src/design/theme';
 
 /** Abidjan : le centre par défaut, la majorité des déclarations y sont. */

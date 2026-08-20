@@ -1,140 +1,39 @@
-import type { TypePiece } from './types';
+import {
+  depuisPieceBrute,
+  type ContactInfo,
+  type Correspondance,
+  type NouvelleAlertePerte,
+  type NouvellePieceTrouvee,
+  type PhotoUploadee,
+  type PieceTrouveePublique,
+  type PieceTrouveePubliqueBrute,
+  type PointDepotApi,
+} from '@partage/api-types';
 
 /**
- * Client HTTP typé pour l'API Pièci. Miroir de app/src/lib/api.ts — les deux
- * doivent rester alignés : toute route ajoutée côté NestJS se déclare ici et là.
+ * Client HTTP du mobile. Les *formes* echangees vivent dans
+ * `shared/api-types.ts` et sont communes au web ; le client, lui, reste propre
+ * a la plateforme : l'URL de base se lit dans `process.env`, l'envoi de photo
+ * passe un `{ uri, name, type }` que le navigateur ne connait pas, et le
+ * reseau mobile impose un delai d'attente explicite.
  *
- * L'URL vient de EXPO_PUBLIC_API_URL (fichier .env, lu au build par Expo).
- * Sans variable, on retombe sur la production : une app installée qui pointe
- * vers localhost ne sert à personne.
+ * Sans EXPO_PUBLIC_API_URL on retombe sur la production : une app installee
+ * qui pointe vers localhost ne sert a personne.
  */
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://pieci.onrender.com';
 
-/** Render endort les instances gratuites : le premier appel peut être long. */
+/** Render endort les instances gratuites : le premier appel peut etre long. */
 const DELAI_MS = 60_000;
 
-export interface IdentiteContact {
-  telephone: string;
-  prenom: string;
-  nom: string;
-  email?: string;
-}
-
-export interface PointDepotApi {
-  id: string;
-  nom: string;
-  typeLieu: string;
-  commune: string;
-  adresse: string | null;
-  telephone: string | null;
-  horaires: string | null;
-  lat: number;
-  lng: number;
-}
-
-/** Pièce trouvée telle qu'exposée publiquement : identité partiellement masquée. */
-export interface PieceTrouveePublique {
-  id: string;
-  typePiece: TypePiece;
-  prenom: string;
-  nomInitiale: string;
-  commune: string;
-  quartier: string | null;
-  dateTrouvaille: string;
-  photoFlouteeUrl: string | null;
-  depotNom: string | null;
-  lat: number;
-  lng: number;
-}
-
-/** Forme brute renvoyée par `v_pieces_trouvees_publiques` (snake_case). */
-interface PieceTrouveePubliqueBrute {
-  id: string;
-  type_piece: TypePiece;
-  prenom: string;
-  nom_initiale: string;
-  commune: string;
-  quartier: string | null;
-  date_trouvaille: string;
-  photo_floutee_url: string | null;
-  depot_nom: string | null;
-  lat: number;
-  lng: number;
-}
-
-export interface NouvellePieceTrouvee {
-  declarant: IdentiteContact;
-  typePiece: TypePiece;
-  prenom: string;
-  nom: string;
-  commune: string;
-  quartier?: string;
-  lat: number;
-  lng: number;
-  pointDepotId?: string;
-  pointDepotAutre?: string;
-  photoOriginaleUrl?: string;
-  photoFlouteeUrl?: string;
-}
-
-export interface PhotoUploadee {
-  photoOriginaleUrl: string;
-  photoFlouteeUrl: string;
-}
-
-export interface NouvelleAlertePerte {
-  utilisateur: IdentiteContact;
-  typePiece: TypePiece;
-  prenom: string;
-  nom: string;
-  commune?: string;
-  quartier?: string;
-  lat?: number;
-  lng?: number;
-}
-
-export type NiveauConfiance = 'forte' | 'probable' | 'a_verifier';
-export type StatutCorrespondance = 'suggeree' | 'confirmee' | 'rejetee';
-
-export interface CorrespondancePiece {
-  id: string;
-  typePiece: TypePiece;
-  prenom: string;
-  nom: string;
-  commune: string;
-  quartier: string | null;
-  dateTrouvaille: string;
-  photoFlouteeUrl: string | null;
-}
-
-export interface CorrespondanceAlerte {
-  id: string;
-  typePiece: TypePiece;
-  prenom: string;
-  nom: string;
-  commune: string | null;
-  quartier: string | null;
-}
-
-export interface Correspondance {
-  id: string;
-  score: number;
-  niveauConfiance: NiveauConfiance;
-  statut: StatutCorrespondance;
-  dateCalcul: string;
-  pieceTrouvee: CorrespondancePiece;
-  alertePerte: CorrespondanceAlerte;
-  confirmeParMoi: boolean;
-  confirmeParAutre: boolean;
-}
-
-/** Coordonnées de l'autre partie, révélées une fois la correspondance confirmée. */
-export interface ContactInfo {
-  prenom: string;
-  nom: string;
-  telephone: string;
-  email: string | null;
-}
+export type {
+  ContactInfo,
+  Correspondance,
+  NouvelleAlertePerte,
+  NouvellePieceTrouvee,
+  PhotoUploadee,
+  PieceTrouveePublique,
+  PointDepotApi,
+};
 
 export class ApiError extends Error {}
 
@@ -180,22 +79,6 @@ async function requete<T>(chemin: string, options?: RequestInit): Promise<T> {
 /** Préfixe une URL relative avec l'origine de l'API ; laisse les URLs absolues intactes. */
 export function urlMedia(chemin: string): string {
   return chemin.startsWith('http') ? chemin : `${BASE_URL}${chemin}`;
-}
-
-function depuisPieceBrute(p: PieceTrouveePubliqueBrute): PieceTrouveePublique {
-  return {
-    id: p.id,
-    typePiece: p.type_piece,
-    prenom: p.prenom,
-    nomInitiale: p.nom_initiale,
-    commune: p.commune,
-    quartier: p.quartier,
-    dateTrouvaille: p.date_trouvaille,
-    photoFlouteeUrl: p.photo_floutee_url,
-    depotNom: p.depot_nom,
-    lat: p.lat,
-    lng: p.lng,
-  };
 }
 
 export function getPointsDepot(): Promise<PointDepotApi[]> {

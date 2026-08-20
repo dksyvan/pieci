@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { TYPES_PIECE, type TypePiece } from '../types';
-import type { LatLng } from '../data/communes';
+import { TYPES_PIECE, type TypePiece } from '@partage/types';
+import type { LatLng } from '@partage/communes';
 import { GeoField } from '../components/GeoField';
 import { BandeauPush } from '../components/BandeauPush';
 import { ListeCorrespondances } from '../components/ListeCorrespondances';

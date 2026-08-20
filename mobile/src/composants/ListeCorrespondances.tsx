@@ -2,8 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { Bouton, Filet, Lien, Pastille, Texte, Vide } from './primitives';
 import { PanneauDon } from './PanneauDon';
-import { bandeConfiance } from '../lib/matching';
-import { relDate, formaterTelephone } from '../lib/format';
+import { bandeConfiance } from '@partage/matching';
+import { relDate, formaterTelephone } from '@partage/format';
 import {
   ApiError,
   confirmerCorrespondance,

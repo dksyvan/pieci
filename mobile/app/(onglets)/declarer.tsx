@@ -11,8 +11,8 @@ import { CartePiece } from '../../src/composants/CartePiece';
 import { IconeAppareilPhoto, IconeValide } from '../../src/composants/Icones';
 import { useApp } from '../../src/contexte/AppContext';
 import { ApiError, ReseauError, uploaderPhotoPiece } from '../../src/lib/api';
-import { TYPES_PIECE, type TypePiece } from '../../src/lib/types';
-import { COMMUNES, type LatLng } from '../../src/data/communes';
+import { TYPES_PIECE, type TypePiece } from '@partage/types';
+import { COMMUNES, type LatLng } from '@partage/communes';
 import { couleurs, espace, marge } from '../../src/design/theme';
 
 const GARANTIES = [

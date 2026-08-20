@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TYPES_PIECE, type TypePiece } from '../types';
-import { COMMUNES } from '../data/communes';
-import { normaliser } from '../lib/matching';
+import { TYPES_PIECE, type TypePiece } from '@partage/types';
+import { COMMUNES } from '@partage/communes';
+import { normaliser } from '@partage/matching';
 import { useApp } from '../context/AppContext';
 import { PieceCard } from '../components/PieceCard';
 import { IconeCarte, IconeFleche, IconeRecherche } from '../components/Icones';
