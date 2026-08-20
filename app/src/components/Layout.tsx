@@ -20,13 +20,31 @@ interface Onglet {
   mobile: boolean;
 }
 
-const ONGLETS: Onglet[] = [
+/**
+ * Deux actions principales, et deux seulement. Tout le produit tient dans
+ * « j'ai trouvé » et « j'ai perdu » — le registre, la carte et le suivi sont
+ * des vues de consultation, pas des points d'entrée.
+ */
+const ACTIONS: Onglet[] = [
+  { chemin: '/declarer', label: "J'ai trouvé une pièce", court: "J'ai trouvé", Icone: IconeDeclarer, mobile: true },
+  { chemin: '/perdu', label: "J'ai perdu ma pièce", court: "J'ai perdu", Icone: IconeRecherche, mobile: true },
+];
+
+/** Consultation : accessibles depuis le pied de page et la barre mobile. */
+const SECONDAIRES: Onglet[] = [
   { chemin: '/', label: 'Accueil', court: 'Accueil', Icone: IconeAccueil, mobile: true },
   { chemin: '/trouvees', label: 'Registre', court: 'Registre', Icone: IconeRegistre, mobile: true },
   { chemin: '/carte', label: 'Carte', court: 'Carte', Icone: IconeCarte, mobile: false },
-  { chemin: '/declarer', label: "J'ai trouvé", court: "J'ai trouvé", Icone: IconeDeclarer, mobile: true },
-  { chemin: '/perdu', label: "J'ai perdu", court: "J'ai perdu", Icone: IconeRecherche, mobile: true },
   { chemin: '/suivi', label: 'Suivi', court: 'Suivi', Icone: IconeSuivi, mobile: true },
+];
+
+/** Ordre de la barre du bas : accueil, les deux actions, puis le suivi. */
+const ORDRE_MOBILE: Onglet[] = [
+  SECONDAIRES[0],
+  ACTIONS[0],
+  ACTIONS[1],
+  SECONDAIRES[1],
+  SECONDAIRES[3],
 ];
 
 const ANNEE = new Date().getFullYear();
@@ -43,23 +61,15 @@ export function Layout() {
             <Logo />
           </Link>
           <nav className="onglets" aria-label="Navigation principale">
-            {ONGLETS.map(({ chemin, label }) => (
+            {ACTIONS.map(({ chemin, label }) => (
               <NavLink
                 key={chemin}
                 to={chemin}
-                end={chemin === '/'}
-                className={({ isActive }) => 'onglet' + (isActive ? ' actif' : '')}
+                className={({ isActive }) => 'onglet onglet-action' + (isActive ? ' actif' : '')}
               >
                 {label}
               </NavLink>
             ))}
-            <NavLink
-              to="/soutenir"
-              className={({ isActive }) => 'onglet' + (isActive ? ' actif' : '')}
-              style={{ color: 'var(--color-cachet)' }}
-            >
-              Soutenir
-            </NavLink>
           </nav>
         </div>
       </header>
@@ -81,7 +91,7 @@ export function Layout() {
           >
             <Logo />
             <nav className="pied-nav" aria-label="Navigation secondaire">
-              {ONGLETS.map(({ chemin, label }) => (
+              {[...SECONDAIRES, ...ACTIONS].map(({ chemin, label }) => (
                 <Link key={chemin} to={chemin} className="label">
                   {label}
                 </Link>
@@ -112,7 +122,7 @@ export function Layout() {
       )}
 
       <nav className="nav-mob" aria-label="Navigation mobile">
-        {ONGLETS.filter((o) => o.mobile).map(({ chemin, court, Icone }) => (
+        {ORDRE_MOBILE.map(({ chemin, court, Icone }) => (
           <NavLink
             key={chemin}
             to={chemin}

@@ -31,7 +31,7 @@ export function Soutenir() {
         </div>
 
         <aside className="col-b">
-          <div className="section-tete" style={{ borderTopWidth: 1 }}>
+          <div className="section-tete">
             <span className="cote">À quoi ça sert</span>
           </div>
           <dl className="lignes">

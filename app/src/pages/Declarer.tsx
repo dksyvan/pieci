@@ -4,6 +4,7 @@ import { TYPES_PIECE, type TypePiece } from '../types';
 import { COMMUNES, type LatLng } from '../data/communes';
 import { GeoField } from '../components/GeoField';
 import { BandeauPush } from '../components/BandeauPush';
+import { CartePiece } from '../components/CartePiece';
 import { IconeValide } from '../components/Icones';
 import { useApp } from '../context/AppContext';
 import { ApiError, uploaderPhotoPiece } from '../lib/api';
@@ -135,6 +136,15 @@ export function Declarer() {
             <div style={{ marginTop: 'var(--s-5)' }}>
               <BandeauPush telephone={monTelephone} onTermine={() => navigate('/trouvees')} />
             </div>
+          </div>
+
+          <div className="col-b" style={{ alignSelf: 'center' }}>
+            <CartePiece
+              nom={`${prenom} ${nom.charAt(0).toUpperCase()}.`}
+              type={typePiece || 'Pièce d’identité'}
+              cachet="DÉCLARÉE"
+              inclinaison={1.8}
+            />
           </div>
         </div>
       </section>
@@ -328,7 +338,7 @@ export function Declarer() {
         </form>
 
         <aside>
-          <div className="section-tete" style={{ borderTopWidth: 1 }}>
+          <div className="section-tete">
             <span className="cote">Ce qui est publié, ce qui ne l’est pas</span>
           </div>
           <dl className="lignes">

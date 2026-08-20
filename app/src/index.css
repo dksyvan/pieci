@@ -156,24 +156,18 @@
     .col-d { grid-column: 10 / span 3; }
   }
 
-  /* Filets verticaux de la grille, imprimés en filigrane — le fond porte la
-     structure de mise en page au lieu d'une tache décorative. */
-  .filigrane { position: relative; }
-  .filigrane::before {
-    content: "";
-    position: absolute;
-    inset: calc(var(--s-4) * -1) 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image: repeating-linear-gradient(
-      90deg,
-      transparent 0 calc(8.3333% - 1px),
-      var(--color-filet) calc(8.3333% - 1px) 8.3333%
-    );
-    opacity: 0.5;
+  /* La pièce elle-même : l'objet du sujet, et le seul « visuel » de la page.
+     Elle porte l'ouverture — la typographie n'a plus à tout faire toute seule. */
+  .carte-piece {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    filter: drop-shadow(0 18px 34px color-mix(in srgb, var(--color-encre) 22%, transparent));
   }
-  .filigrane > * { position: relative; z-index: 1; }
-  @media (max-width: 880px) { .filigrane::before { display: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .carte-piece { transform: none !important; }
+  }
 
   /* Libellé de section : le numéro en marge gauche, en mono.
      La hiérarchie vient du corps et de l'interlettrage, pas d'un gris délavé. */
@@ -247,19 +241,43 @@
   }
   .onglet:hover { color: var(--color-encre); }
   .onglet.actif { color: var(--color-encre); border-bottom-color: var(--color-cachet); }
+
+  /* Les deux actions principales portent le poids : encre pleine, pas un lien. */
+  .onglet-action {
+    border: 1px solid var(--color-encre);
+    border-bottom-width: 1px;
+    color: var(--color-encre);
+    padding: 8px var(--s-3);
+    margin-left: var(--s-2);
+    align-self: center;
+  }
+  .onglet-action:hover { background: var(--color-encre); color: var(--color-papier); }
+  .onglet-action.actif {
+    background: var(--color-cachet);
+    border-color: var(--color-cachet);
+    color: var(--color-papier);
+  }
   @media (max-width: 980px) { .onglets { display: none; } }
 
   /* ---- Bandeau d'accueil — l'en-tête d'un document, pas un hero --------- */
 
-  .registre {
-    border-bottom: 1px solid var(--color-encre);
-    background: var(--color-papier);
-  }
-  /* Le bandeau est l'en-tête d'un document : il respire au-dessus, il se
-     resserre sur le bilan chiffré qui le referme. */
-  .registre-in { padding-block: var(--s-5) var(--s-4); }
+  /* Le bandeau d'accueil : un fond légèrement sourd suffit à le détacher de la
+     suite. Plus de trait de fermeture — c'est le changement de fond qui sépare. */
+  .registre { background: var(--color-papier-2); }
+  .registre-in { padding-block: var(--s-5); }
   @media (min-width: 881px) {
-    .registre-in { padding-block: var(--s-8) var(--s-4); }
+    .registre-in { padding-block: var(--s-6) var(--s-8); }
+  }
+
+  /* Déséquilibre 7/5 : le texte à gauche, la pièce à droite, jamais centrés. */
+  .accueil-tete {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: var(--s-6);
+    align-items: center;
+  }
+  @media (max-width: 880px) {
+    .accueil-tete { grid-template-columns: 1fr; gap: var(--s-5); }
   }
 
   .timbre {
@@ -288,27 +306,63 @@
     color: var(--color-cachet);
   }
 
-  /* Le bilan chiffré referme le bandeau, comme le pied d'un formulaire.
-     Le double filet est le geste de fermeture du document. */
+  /* Les deux seules actions de la page. Elles ne sont pas des lignes de liste :
+     ce sont les portes d'entrée du produit, et elles en ont le poids. */
+  .actions-cle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-3);
+    margin-top: var(--s-5);
+  }
+  @media (max-width: 620px) { .actions-cle { grid-template-columns: 1fr; } }
+
+  .action-cle {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    border: 1px solid var(--color-encre);
+    background: var(--color-carte);
+    padding: var(--s-4);
+    transition: background-color 160ms var(--e-micro), color 160ms var(--e-micro),
+                transform 160ms var(--e-micro);
+  }
+  .action-cle:hover,
+  .action-cle:focus-visible { background: var(--color-encre); color: var(--color-papier); }
+  .action-cle:hover .action-cle-note,
+  .action-cle:focus-visible .action-cle-note { color: color-mix(in srgb, var(--color-papier) 78%, transparent); }
+  .action-cle:active { transform: translateY(1px); }
+
+  .action-cle-titre {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.375rem;
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+  }
+  .action-cle-note {
+    font-size: var(--t-fine);
+    color: var(--color-sourdine);
+    line-height: var(--lh-dense);
+    transition: color 160ms var(--e-micro);
+  }
+
+  /* Le bilan : une mention discrète, plus un encadré de statistiques. */
   .bilan {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s-3) var(--s-6);
+    gap: var(--s-2) var(--s-4);
     align-items: baseline;
-    margin-top: var(--s-5);
-    border-top: 1px solid var(--color-encre);
-    border-bottom: 3px double var(--color-encre);
-    padding-block: var(--s-3);
+    margin-top: var(--s-4);
   }
   .bilan > div { display: flex; align-items: baseline; gap: var(--s-2); }
   .bilan dd {
     font-family: var(--font-mono);
     font-weight: 600;
-    font-size: 1.75rem;
+    font-size: 1.0625rem;
     line-height: 1;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
     font-variant-numeric: tabular-nums;
-    color: var(--color-cachet);
+    color: var(--color-encre);
   }
   .bilan dt {
     font-family: var(--font-util);
@@ -319,24 +373,16 @@
     color: var(--color-sourdine);
     order: 2;
   }
-  .bilan .note {
-    margin-left: auto;
-    font-size: var(--t-fine);
-    color: var(--color-sourdine);
-  }
-  @media (max-width: 620px) {
-    .bilan { gap: var(--s-3) var(--s-4); }
-    .bilan .note { margin-left: 0; flex-basis: 100%; }
-  }
+  .bilan .note { font-size: var(--t-fine); color: var(--color-sourdine); }
 
   /* ---- Sections --------------------------------------------------------- */
 
   .section { padding-block: var(--s-6); }
-  .section-tete {
-    border-top: 2px solid var(--color-encre);
-    padding-top: var(--s-3);
-    margin-bottom: var(--s-5);
-  }
+
+  /* Une section se sépare par du vide, pas par un trait. Le filet est réservé
+     aux listes, où il sépare des lignes de même nature — c'est son seul emploi
+     justifié. */
+  .section-tete { margin-bottom: var(--s-5); }
   .section-tete h2 {
     font-size: var(--t-title);
     line-height: var(--lh-title);
@@ -506,17 +552,8 @@
     flex: none;
   }
   .vignette.petite { width: 44px; height: 30px; }
-  .vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .vignette-trames { position: absolute; inset: 0; padding: 5px 6px; }
-  .vignette-trames i {
-    display: block;
-    height: 3px;
-    background: var(--color-filet-2);
-    margin-bottom: 3px;
-  }
-  .vignette-trames i:nth-child(1) { width: 40%; }
-  .vignette-trames i:nth-child(2) { width: 72%; }
-  .vignette-trames i:nth-child(3) { width: 55%; }
+  .vignette img,
+  .vignette svg { width: 100%; height: 100%; object-fit: cover; display: block; }
   .vignette-sceau {
     position: absolute;
     inset: auto 0 0 0;
@@ -538,16 +575,20 @@
     border-radius: var(--r-bloc);
     padding: var(--s-4);
   }
+  /* Le changement de fond sépare déjà l'en-tête du corps : y ajouter un filet
+     serait dire deux fois la même chose. */
   .panneau-tete {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: var(--s-3);
-    border-bottom: 1px solid var(--color-encre);
     margin: calc(var(--s-4) * -1) calc(var(--s-4) * -1) var(--s-4);
     padding: var(--s-3) var(--s-4);
     background: var(--color-papier-2);
   }
+  /* Un second en-tête au milieu d'un panneau reprend sa marge haute. */
+  .panneau-tete + .panneau-tete,
+  .panneau > .panneau-tete:not(:first-child) { margin-top: 0; }
 
   .champ { margin-bottom: var(--s-3); }
   .champ > label {
