@@ -6,25 +6,28 @@ import { relDate } from '../lib/format';
 import { CartePiece } from '../components/CartePiece';
 import { IconeFleche } from '../components/Icones';
 
-/** Les trois temps de la procédure — une séquence réelle, d'où la numérotation. */
+/**
+ * Les trois temps de la procédure. Volontairement courts : la plupart des
+ * visiteurs arrivent d'un lien WhatsApp, sur téléphone, et ne liront pas un
+ * paragraphe par étape.
+ */
 const ETAPES = [
   {
     cote: '01',
     titre: 'Tu trouves',
-    texte:
-      'Tu prends la photo, tu dis le type de pièce et le quartier. Le numéro et la signature sont floutés par le serveur avant même que ça s’affiche — personne ne voit rien.',
+    texte: 'Une photo, le type de pièce, le quartier. Le numéro est flouté avant publication.',
   },
   {
     cote: '02',
     titre: 'On rapproche',
     texte:
-      'L’algorithme de DIBY Yvan compare avec les pièces recherchées et prévient le bon propriétaire. Il tolère les fautes d’orthographe : « Nguessan » et « N’Guessan », c’est pareil pour lui.',
+      'L’algorithme compare et prévient le propriétaire. Il tolère les variantes : « Nguessan » ou « N’Guessan », c’est pareil.',
   },
   {
     cote: '03',
     titre: 'On restitue',
     texte:
-      'Vous confirmez tous les deux, et là seulement les numéros s’échangent. Rendez-vous dans un point de dépôt sûr — mairie, commissariat. Pas de rencontre risquée, c’est mieux non ?',
+      'Vous confirmez tous les deux, et là seulement les numéros s’échangent. Remise en mairie ou au commissariat.',
   },
 ];
 
@@ -39,38 +42,32 @@ export function Accueil() {
       <div className="registre">
         <div className="wrap registre-in">
           <div className="accueil-tete">
-            <div>
+            <div className="tete-texte">
               <span className="timbre">Fait avec fierté en Côte d’Ivoire</span>
               <h1 className="titre-hero">
                 Ta pièce égarée
                 <br />a une <em>deuxième chance</em>.
               </h1>
-              <p
-                style={{
-                  fontSize: 'var(--t-lead)',
-                  lineHeight: 'var(--lh-lead)',
-                  maxWidth: '46ch',
-                  marginTop: 'var(--s-3)',
-                  color: 'var(--color-sourdine)',
-                }}
-              >
-                Fini les statuts WhatsApp qui se perdent. Celui qui trouve une pièce la déclare, et
-                celui qui l’a perdue est prévenu{' '}
+              <p className="accueil-lead">
+                Fini les statuts WhatsApp qui se perdent. Celui qui trouve déclare, celui qui a perdu
+                est prévenu{' '}
                 <em style={{ fontStyle: 'normal', color: 'var(--color-cachet)' }}>automatiquement</em>.
               </p>
+            </div>
 
+            <div className="tete-carte">
+              <CartePiece />
+            </div>
+
+            <div className="tete-actions">
               <div className="actions-cle">
                 <Link to="/declarer" className="action-cle">
                   <span className="action-cle-titre">J’ai trouvé une pièce hein</span>
-                  <span className="action-cle-note">
-                    45 secondes, une photo. Le bienfait n’est jamais perdu.
-                  </span>
+                  <span className="action-cle-note">45 secondes, une photo.</span>
                 </Link>
                 <Link to="/perdu" className="action-cle">
                   <span className="action-cle-titre">J’ai perdu ma pièce oh</span>
-                  <span className="action-cle-note">
-                    On compare tout de suite, et on te prévient pour les prochaines.
-                  </span>
+                  <span className="action-cle-note">On compare tout de suite.</span>
                 </Link>
               </div>
 
@@ -85,12 +82,8 @@ export function Accueil() {
                     <dt>pièces déclarées</dt>
                   </div>
                 )}
-                <span className="note">C’est gratuit et ça le sera toujours.</span>
+                <span className="note">Gratuit, et ça le sera toujours.</span>
               </dl>
-            </div>
-
-            <div>
-              <CartePiece />
             </div>
           </div>
         </div>
@@ -138,7 +131,7 @@ export function Accueil() {
             </dl>
           </div>
 
-          <aside className="col-d">
+          <aside className={'col-d' + (!chargement && piecesTrouvees.length === 0 ? ' sans-entrees' : '')}>
             <div className="section-tete">
               <span className="cote">Fraîchement déclarées</span>
               <h2 style={{ marginTop: 6, fontSize: 'var(--t-sub)' }}>Les dernières</h2>

@@ -102,9 +102,8 @@ export function Layout() {
             </nav>
           </div>
           <p className="aide" style={{ marginTop: 'var(--s-3)' }}>
-            Pièci ne publie jamais un numéro de pièce, une photo nette ni un numéro de téléphone. Les
-            coordonnées ne circulent qu’entre les deux personnes concernées, après confirmation des deux
-            côtés.
+            Ni numéro de pièce, ni photo nette, ni téléphone : rien de tout ça n’est publié. Les
+            coordonnées ne circulent qu’après confirmation des deux côtés.
           </p>
           <p className="pied-mention">
             Pièci — la solidarité ivoirienne, rendue efficace.
