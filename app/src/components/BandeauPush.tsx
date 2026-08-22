@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { enregistrerAbonnementPush, getVapidPublicKey } from '../lib/api';
+import { raisonPushIndisponible } from '../lib/plateforme';
 import { IconeSuivi, IconeValide } from './Icones';
 
 interface Props {
@@ -20,8 +21,12 @@ type Etat = 'repos' | 'chargement' | 'ok' | 'refuse' | 'erreur';
 export function BandeauPush({ telephone, onTermine }: Props) {
   const [etat, setEtat] = useState<Etat>('repos');
 
+  /* Calculé au rendu : sur iPhone en onglet Safari, l'API n'existe pas et
+     l'utilisateur mérite de le savoir avant de cliquer pour rien. */
+  const indisponible = raisonPushIndisponible();
+
   const activer = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (indisponible) {
       setEtat('erreur');
       return;
     }
@@ -77,10 +82,32 @@ export function BandeauPush({ telephone, onTermine }: Props) {
             temps.
           </p>
 
-          {etat === 'erreur' && (
+          {indisponible === 'ios-onglet' && (
+            <div className="ios-marche" role="note">
+              <b>Sur iPhone, une étape de plus.</b> Apple n’autorise les notifications que pour les
+              applications installées. C’est rapide&nbsp;:
+              <ol>
+                <li>
+                  Touche l’icône <b>Partager</b> en bas de Safari — le carré avec une flèche vers le
+                  haut
+                </li>
+                <li>
+                  Fais défiler et choisis <b>Sur l’écran d’accueil</b>
+                </li>
+                <li>Ouvre Pièci depuis l’icône, puis reviens activer les notifications</li>
+              </ol>
+              En attendant, l’onglet <b>Suivi</b> te montre tes correspondances à tout moment.
+            </div>
+          )}
+          {indisponible === 'navigateur' && (
             <p className="erreur" role="alert">
-              Ce navigateur ne gère pas les notifications. Sur iPhone, ajoute d’abord Pièci à
-              l’écran d’accueil depuis Safari.
+              Ce navigateur ne gère pas les notifications. Passe par l’onglet Suivi pour consulter
+              tes correspondances.
+            </p>
+          )}
+          {!indisponible && etat === 'erreur' && (
+            <p className="erreur" role="alert">
+              L’activation a échoué. Réessaie, ou passe par l’onglet Suivi.
             </p>
           )}
           {etat === 'refuse' && (
@@ -91,11 +118,13 @@ export function BandeauPush({ telephone, onTermine }: Props) {
           )}
 
           <div style={{ display: 'flex', gap: 'var(--s-4)', alignItems: 'center', marginTop: 'var(--s-3)', flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-plein" onClick={activer} disabled={etat === 'chargement'}>
-              {etat === 'chargement' ? 'Activation…' : 'Oui, me notifier'}
-            </button>
+            {!indisponible && (
+              <button type="button" className="btn btn-plein" onClick={activer} disabled={etat === 'chargement'}>
+                {etat === 'chargement' ? 'Activation…' : 'Oui, me notifier'}
+              </button>
+            )}
             <button type="button" className="lien" onClick={onTermine}>
-              Non merci
+              {indisponible ? 'J’ai compris' : 'Non merci'}
             </button>
           </div>
         </div>

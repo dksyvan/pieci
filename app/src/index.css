@@ -945,6 +945,41 @@
     transition: color 140ms var(--e-micro);
   }
   .pied-nav a:hover { color: var(--color-encre); }
+  /* Marche à suivre iPhone : une consigne, pas une erreur. Le ton est
+     informatif — l'utilisateur n'a rien fait de mal, c'est Apple qui impose
+     l'installation avant d'autoriser les notifications. */
+  .ios-marche {
+    border-left: 2px solid var(--color-cachet);
+    background: var(--color-carte);
+    padding: var(--s-3);
+    margin-top: var(--s-3);
+    font-size: var(--t-fine);
+    line-height: var(--lh-lead);
+    color: var(--color-sourdine);
+  }
+  .ios-marche b { color: var(--color-encre); }
+  .ios-marche ol {
+    margin: var(--s-2) 0 var(--s-2);
+    padding-left: 0;
+    list-style: none;
+    counter-reset: etape;
+  }
+  .ios-marche li {
+    counter-increment: etape;
+    position: relative;
+    padding-left: 26px;
+    margin-bottom: 6px;
+  }
+  .ios-marche li::before {
+    content: counter(etape);
+    position: absolute;
+    left: 0;
+    top: 1px;
+    font-family: var(--font-mono);
+    font-size: var(--t-micro);
+    color: var(--color-cachet);
+    font-weight: 600;
+  }
   .pied-mention {
     font-family: var(--font-util);
     font-weight: 600;
