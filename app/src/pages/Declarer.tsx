@@ -181,11 +181,11 @@ export function Declarer() {
 
           <div className="duo">
             <div className="champ">
-              <label htmlFor="prenom">Prénom inscrit</label>
+              <label htmlFor="prenom">Prénom (qui est sur la pièce)</label>
               <input id="prenom" value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Adjoua" />
             </div>
             <div className="champ">
-              <label htmlFor="nom">Nom inscrit</label>
+              <label htmlFor="nom">Nom (qui est sur la pièce)</label>
               <input id="nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="N’Guessan" />
             </div>
           </div>
