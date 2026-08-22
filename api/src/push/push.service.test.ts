@@ -79,7 +79,7 @@ describe('PushService.sendToTelephone — transport Expo', () => {
       jeton('t-1', '0700000001', 'ExponentPushToken[aaa]'),
       jeton('t-2', '0700000001', 'ExponentPushToken[bbb]'),
     ]);
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
       ok: true,
       json: async () => ({ data: [{ status: 'ok' }, { status: 'ok' }] }),
     }));
@@ -89,7 +89,8 @@ describe('PushService.sendToTelephone — transport Expo', () => {
     await service.sendToTelephone('0700000001', 'Correspondance', 'Une pièce correspond.');
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    const corps = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const options = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const corps = JSON.parse(String(options?.body)) as Array<Record<string, unknown>>;
     expect(corps).toHaveLength(2);
     expect(corps[0]).toMatchObject({
       to: 'ExponentPushToken[aaa]',
@@ -141,9 +142,28 @@ describe('PushService.sendToTelephone — transport Expo', () => {
 
     const service = new PushService(subsVide, repo, configSansVapid);
 
-    await expect(
-      service.sendToTelephone('0700000001', 'Titre', 'Corps'),
-    ).resolves.toBeUndefined();
+    // `false` n'est pas un detail : c'est ce qui declenche le repli SMS.
+    await expect(service.sendToTelephone('0700000001', 'Titre', 'Corps')).resolves.toBe(false);
     expect(repo.delete).not.toHaveBeenCalled();
+  });
+
+  it('signale avoir joint quelqu un quand Expo accepte le message', async () => {
+    const repo = creerJetonsRepo([jeton('t-1', '0700000001', 'ExponentPushToken[aaa]')]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ data: [{ status: 'ok' }] }) })),
+    );
+
+    const service = new PushService(subsVide, repo, configSansVapid);
+
+    await expect(service.sendToTelephone('0700000001', 'Titre', 'Corps')).resolves.toBe(true);
+  });
+
+  it('signale n avoir joint personne quand le numero n a aucun appareil', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+
+    const service = new PushService(subsVide, creerJetonsRepo([]), configSansVapid);
+
+    await expect(service.sendToTelephone('0700000009', 'Titre', 'Corps')).resolves.toBe(false);
   });
 });

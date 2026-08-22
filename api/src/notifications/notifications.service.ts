@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
 import { Utilisateur } from '../utilisateurs/entities/utilisateur.entity';
 import { Correspondance } from '../correspondances/entities/correspondance.entity';
-import { PushService } from '../push/push.service';
+import { MessagerieService } from '../messagerie/messagerie.service';
 
 export interface CreerNotificationParams {
   utilisateurId: string;
@@ -20,7 +20,7 @@ export class NotificationsService {
     private readonly notifications: Repository<Notification>,
     @InjectRepository(Utilisateur)
     private readonly utilisateurs: Repository<Utilisateur>,
-    private readonly push: PushService,
+    private readonly messagerie: MessagerieService,
   ) {}
 
   async creer(params: CreerNotificationParams): Promise<Notification> {
@@ -34,11 +34,13 @@ export class NotificationsService {
     });
     const saved = await this.notifications.save(notification);
 
-    // Envoi push sans bloquer ni faire échouer la création de notification
+    /* Acheminement sans bloquer : la notification est deja en base et
+       consultable dans l'onglet Suivi. Qu'aucun message ne parte n'annule
+       pas la correspondance. */
     this.utilisateurs
       .findOne({ where: { id: params.utilisateurId }, select: ['telephone'] })
       .then((u) => {
-        if (u) this.push.sendToTelephone(u.telephone, params.titre, params.contenu);
+        if (u) return this.messagerie.notifier(u.telephone, params.titre, params.contenu);
       })
       .catch(() => undefined);
 

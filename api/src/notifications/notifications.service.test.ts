@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
 import { NotificationsService } from './notifications.service';
-import type { PushService } from '../push/push.service';
+import type { MessagerieService } from '../messagerie/messagerie.service';
 import type { Utilisateur } from '../utilisateurs/entities/utilisateur.entity';
 
 function creerRepoMock(notification: Notification | null = null) {
@@ -18,14 +18,14 @@ const utilisateurRepoMock = {
   findOne: vi.fn(async () => ({ telephone: '0700000001' })),
 } as unknown as Repository<Utilisateur>;
 
-const pushMock = {
-  sendToTelephone: vi.fn(async () => undefined),
-} as unknown as PushService;
+const messagerieMock = {
+  notifier: vi.fn(async () => undefined),
+} as unknown as MessagerieService;
 
 describe('NotificationsService.creer', () => {
   it('crée une notification liée à une correspondance via des références partielles', async () => {
     const repo = creerRepoMock();
-    const service = new NotificationsService(repo, utilisateurRepoMock, pushMock);
+    const service = new NotificationsService(repo, utilisateurRepoMock, messagerieMock);
 
     await service.creer({
       utilisateurId: 'user-1',
@@ -45,7 +45,7 @@ describe('NotificationsService.creer', () => {
 
   it("utilise null quand aucune correspondance n'est associée", async () => {
     const repo = creerRepoMock();
-    const service = new NotificationsService(repo, utilisateurRepoMock, pushMock);
+    const service = new NotificationsService(repo, utilisateurRepoMock, messagerieMock);
 
     await service.creer({
       utilisateurId: 'user-1',
@@ -63,7 +63,7 @@ describe('NotificationsService.findByTelephone', () => {
   it("interroge les notifications de l'utilisateur, triées par date décroissante", async () => {
     const notification = { id: 'notif-1', titre: 'X', contenu: 'Y', lu: false } as Notification;
     const repo = creerRepoMock(notification);
-    const service = new NotificationsService(repo, utilisateurRepoMock, pushMock);
+    const service = new NotificationsService(repo, utilisateurRepoMock, messagerieMock);
 
     const resultat = await service.findByTelephone('+2250700000001');
 
@@ -78,7 +78,7 @@ describe('NotificationsService.findByTelephone', () => {
 describe('NotificationsService.marquerLue', () => {
   it("rejette avec NotFoundException si la notification n'appartient pas à ce téléphone", async () => {
     const repo = creerRepoMock(null);
-    const service = new NotificationsService(repo, utilisateurRepoMock, pushMock);
+    const service = new NotificationsService(repo, utilisateurRepoMock, messagerieMock);
 
     await expect(service.marquerLue('notif-1', '+2250700000001')).rejects.toThrow(
       NotFoundException,
@@ -89,7 +89,7 @@ describe('NotificationsService.marquerLue', () => {
   it('marque la notification comme lue', async () => {
     const notification = { id: 'notif-1', titre: 'X', contenu: 'Y', lu: false } as Notification;
     const repo = creerRepoMock(notification);
-    const service = new NotificationsService(repo, utilisateurRepoMock, pushMock);
+    const service = new NotificationsService(repo, utilisateurRepoMock, messagerieMock);
 
     const resultat = await service.marquerLue('notif-1', '+2250700000001');
 

@@ -88,25 +88,32 @@ export class PushService {
    * Notifie un numéro sur tous ses appareils, web et natifs confondus.
    * Un échec de notification n'interrompt jamais l'appelant : la
    * correspondance reste visible dans l'onglet Suivi.
+   *
+   * @returns `true` si au moins un appareil a été atteint. C'est ce qui permet
+   * de n'engager un canal payant — le SMS — que pour les personnes qu'aucune
+   * notification gratuite n'a pu joindre.
    */
-  async sendToTelephone(telephone: string, title: string, body: string): Promise<void> {
-    await Promise.all([
+  async sendToTelephone(telephone: string, title: string, body: string): Promise<boolean> {
+    const [web, expo] = await Promise.all([
       this.envoyerWeb(telephone, title, body),
       this.envoyerExpo(telephone, title, body),
     ]);
+    return web + expo > 0;
   }
 
-  private async envoyerWeb(telephone: string, title: string, body: string): Promise<void> {
-    if (!this.webActif) return;
+  /** @returns le nombre d'abonnements navigateur effectivement notifiés. */
+  private async envoyerWeb(telephone: string, title: string, body: string): Promise<number> {
+    if (!this.webActif) return 0;
 
     const subs = await this.subscriptions.findBy({ telephone });
-    await Promise.all(
+    const resultats = await Promise.all(
       subs.map((sub) =>
         webpush
           .sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             JSON.stringify({ title, body }),
           )
+          .then(() => true)
           .catch(async (err: webpush.WebPushError) => {
             // 410 Gone : l'abonnement navigateur n'existe plus.
             if (err.statusCode === 410) {
@@ -114,14 +121,19 @@ export class PushService {
             } else {
               this.logger.warn(`Web Push échoué pour ${telephone}: ${err.message}`);
             }
+            return false;
           }),
       ),
     );
+    return resultats.filter(Boolean).length;
   }
 
-  private async envoyerExpo(telephone: string, title: string, body: string): Promise<void> {
+  /** @returns le nombre de messages qu'Expo a acceptés. */
+  private async envoyerExpo(telephone: string, title: string, body: string): Promise<number> {
     const jetons = await this.jetons.findBy({ telephone });
-    if (jetons.length === 0) return;
+    if (jetons.length === 0) return 0;
+
+    let acceptes = 0;
 
     for (let i = 0; i < jetons.length; i += LOT_EXPO) {
       const lot = jetons.slice(i, i + LOT_EXPO);
@@ -169,10 +181,14 @@ export class PushService {
       }
 
       recus.forEach((recu, index) => {
-        if (recu.status === 'error' && recu.details?.error !== 'DeviceNotRegistered') {
+        if (recu.status === 'ok') {
+          acceptes += 1;
+        } else if (recu.details?.error !== 'DeviceNotRegistered') {
           this.logger.warn(`Expo Push refusé (${lot[index]?.jeton}): ${recu.message ?? '—'}`);
         }
       });
     }
+
+    return acceptes;
   }
 }
