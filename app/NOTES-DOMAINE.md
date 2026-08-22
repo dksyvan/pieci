@@ -1,73 +1,72 @@
-# Brancher un nom de domaine
+# Le nom de domaine
 
-## Ce qui est déjà prêt
+`pieci.ci` est en service depuis août 2026. Registrar **Safaricloud**, DNS et
+TLS chez **Cloudflare**.
 
-L'origine publique du site n'est plus écrite en dur. Elle vient de
-`VITE_SITE_URL`, que Vite substitue dans `index.html` au moment du build —
-balises Open Graph, Twitter Card et JSON-LD comprises. Le jour du changement,
-**une seule valeur bouge**.
+## Ce qui a réellement marché
 
-## La bascule, dans l'ordre
+Cloudflare ne vend pas de `.ci` — il faut passer par un registrar accrédité
+ARTCI. Le domaine est donc acheté ailleurs, puis **délégué** à Cloudflare.
 
-### 1. Acheter le domaine
+1. Créer la zone chez Cloudflare (*Add a domain*, plan Free) **avant** de
+   valider la commande, pour récupérer les deux serveurs de noms.
+2. Chez le registrar, remplacer ses serveurs par ceux de Cloudflare et
+   **supprimer les autres**. En laisser un crée des réponses DNS incohérentes.
+3. Ne créer aucun enregistrement DNS à la main. Cloudflare refuse d'attacher un
+   domaine personnalisé à un nom d'hôte qui a déjà un CNAME — « corriger » les
+   avertissements de la console casse l'étape suivante.
+4. Worker `pieci` → Settings → **Domains & Routes** → *Add Custom Domain*.
+5. Variable de build (voir plus bas), puis redéployer.
 
-Chez Cloudflare de préférence : le DNS est alors déjà au bon endroit, il n'y a
-pas de délégation de serveurs de noms à faire.
-
-### 2. L'attacher au Worker
-
-Tableau de bord Cloudflare → **Workers & Pages** → projet `pieci` → **Settings**
-→ **Domains & Routes** → *Add Custom Domain*.
-
-Cloudflare crée l'enregistrement DNS et le certificat TLS tout seul si le
-domaine est chez lui. La propagation prend de quelques minutes à quelques
-heures.
-
-### 3. Changer la variable
-
-Toujours dans le projet Cloudflare → **Settings** → **Variables and Secrets** :
-
-```
-VITE_SITE_URL = https://pieci.ci
-```
-
-Puis **redéployer** — la variable est lue au build, pas à l'exécution. Un
-simple changement de variable sans redéploiement ne suffit pas.
-
-### 4. Rafraîchir le cache des aperçus
-
-WhatsApp et Facebook gardent l'ancien aperçu en mémoire. Le
-[debugger Facebook](https://developers.facebook.com/tools/debug/) force la
-relecture : coller la nouvelle URL, cliquer *Scrape Again*.
-
-### 5. Vérifier
+Le registre `.ci` n'est pas instantané : compter quelques heures entre le
+paiement et l'apparition du domaine. Vérification depuis la source :
 
 ```bash
-curl -s https://pieci.ci | grep -E 'og:url|og:image'
+nslookup -type=NS pieci.ci ns.nic.ci
 ```
 
-Les deux doivent afficher le nouveau domaine. S'ils montrent encore
-`workers.dev`, le redéploiement n'a pas eu lieu.
+## Ce qu'il ne faut PAS acheter
 
-## L'API : faut-il un sous-domaine ?
-
-Aujourd'hui l'API répond sur `pieci.onrender.com`. Lui donner
-`api.pieci.ci` est possible — Render → Settings → Custom Domain — mais **ce
-n'est pas urgent** : l'URL de l'API n'est jamais vue par un utilisateur.
-
-Si tu le fais, trois endroits changent :
-
-| Où | Variable |
+| Proposé par le registrar | Pourquoi refuser |
 |---|---|
-| Cloudflare (projet web) | `VITE_API_URL` |
-| `mobile/eas.json` | `EXPO_PUBLIC_API_URL`, dans les trois profils |
-| `mobile/src/lib/api.ts` | la valeur de repli |
+| Certificat SSL | Cloudflare émet et renouvelle le sien, gratuitement |
+| Hébergement web | Le site est un Worker, l'API est sur Render |
+| Redirection courriel | Cloudflare Email Routing le fait sans frais |
 
-⚠️ Changer l'URL de l'API **casse les applications mobiles déjà installées**,
-qui ont l'ancienne compilée dedans. À faire avant la première publication sur
-les stores, ou jamais.
+## Le piège des variables
 
-## Ce qui reste en dur
+Le Worker a **deux** sections de variables. Elles ne font pas la même chose.
 
-Le domaine `pieci.ci` est cité en exemple dans quelques textes d'interface et
-de documentation. Ce sont des mentions rédactionnelles, sans effet technique.
+| Section | Agit | Pour `VITE_*` |
+|---|---|---|
+| Settings → **Runtime** → Variables and secrets | à l'exécution | ❌ sans effet |
+| Settings → **Build** → Variables and secrets | pendant `npm run build` | ✅ ici |
+
+Vite fige la valeur dans `index.html` à la compilation. Une variable posée côté
+Runtime ne changera jamais rien, et le symptôme — des balises de partage qui
+gardent l'ancienne adresse — n'oriente pas vers la cause.
+
+Après modification : **Retry build**. Si le résultat semble périmé, *Clear
+Cache* dans la section Build.
+
+## Changer de domaine à nouveau
+
+Une seule valeur bouge : `VITE_SITE_URL`. Elle alimente `og:url`, `og:image`,
+`twitter:image` et le JSON-LD, par substitution de `%VITE_SITE_URL%`.
+
+Puis vider le cache des aperçus sur le [débogueur Facebook](https://developers.facebook.com/tools/debug/)
+— pour la nouvelle URL **et pour l'ancienne**, sans quoi ceux qui ont déjà reçu
+l'ancien lien garderont l'ancien aperçu.
+
+L'avertissement `fb:app_id` du débogueur est **du bruit** : cette balise ne sert
+qu'aux statistiques de Facebook Analytics, outil abandonné. Elle n'affecte pas
+l'aperçu.
+
+## L'API
+
+Elle répond sur `pieci.onrender.com`. Lui donner `api.pieci.ci` est possible
+mais sans urgence — cette URL n'est jamais vue par un utilisateur.
+
+⚠️ La changer **casse les applications mobiles déjà installées**, qui ont
+l'ancienne compilée dedans. À faire avant la première publication sur les
+stores, ou jamais.
