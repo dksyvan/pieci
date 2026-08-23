@@ -11,9 +11,11 @@ import { MatchingModule } from './matching/matching.module';
 import { CorrespondancesModule } from './correspondances/correspondances.module';
 import { ExpirationModule } from './expiration/expiration.module';
 import { PushModule } from './push/push.module';
+import { SanteModule } from './sante/sante.module';
 
 @Module({
   imports: [
+    SanteModule,
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
