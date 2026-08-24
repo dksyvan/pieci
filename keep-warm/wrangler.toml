@@ -1,0 +1,12 @@
+name = "pieci-keep-warm"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Toutes les 10 minutes, de 06h00 à 23h50 UTC. La Côte d'Ivoire étant à UTC+0
+# sans heure d'été, ces heures UTC sont aussi les heures locales.
+# Render s'endort après 15 min sans trafic : un ping toutes les 10 min suffit.
+[triggers]
+crons = ["*/10 6-23 * * *"]
+
+[vars]
+CIBLE_SANTE = "https://pieci.onrender.com/sante"

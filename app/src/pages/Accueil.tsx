@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { COMMUNES } from '@partage/communes';
@@ -30,6 +31,26 @@ const ETAPES = [
       'Vous confirmez tous les deux, et là seulement les numéros s’échangent. Remise en mairie ou au commissariat.',
   },
 ];
+
+/**
+ * Mot rassurant affiché seulement si le chargement s'éternise. Invisible quand
+ * l'API répond vite ; il n'apparaît qu'au-delà de 5 s, le temps qu'un réveil
+ * Render devienne perceptible. Le bloc parent le démonte dès la fin du
+ * chargement, ce qui annule le minuteur.
+ */
+function IndiceReveil() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 5000);
+    return () => clearTimeout(t);
+  }, []);
+  if (!visible) return null;
+  return (
+    <p className="aide" style={{ marginTop: 'var(--s-3)' }}>
+      Le registre se réveille, un instant… Le serveur se rallume après une période calme.
+    </p>
+  );
+}
 
 export function Accueil() {
   const { piecesTrouvees, chargement } = useApp();
@@ -147,6 +168,7 @@ export function Accueil() {
                     </div>
                   </div>
                 ))}
+                <IndiceReveil />
               </div>
             )}
 
