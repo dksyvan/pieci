@@ -47,4 +47,10 @@ export class PiecesTrouveesController {
   findPublic() {
     return this.piecesTrouvees.findPublic();
   }
+
+  /** Comptes agrégés, consommés par le Worker Cloudflare (cache de 10 min). */
+  @Get('stats')
+  stats() {
+    return this.piecesTrouvees.stats();
+  }
 }

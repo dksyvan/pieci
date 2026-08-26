@@ -94,4 +94,42 @@ export class PiecesTrouveesService {
       `SELECT * FROM v_pieces_trouvees_publiques ORDER BY date_trouvaille DESC`,
     );
   }
+
+  /**
+   * Comptes agrégés du registre public, pour l'injection au bord.
+   *
+   * Le Worker Cloudflare écrit ces nombres dans le HTML pré-rendu des pages
+   * de registre, afin qu'un robot voie une page vivante et non « 0 entrée ».
+   * L'agrégat part de la même vue que la liste publique : on ne peut donc
+   * compter que ce qui est réellement visible — jamais les pièces restituées,
+   * expirées ou en attente.
+   */
+  async stats(): Promise<{
+    total: number;
+    parCommune: Record<string, number>;
+    parType: Record<string, number>;
+  }> {
+    const lignes = await this.dataSource.query<
+      Array<{ commune: string; type_piece: string; n: string }>
+    >(
+      `SELECT commune, type_piece, COUNT(*) AS n
+         FROM v_pieces_trouvees_publiques
+        GROUP BY commune, type_piece`,
+    );
+
+    const parCommune: Record<string, number> = {};
+    const parType: Record<string, number> = {};
+    let total = 0;
+
+    for (const { commune, type_piece, n } of lignes) {
+      // COUNT() arrive en chaîne : le pilote Postgres renvoie les bigint
+      // ainsi pour ne pas perdre de précision.
+      const compte = Number(n);
+      total += compte;
+      parCommune[commune] = (parCommune[commune] ?? 0) + compte;
+      parType[type_piece] = (parType[type_piece] ?? 0) + compte;
+    }
+
+    return { total, parCommune, parType };
+  }
 }

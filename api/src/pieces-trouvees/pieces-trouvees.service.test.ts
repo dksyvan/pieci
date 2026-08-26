@@ -98,3 +98,38 @@ describe('PiecesTrouveesService.findPublic', () => {
     expect(query).toHaveBeenCalledWith(expect.stringContaining('v_pieces_trouvees_publiques'));
   });
 });
+
+describe('PiecesTrouveesService.stats', () => {
+  it('agrege les comptes par commune, par type, et en tout', async () => {
+    const query = vi.fn(async () => [
+      { commune: 'Yopougon', type_piece: 'CNI', n: '3' },
+      { commune: 'Yopougon', type_piece: 'Passeport', n: '1' },
+      { commune: 'Cocody', type_piece: 'CNI', n: '2' },
+    ]);
+    const service = new PiecesTrouveesService(
+      {} as Repository<PieceTrouvee>,
+      { query } as unknown as DataSource,
+      {} as UtilisateursService,
+      creerMatchingMock(),
+    );
+
+    const stats = await service.stats();
+
+    // COUNT() arrive en chaine depuis Postgres : le total prouve la conversion.
+    expect(stats.total).toBe(6);
+    expect(stats.parCommune).toEqual({ Yopougon: 4, Cocody: 2 });
+    expect(stats.parType).toEqual({ CNI: 5, Passeport: 1 });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('v_pieces_trouvees_publiques'));
+  });
+
+  it('rend des agregats vides quand le registre est vide', async () => {
+    const service = new PiecesTrouveesService(
+      {} as Repository<PieceTrouvee>,
+      { query: vi.fn(async () => []) } as unknown as DataSource,
+      {} as UtilisateursService,
+      creerMatchingMock(),
+    );
+
+    await expect(service.stats()).resolves.toEqual({ total: 0, parCommune: {}, parType: {} });
+  });
+});

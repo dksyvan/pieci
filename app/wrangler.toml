@@ -1,8 +1,16 @@
 name = "pieci"
+main = "worker/index.js"
 compatibility_date = "2025-01-01"
+
+# URL de l'API en production. Non secrète : elle est déjà visible dans le
+# bundle client. En développement, la valeur de .env la remplace (wrangler dev
+# charge ce fichier), ce qui pointe le Worker sur l'API locale.
+[vars]
+API_URL = "https://pieci.onrender.com"
 
 [assets]
 directory = "./dist"
+binding = "ASSETS"
 
 # Les pages sont pré-rendues en dist/<route>/index.html : Cloudflare les sert
 # telles quelles. Le repli SPA ne concerne donc plus que les routes sans
@@ -14,3 +22,8 @@ not_found_handling = "single-page-application"
 # balises canoniques et le sitemap. On sert la forme sans barre finale, qui est
 # celle qu'on publie partout.
 html_handling = "drop-trailing-slash"
+
+# Seules les pages du registre passent par le Worker, qui y écrit les comptes
+# vivants (voir worker/index.js). Tout le reste part du serveur d'assets
+# directement — chemin rapide, zéro exécution.
+run_worker_first = ["/trouvees", "/trouvees/*"]

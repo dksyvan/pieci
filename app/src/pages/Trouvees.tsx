@@ -5,6 +5,7 @@ import { COMMUNES } from '@partage/communes';
 import { normaliser } from '@partage/matching';
 import { useApp } from '../context/AppContext';
 import { PAGES_REGISTRE, pageRegistreParSlug, slugifier } from '../contenu/registre';
+import { formaterCompte, statsServeur } from '../lib/stats';
 import { PieceCard } from '../components/PieceCard';
 import { IconeCarte, IconeFleche, IconeRecherche } from '../components/Icones';
 
@@ -43,6 +44,23 @@ export function Trouvees() {
   );
 
   const restreint = Boolean(page) || recherche !== '';
+
+  /*
+   * Compteurs affichés pendant le chargement : les comptes injectés au bord,
+   * pour que le HTML servi et le premier rendu React disent la même chose
+   * (voir lib/stats.ts). Une fois le registre chargé, les longueurs réelles
+   * reprennent la main.
+   */
+  const stats = statsServeur();
+  const compteInjecte = !page
+    ? stats?.total
+    : page.genre === 'commune'
+      ? (stats ? (stats.parCommune[page.valeur] ?? 0) : undefined)
+      : stats
+        ? (stats.parType[page.valeur] ?? 0)
+        : undefined;
+  const compteListe = chargement ? compteInjecte : liste.length;
+  const compteTotal = chargement ? stats?.total : piecesTrouvees.length;
 
   // Un slug inconnu ne doit pas passer pour une page vide : on le dit.
   if (slug && !page) {
@@ -118,7 +136,15 @@ export function Trouvees() {
           className="donnee col-b"
           style={{ color: 'var(--color-sourdine)', alignSelf: 'center', textAlign: 'right' }}
         >
-          {String(liste.length).padStart(4, '0')} / {String(piecesTrouvees.length).padStart(4, '0')}{' '}
+          {/* data-compte : cibles du Worker. suppressHydrationWarning couvre le
+              cas limite d'un HTML réécrit servi sans sa variable (cache). */}
+          <span data-compte="liste" suppressHydrationWarning>
+            {formaterCompte(compteListe)}
+          </span>{' '}
+          /{' '}
+          <span data-compte="total" suppressHydrationWarning>
+            {formaterCompte(compteTotal)}
+          </span>{' '}
           entrées
         </p>
       </div>

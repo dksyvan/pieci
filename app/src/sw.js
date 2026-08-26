@@ -6,9 +6,25 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+/**
+ * Origine de l'API, figée au build. La route ci-dessous ne doit intercepter
+ * que les appels vers elle : un filtre sur le seul chemin attraperait le même
+ * chemin sur n'importe quelle origine, et une panne du gestionnaire ferait
+ * alors échouer des requêtes qui ne nous concernent pas.
+ */
+const ORIGINE_API = (() => {
+  try {
+    return new URL(import.meta.env.VITE_API_URL).origin;
+  } catch {
+    return null;
+  }
+})();
+
 // Données de l'API : on tente le réseau d'abord, on retombe sur le cache hors-ligne.
 registerRoute(
-  ({ url }) => url.pathname.startsWith('/pieces-trouvees') || url.pathname.startsWith('/points-depot'),
+  ({ url }) =>
+    url.origin === ORIGINE_API &&
+    (url.pathname.startsWith('/pieces-trouvees') || url.pathname.startsWith('/points-depot')),
   new NetworkFirst({
     cacheName: 'pieci-api',
     networkTimeoutSeconds: 5,
