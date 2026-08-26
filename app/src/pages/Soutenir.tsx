@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PanneauDon } from '../components/PanneauDon';
 import { IconeFleche } from '../components/Icones';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 
 /** Ce que le don finance, sans chiffrer : les montants réels ne sont pas arrêtés. */
 const POSTES = [

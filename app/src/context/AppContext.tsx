@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   creerPieceTrouvee,
   getPiecesTrouvees,
@@ -7,24 +7,12 @@ import {
   type PieceTrouveePublique,
   type PointDepotApi,
 } from '../lib/api';
+import { AppContext } from './useApp';
 
-interface AppContextValue {
-  /** Pièces trouvées publiées (les plus récentes en premier). */
-  piecesTrouvees: PieceTrouveePublique[];
-  /** Points de dépôt sécurisés actifs. */
-  pointsDepot: PointDepotApi[];
-  /** `true` tant que le chargement initial depuis l'API est en cours. */
-  chargement: boolean;
-  /** Message à afficher dans le toast, ou `null` si aucun. */
-  toast: string | null;
-  /** Affiche un message dans le toast pendant quelques secondes. */
-  afficherToast: (message: string) => void;
-  /** Publie une nouvelle déclaration de pièce trouvée et rafraîchit la liste. */
-  publier: (donnees: NouvellePieceTrouvee) => Promise<void>;
-}
-
-const AppContext = createContext<AppContextValue | null>(null);
-
+/**
+ * Seul export de ce fichier : un composant. Le contexte et le crochet `useApp`
+ * vivent dans ./useApp.ts — voir le commentaire là-bas pour la raison.
+ */
 export function AppProvider({ children }: { children: ReactNode }) {
   const [piecesTrouvees, setPiecesTrouvees] = useState<PieceTrouveePublique[]>([]);
   const [pointsDepot, setPointsDepot] = useState<PointDepotApi[]>([]);
@@ -60,10 +48,4 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {children}
     </AppContext.Provider>
   );
-}
-
-export function useApp(): AppContextValue {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp doit être utilisé à l\'intérieur de <AppProvider>');
-  return ctx;
 }

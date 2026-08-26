@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import { COMMUNES } from '@partage/communes';
 import { normaliser } from '@partage/matching';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { PAGES_REGISTRE, pageRegistreParSlug, slugifier } from '../contenu/registre';
 import { formaterCompte, statsServeur } from '../lib/stats';
 import { PieceCard } from '../components/PieceCard';

@@ -10,7 +10,7 @@ import {
   IconeRegistre,
   IconeSuivi,
 } from './Icones';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { useTitreDePage } from '../lib/titre';
 
 interface Onglet {

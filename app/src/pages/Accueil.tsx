@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { COMMUNES } from '@partage/communes';
 import { compteurValorisant } from '@partage/vitrine';
 import { relDate } from '../lib/format';
