@@ -665,6 +665,11 @@
   }
   .champ input::placeholder { color: var(--color-indice); }
   .champ input:hover, .champ select:hover { border-color: var(--color-sourdine); }
+  /* Champ signalé manquant à la soumission : même rouge que son message. */
+  .champ input[aria-invalid='true'],
+  .champ select[aria-invalid='true'] {
+    border-color: var(--color-cachet);
+  }
   .champ input:focus-visible,
   .champ select:focus-visible,
   .champ textarea:focus-visible {

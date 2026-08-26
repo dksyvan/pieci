@@ -17,6 +17,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [piecesTrouvees, setPiecesTrouvees] = useState<PieceTrouveePublique[]>([]);
   const [pointsDepot, setPointsDepot] = useState<PointDepotApi[]>([]);
   const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const afficherToast = useCallback((message: string) => {
@@ -24,15 +25,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setToast(null), 3400);
   }, []);
 
+  /**
+   * L'échec ne passe pas par le toast : trois secondes de bandeau, puis un
+   * état vide qui affirme « personne n'a rien déclaré » — c'était un mensonge
+   * par omission. `erreurChargement` reste levé tant qu'un rechargement n'a
+   * pas abouti, et les pages affichent la vérité : le réseau, pas le vide.
+   */
+  const charger = useCallback(async () => {
+    try {
+      const [pieces, depots] = await Promise.all([getPiecesTrouvees(), getPointsDepot()]);
+      setPiecesTrouvees(pieces);
+      setPointsDepot(depots);
+      setErreurChargement(false);
+    } catch {
+      setErreurChargement(true);
+    } finally {
+      setChargement(false);
+    }
+  }, []);
+
+  /** Relance à la demande — depuis un bouton, jamais depuis un effet. */
+  const recharger = useCallback(() => {
+    setChargement(true);
+    setErreurChargement(false);
+    void charger();
+  }, [charger]);
+
   useEffect(() => {
-    Promise.all([getPiecesTrouvees(), getPointsDepot()])
-      .then(([pieces, depots]) => {
-        setPiecesTrouvees(pieces);
-        setPointsDepot(depots);
-      })
-      .catch(() => afficherToast('⚠️ Impossible de joindre le serveur Pièci. Réessaie plus tard.'))
-      .finally(() => setChargement(false));
-  }, [afficherToast]);
+    // `charger` n'écrit l'état qu'après la réponse réseau, jamais de façon
+    // synchrone — la règle ne peut pas le vérifier à travers le useCallback,
+    // et `chargement` vaut déjà `true` au montage.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void charger();
+  }, [charger]);
 
   const publier = useCallback(
     async (donnees: NouvellePieceTrouvee) => {
@@ -44,7 +69,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AppContext.Provider value={{ piecesTrouvees, pointsDepot, chargement, toast, afficherToast, publier }}>
+    <AppContext.Provider
+      value={{
+        piecesTrouvees,
+        pointsDepot,
+        chargement,
+        erreurChargement,
+        recharger,
+        toast,
+        afficherToast,
+        publier,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );

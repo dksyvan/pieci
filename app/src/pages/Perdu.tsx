@@ -6,6 +6,7 @@ import { BandeauPush } from '../components/BandeauPush';
 import { ListeCorrespondances } from '../components/ListeCorrespondances';
 import { useApp } from '../context/useApp';
 import { ApiError, creerAlertePerte, getCorrespondances, type Correspondance } from '../lib/api';
+import { montrerPremierChamp, type ErreursChamps } from '../lib/formulaire';
 
 export function Perdu() {
   const { afficherToast } = useApp();
@@ -23,11 +24,31 @@ export function Perdu() {
   const [enCours, setEnCours] = useState(false);
   const [pushEcarte, setPushEcarte] = useState(false);
 
-  const valide = Boolean(typePiece && prenom.trim() && nom.trim() && telephone.trim());
+  /** Même contrat que sur /declarer : bouton toujours actif, erreurs à l'envoi. */
+  const [erreurs, setErreurs] = useState<ErreursChamps>({});
+
+  const effacerErreur = (champ: string) =>
+    setErreurs((prev) =>
+      champ in prev
+        ? Object.fromEntries(Object.entries(prev).filter(([cle]) => cle !== champ))
+        : prev,
+    );
 
   const rechercher = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!valide || !typePiece || enCours) return;
+    if (enCours) return;
+
+    const manquants: ErreursChamps = {};
+    if (!typePiece) manquants.type = 'Choisis le type de pièce perdue.';
+    if (!prenom.trim()) manquants.prenom = 'Écris le prénom inscrit sur la pièce.';
+    if (!nom.trim()) manquants.nom = 'Écris le nom inscrit sur la pièce.';
+    if (!telephone.trim()) manquants.tel = 'Ton numéro, pour te montrer tes correspondances.';
+
+    setErreurs(manquants);
+    if (Object.keys(manquants).length > 0 || !typePiece) {
+      montrerPremierChamp(manquants);
+      return;
+    }
 
     setEnCours(true);
     try {
@@ -75,23 +96,63 @@ export function Perdu() {
             <select
               id="type"
               value={typePiece}
-              onChange={(e) => setTypePiece(e.target.value as TypePiece | '')}
+              aria-invalid={erreurs.type ? true : undefined}
+              aria-describedby={erreurs.type ? 'type-erreur' : undefined}
+              onChange={(e) => {
+                setTypePiece(e.target.value as TypePiece | '');
+                effacerErreur('type');
+              }}
             >
               <option value="">— Choisir —</option>
               {TYPES_PIECE.map((t) => (
                 <option key={t}>{t}</option>
               ))}
             </select>
+            {erreurs.type && (
+              <p className="erreur" id="type-erreur">
+                {erreurs.type}
+              </p>
+            )}
           </div>
 
           <div className="duo">
             <div className="champ">
               <label htmlFor="prenom">Prénom sur la pièce</label>
-              <input id="prenom" value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Adjoua" />
+              <input
+                id="prenom"
+                value={prenom}
+                aria-invalid={erreurs.prenom ? true : undefined}
+                aria-describedby={erreurs.prenom ? 'prenom-erreur' : undefined}
+                onChange={(e) => {
+                  setPrenom(e.target.value);
+                  effacerErreur('prenom');
+                }}
+                placeholder="Adjoua"
+              />
+              {erreurs.prenom && (
+                <p className="erreur" id="prenom-erreur">
+                  {erreurs.prenom}
+                </p>
+              )}
             </div>
             <div className="champ">
               <label htmlFor="nom">Nom sur la pièce</label>
-              <input id="nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="N’Guessan" />
+              <input
+                id="nom"
+                value={nom}
+                aria-invalid={erreurs.nom ? true : undefined}
+                aria-describedby={erreurs.nom ? 'nom-erreur' : undefined}
+                onChange={(e) => {
+                  setNom(e.target.value);
+                  effacerErreur('nom');
+                }}
+                placeholder="N’Guessan"
+              />
+              {erreurs.nom && (
+                <p className="erreur" id="nom-erreur">
+                  {erreurs.nom}
+                </p>
+              )}
             </div>
           </div>
           <p className="aide" style={{ marginTop: -8, marginBottom: 'var(--s-3)' }}>
@@ -107,9 +168,19 @@ export function Perdu() {
               inputMode="tel"
               autoComplete="tel"
               value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
+              aria-invalid={erreurs.tel ? true : undefined}
+              aria-describedby={erreurs.tel ? 'tel-erreur' : undefined}
+              onChange={(e) => {
+                setTelephone(e.target.value);
+                effacerErreur('tel');
+              }}
               placeholder="07 00 00 00 00"
             />
+            {erreurs.tel && (
+              <p className="erreur" id="tel-erreur">
+                {erreurs.tel}
+              </p>
+            )}
             <p className="aide">
               C’est pour te montrer tes correspondances et te recontacter. Jamais affiché
               publiquement, promis.
@@ -128,7 +199,7 @@ export function Perdu() {
             />
           </div>
 
-          <button className="btn btn-plein btn-large" disabled={!valide || enCours}>
+          <button className="btn btn-plein btn-large" disabled={enCours}>
             {enCours ? 'Recherche en cours…' : 'Lancer la recherche'}
           </button>
         </form>

@@ -53,7 +53,7 @@ function IndiceReveil() {
 }
 
 export function Accueil() {
-  const { piecesTrouvees, chargement } = useApp();
+  const { piecesTrouvees, chargement, erreurChargement, recharger } = useApp();
 
   const nbCommunes = Object.keys(COMMUNES).length;
   const montrerCompteur = compteurValorisant(piecesTrouvees.length);
@@ -152,7 +152,14 @@ export function Accueil() {
             </dl>
           </div>
 
-          <aside className={'col-d' + (!chargement && piecesTrouvees.length === 0 ? ' sans-entrees' : '')}>
+          {/* `sans-entrees` masque la colonne sur mobile quand le registre est
+              vraiment vide — jamais sur erreur : le message doit se voir. */}
+          <aside
+            className={
+              'col-d' +
+              (!chargement && !erreurChargement && piecesTrouvees.length === 0 ? ' sans-entrees' : '')
+            }
+          >
             <div className="section-tete">
               <span className="cote">Fraîchement déclarées</span>
               <h2 style={{ marginTop: 6, fontSize: 'var(--t-sub)' }}>Les dernières</h2>
@@ -172,7 +179,23 @@ export function Accueil() {
               </div>
             )}
 
-            {!chargement && piecesTrouvees.length === 0 && (
+            {/* Échec réseau ≠ registre vide : on ne promet pas un registre à
+                ouvrir quand c'est la connexion qui manque. */}
+            {!chargement && erreurChargement && (
+              <div className="vide" role="alert">
+                <h3>Le registre ne répond pas.</h3>
+                <p>
+                  Vérifie ta connexion, ou patiente un instant — le serveur se réveille peut-être
+                  après une période calme.
+                </p>
+                <button type="button" className="lien" onClick={recharger} style={{ marginTop: 'var(--s-3)' }}>
+                  Réessayer
+                  <IconeFleche taille={15} />
+                </button>
+              </div>
+            )}
+
+            {!chargement && !erreurChargement && piecesTrouvees.length === 0 && (
               <div className="vide">
                 <h3>Tu as trouvé une pièce&nbsp;?</h3>
                 <p>

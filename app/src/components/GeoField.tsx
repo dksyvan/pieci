@@ -7,12 +7,14 @@ interface GeoFieldProps {
   commune: string;
   setCommune: (commune: string) => void;
   setCoords: (coords: LatLng | null) => void;
+  /** Message de champ requis, affiché par le parent à la soumission. */
+  erreur?: string;
 }
 
 type Etat = 'repos' | 'chargement' | 'ok' | 'erreur';
 
 /** Sélection de la commune, avec détection optionnelle de la position. */
-export function GeoField({ commune, setCommune, setCoords }: GeoFieldProps) {
+export function GeoField({ commune, setCommune, setCoords, erreur }: GeoFieldProps) {
   const [etat, setEtat] = useState<Etat>('repos');
 
   const localiser = () => {
@@ -49,6 +51,8 @@ export function GeoField({ commune, setCommune, setCoords }: GeoFieldProps) {
         <select
           id="commune"
           value={commune}
+          aria-invalid={erreur ? true : undefined}
+          aria-describedby={erreur ? 'commune-erreur' : undefined}
           onChange={(e) => {
             const valeur = e.target.value;
             setCommune(valeur);
@@ -83,6 +87,11 @@ export function GeoField({ commune, setCommune, setCoords }: GeoFieldProps) {
       {etat === 'erreur' && (
         <p className="erreur" role="alert">
           Position indisponible. Choisis ta commune dans la liste, le résultat sera le même.
+        </p>
+      )}
+      {erreur && (
+        <p className="erreur" id="commune-erreur">
+          {erreur}
         </p>
       )}
     </div>

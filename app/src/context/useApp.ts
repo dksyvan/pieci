@@ -17,6 +17,15 @@ export interface AppContextValue {
   pointsDepot: PointDepotApi[];
   /** `true` tant que le chargement initial depuis l'API est en cours. */
   chargement: boolean;
+  /**
+   * `true` si le dernier chargement du registre a échoué. La distinction avec
+   * « registre vide » n'est pas cosmétique : une liste vide parce que personne
+   * n'a déclaré et une liste vide parce que le réseau est tombé appellent deux
+   * messages opposés — et confondre les deux fait passer le site pour mort.
+   */
+  erreurChargement: boolean;
+  /** Relance le chargement du registre — l'issue de secours de l'état d'erreur. */
+  recharger: () => void;
   /** Message à afficher dans le toast, ou `null` si aucun. */
   toast: string | null;
   /** Affiche un message dans le toast pendant quelques secondes. */

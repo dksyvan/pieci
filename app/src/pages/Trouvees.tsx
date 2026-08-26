@@ -20,7 +20,7 @@ const COMMUNES_LISTEES = Object.keys(COMMUNES);
  * fabriquerait une infinité de pages sans valeur.
  */
 export function Trouvees() {
-  const { piecesTrouvees, chargement } = useApp();
+  const { piecesTrouvees, chargement, erreurChargement, recharger } = useApp();
   const { filtre: slug } = useParams();
   const [recherche, setRecherche] = useState('');
 
@@ -49,7 +49,8 @@ export function Trouvees() {
    * Compteurs affichés pendant le chargement : les comptes injectés au bord,
    * pour que le HTML servi et le premier rendu React disent la même chose
    * (voir lib/stats.ts). Une fois le registre chargé, les longueurs réelles
-   * reprennent la main.
+   * reprennent la main — sauf si le chargement a échoué : afficher alors
+   * « 0000 » écraserait une vérité qu'on connaît par un zéro qui est faux.
    */
   const stats = statsServeur();
   const compteInjecte = !page
@@ -59,8 +60,8 @@ export function Trouvees() {
       : stats
         ? (stats.parType[page.valeur] ?? 0)
         : undefined;
-  const compteListe = chargement ? compteInjecte : liste.length;
-  const compteTotal = chargement ? stats?.total : piecesTrouvees.length;
+  const compteListe = chargement || erreurChargement ? compteInjecte : liste.length;
+  const compteTotal = chargement || erreurChargement ? stats?.total : piecesTrouvees.length;
 
   // Un slug inconnu ne doit pas passer pour une page vide : on le dit.
   if (slug && !page) {
@@ -193,7 +194,27 @@ export function Trouvees() {
         </div>
       )}
 
-      {!chargement && liste.length === 0 && (
+      {/* L'échec réseau a son propre état : dire « registre vide » quand c'est
+          la connexion qui manque ferait passer le site pour mort. */}
+      {!chargement && erreurChargement && (
+        <div className="vide" role="alert">
+          <h2 style={{ fontSize: 'var(--t-sub)', letterSpacing: '-0.03em' }}>
+            Le registre ne répond pas.
+          </h2>
+          <p>
+            {stats
+              ? `Les ${stats.total} pièce${stats.total > 1 ? 's' : ''} déclarée${stats.total > 1 ? 's' : ''} sont toujours là — c’est la connexion qui coince. Vérifie ton réseau, ou patiente un instant : le serveur se réveille peut-être.`
+              : 'Impossible de charger les pièces déclarées. Vérifie ta connexion, ou patiente un instant : le serveur se réveille peut-être.'}
+          </p>
+          <div style={{ marginTop: 'var(--s-3)' }}>
+            <button type="button" className="btn" onClick={recharger}>
+              Réessayer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!chargement && !erreurChargement && liste.length === 0 && (
         <div className="vide">
           <h2 style={{ fontSize: 'var(--t-sub)', letterSpacing: '-0.03em' }}>
             {restreint ? 'Aucune pièce ne correspond.' : 'Le registre est encore vide.'}
