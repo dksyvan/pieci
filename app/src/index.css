@@ -817,7 +817,8 @@
     border: 1px dashed var(--color-filet-2);
     padding: var(--s-5) var(--s-4);
   }
-  .vide h3 {
+  .vide h3,
+  .vide h1 {
     font-size: var(--t-sub);
     line-height: 1.15;
     letter-spacing: -0.03em;
@@ -988,6 +989,224 @@
     color: var(--color-sourdine);
     margin-top: var(--s-3);
   }
+
+  /* ---- Guides ------------------------------------------------------------
+     Pages de lecture longue. Tout est pré-rendu : c'est du texte lisible sans
+     JavaScript. La mesure est bridée à ~68ch, sous laquelle l'œil retrouve
+     seul le début de la ligne suivante. */
+
+  .guide { max-width: 46rem; }
+
+  .guide-retour {
+    display: inline-block;
+    margin-bottom: var(--s-4);
+    color: var(--color-sourdine);
+    text-decoration: none;
+  }
+  .guide-retour:hover { color: var(--color-cachet); }
+
+  .guide-titre {
+    font-family: var(--f-display);
+    font-size: var(--t-title);
+    font-weight: 600;
+    line-height: 1.06;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+
+  .guide-chapo {
+    margin-top: var(--s-3);
+    font-size: 1.125rem;
+    line-height: var(--lh-lead);
+    color: var(--color-encre);
+    max-width: 60ch;
+  }
+  @media (min-width: 768px) {
+    .guide-chapo { font-size: 1.25rem; }
+  }
+
+  .guide-date {
+    margin-top: var(--s-3);
+    padding-bottom: var(--s-4);
+    border-bottom: 1px solid var(--color-encre);
+    font-family: var(--f-util);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-sourdine);
+  }
+
+  .guide-section { padding-top: var(--s-5); }
+
+  .guide-section h2 {
+    font-family: var(--f-display);
+    font-size: var(--t-sub);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .guide-p {
+    margin-top: var(--s-3);
+    max-width: 68ch;
+    line-height: var(--lh-lead);
+    color: var(--color-sourdine);
+  }
+  .guide-section > .guide-p:first-of-type { margin-top: var(--s-3); }
+
+  /* Listes : le filet vertical remplace la puce, qui fait « article de blog ». */
+  .guide-liste {
+    margin-top: var(--s-3);
+    max-width: 68ch;
+    list-style: none;
+    padding: 0;
+  }
+  .guide-liste li {
+    position: relative;
+    padding-left: var(--s-4);
+    padding-block: 7px;
+    line-height: var(--lh-lead);
+    color: var(--color-sourdine);
+  }
+  .guide-liste li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 15px;
+    width: 14px;
+    height: 1px;
+    background: var(--color-filet-2);
+  }
+
+  /* Étapes : numérotées à la main, dans la police de données, comme les cotes. */
+  .guide-etapes {
+    margin-top: var(--s-4);
+    max-width: 68ch;
+    list-style: none;
+    padding: 0;
+    counter-reset: etape;
+  }
+  .guide-etapes > li {
+    counter-increment: etape;
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: var(--s-3);
+    padding-block: var(--s-4);
+    border-top: 1px solid var(--color-filet);
+  }
+  .guide-etapes > li:first-child { border-top: none; padding-top: 0; }
+  .guide-etapes > li::before {
+    content: counter(etape, decimal-leading-zero);
+    font-family: var(--f-data);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    color: var(--color-cachet);
+    padding-top: 4px;
+  }
+  .guide-etapes > li > b {
+    font-size: 1.0625rem;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+  .guide-etapes .guide-p { margin-top: 4px; }
+
+  /* Encadré : fond papier + filet épais à gauche, jamais d'ombre. */
+  .guide-encadre {
+    margin-top: var(--s-4);
+    max-width: 68ch;
+    background: var(--color-papier-2);
+    border-left: 3px solid var(--color-cachet);
+    padding: var(--s-4);
+  }
+  .guide-encadre > b {
+    font-family: var(--f-util);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-cachet);
+  }
+  .guide-encadre .guide-p { margin-top: var(--s-2); color: var(--color-encre); }
+
+  /* Tableau : déborde en défilement horizontal plutôt que de casser la page.
+     Les deux dégradés de papier signalent qu'il reste du contenu sur le côté.
+     Ils sont attachés au contenu (`local`) : ils s'effacent d'eux-mêmes quand
+     on atteint le bord, et n'apparaissent pas si tout tient déjà à l'écran.
+     C'est un masque, pas une ombre — la règle d'élévation tient toujours. */
+  .guide-tableau {
+    margin-top: var(--s-4);
+    overflow-x: auto;
+    border-top: 1px solid var(--color-encre);
+    background:
+      linear-gradient(to right, var(--color-papier), rgba(244, 242, 236, 0)) left center / 26px 100%
+        no-repeat local,
+      linear-gradient(to left, var(--color-papier), rgba(244, 242, 236, 0)) right center / 26px 100%
+        no-repeat local;
+  }
+  .guide-tableau table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--t-fine);
+  }
+  .guide-tableau th {
+    text-align: left;
+    font-family: var(--f-util);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-sourdine);
+    font-weight: 500;
+    padding: var(--s-3) var(--s-3) var(--s-3) 0;
+    white-space: nowrap;
+  }
+  .guide-tableau td {
+    padding: var(--s-3) var(--s-3) var(--s-3) 0;
+    border-top: 1px solid var(--color-filet);
+    color: var(--color-sourdine);
+    vertical-align: top;
+  }
+  .guide-tableau td.donnee { color: var(--color-encre); white-space: nowrap; }
+
+  /* Appel à l'action : vient après avoir répondu, pas avant. */
+  .guide-appel {
+    margin-top: var(--s-6);
+    border: 1px solid var(--color-encre);
+    padding: var(--s-4);
+  }
+  .guide-appel > b {
+    font-size: 1.0625rem;
+    letter-spacing: -0.02em;
+  }
+  .guide-appel .guide-p { margin-top: var(--s-2); }
+  .guide-appel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+  }
+
+  /* Index des guides : les rubriques se séparent par du blanc, pas par un
+     filet de plus — la page en compte déjà assez. */
+  .guides-rubrique { margin-top: var(--s-6); }
+  .guides-rubrique:first-of-type { margin-top: 0; }
+  .guides-rubrique h2 {
+    font-family: var(--f-display);
+    font-size: var(--t-sub);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+  }
+  .guides-rubrique-intro {
+    margin-top: 4px;
+    margin-bottom: var(--s-4);
+    color: var(--color-sourdine);
+    font-size: var(--t-fine);
+    max-width: 56ch;
+  }
+
+  .guide-connexes { margin-top: var(--s-6); }
+  .guide-connexes .cote { display: block; margin-bottom: var(--s-3); }
+
 }
 
 /* Le mouvement est un confort, jamais une condition d'usage */

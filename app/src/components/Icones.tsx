@@ -128,3 +128,13 @@ export function IconeSceau(p: IconeProps) {
     </svg>
   );
 }
+
+export function IconeGuide(p: IconeProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M5 4.5h9a2.5 2.5 0 0 1 2.5 2.5v12.5H7.5A2.5 2.5 0 0 1 5 17z" />
+      <path d="M8.5 9h5" />
+      <path d="M8.5 12.5h5" />
+    </svg>
+  );
+}

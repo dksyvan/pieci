@@ -3,4 +3,14 @@ compatibility_date = "2025-01-01"
 
 [assets]
 directory = "./dist"
+
+# Les pages sont pré-rendues en dist/<route>/index.html : Cloudflare les sert
+# telles quelles. Le repli SPA ne concerne donc plus que les routes sans
+# fichier, comme /suivi.
 not_found_handling = "single-page-application"
+
+# Sans ce réglage, Cloudflare redirige /guides vers /guides/ — un saut de plus
+# sur chaque lien interne, et une URL différente de celle que déclarent nos
+# balises canoniques et le sitemap. On sert la forme sans barre finale, qui est
+# celle qu'on publie partout.
+html_handling = "drop-trailing-slash"

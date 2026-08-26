@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# État local de wrangler dev (cache du serveur d'assets)
+.wrangler/

@@ -5,11 +5,13 @@ import {
   IconeAccueil,
   IconeCarte,
   IconeDeclarer,
+  IconeGuide,
   IconeRecherche,
   IconeRegistre,
   IconeSuivi,
 } from './Icones';
 import { useApp } from '../context/AppContext';
+import { useTitreDePage } from '../lib/titre';
 
 interface Onglet {
   chemin: string;
@@ -36,6 +38,9 @@ const SECONDAIRES: Onglet[] = [
   { chemin: '/trouvees', label: 'Registre', court: 'Registre', Icone: IconeRegistre, mobile: true },
   { chemin: '/carte', label: 'Carte', court: 'Carte', Icone: IconeCarte, mobile: false },
   { chemin: '/suivi', label: 'Suivi', court: 'Suivi', Icone: IconeSuivi, mobile: true },
+  // Hors barre mobile, deja pleine : les guides se lisent posement, depuis
+  // le pied de page ou depuis un resultat de recherche.
+  { chemin: '/guides', label: 'Guides', court: 'Guides', Icone: IconeGuide, mobile: false },
 ];
 
 /** Ordre de la barre du bas : accueil, les deux actions, puis le suivi. */
@@ -52,6 +57,7 @@ const ANNEE = new Date().getFullYear();
 /** Ossature commune : en-tête, page, pied de page, barre mobile et avis. */
 export function Layout() {
   const { toast } = useApp();
+  useTitreDePage();
 
   return (
     <>
