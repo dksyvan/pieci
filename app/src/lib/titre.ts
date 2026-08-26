@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PAGES_FIXES } from '../contenu/pages';
 import { GUIDES } from '../contenu';
+import { pageRegistreParSlug } from '../contenu/registre';
 
 /** Titre par défaut : pages sans métadonnées propres, comme le suivi. */
 const DEFAUT = 'Pièci — Ta pièce retrouvée';
@@ -20,6 +21,11 @@ function titrePour(chemin: string): string {
   const slug = propre.startsWith('/guides/') ? propre.slice('/guides/'.length) : null;
   const guide = slug ? GUIDES.find((g) => g.slug === slug) : undefined;
   if (guide) return `${guide.titre} | Pièci`;
+
+  if (propre.startsWith('/trouvees/')) {
+    const page = pageRegistreParSlug(propre.slice('/trouvees/'.length));
+    if (page) return page.titre;
+  }
 
   return DEFAUT;
 }

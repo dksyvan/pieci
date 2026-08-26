@@ -810,6 +810,81 @@
     border-color: var(--color-encre);
     color: var(--color-papier);
   }
+  /* Les filtres du registre sont des liens : chaque vue a son adresse. Le
+     rendu doit rester celui d'un bouton. */
+  a.jeton { text-decoration: none; display: inline-block; line-height: 1.5; }
+
+  .jetons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: var(--s-2);
+  }
+
+  /* Plan du registre : donne à chaque page d'agrégat un lien depuis une page
+     atteignable, sans quoi la moitié resterait invisible. Replié par défaut —
+     déplié, il ajoute près d'un écran de liens sur téléphone. */
+  .plan-registre {
+    margin-top: var(--s-6);
+    padding-top: var(--s-5);
+    border-top: 1px solid var(--color-filet);
+  }
+  .plan-registre > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-3);
+    flex-wrap: wrap;
+  }
+  /* Le marqueur natif ne se style pas : on le remplace par un signe à nous. */
+  .plan-registre > summary::-webkit-details-marker { display: none; }
+  .plan-registre-titre {
+    font-family: var(--f-display);
+    font-size: 1.0625rem;
+    letter-spacing: -0.02em;
+    color: var(--color-encre);
+  }
+  .plan-registre-titre::after {
+    content: " +";
+    font-family: var(--f-data);
+    color: var(--color-cachet);
+  }
+  .plan-registre[open] .plan-registre-titre::after { content: " −"; }
+  .plan-registre > summary:hover .plan-registre-titre { color: var(--color-cachet); }
+  .plan-registre > summary:focus-visible {
+    outline: 2px solid var(--color-cachet);
+    outline-offset: 3px;
+  }
+
+  .plan-registre-corps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--s-5);
+    margin-top: var(--s-4);
+  }
+  @media (min-width: 768px) {
+    .plan-registre-corps { grid-template-columns: 2fr 1fr; }
+  }
+  .plan-registre .cote { display: block; }
+  .plan-registre-corps .cote { margin-bottom: var(--s-3); }
+  .plan-registre ul {
+    list-style: none;
+    padding: 0;
+    columns: 2;
+    column-gap: var(--s-4);
+  }
+  @media (max-width: 520px) {
+    .plan-registre ul { columns: 1; }
+  }
+  .plan-registre > div + div ul { columns: 1; }
+  .plan-registre li { break-inside: avoid; padding-block: 3px; }
+  .plan-registre a {
+    color: var(--color-sourdine);
+    text-decoration: none;
+    font-size: var(--t-fine);
+  }
+  .plan-registre a:hover { color: var(--color-cachet); }
 
   /* ---- États vides et chargement ---------------------------------------- */
 

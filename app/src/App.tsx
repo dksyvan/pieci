@@ -25,6 +25,8 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Accueil />} />
         <Route path="trouvees" element={<Trouvees />} />
+        {/* Une page par commune et par type : voir contenu/registre.ts */}
+        <Route path="trouvees/:filtre" element={<Trouvees />} />
         <Route
           path="carte"
           element={

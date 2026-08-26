@@ -1,26 +1,37 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import { COMMUNES } from '@partage/communes';
 import { normaliser } from '@partage/matching';
 import { useApp } from '../context/AppContext';
+import { PAGES_REGISTRE, pageRegistreParSlug, slugifier } from '../contenu/registre';
 import { PieceCard } from '../components/PieceCard';
 import { IconeCarte, IconeFleche, IconeRecherche } from '../components/Icones';
 
-const FILTRES_TYPE: Array<'Tous' | TypePiece> = ['Tous', ...TYPES_PIECE];
-const FILTRES_COMMUNE: string[] = ['Toutes', ...Object.keys(COMMUNES).slice(0, 9)];
+const COMMUNES_LISTEES = Object.keys(COMMUNES);
 
+/**
+ * Le registre, entier ou filtré par commune ou par type.
+ *
+ * Les filtres sont des liens, pas des boutons : chaque combinaison a son URL,
+ * donc se partage, se met en favori, et se laisse parcourir par un robot. La
+ * recherche libre, elle, reste en état local — la mettre dans l'URL
+ * fabriquerait une infinité de pages sans valeur.
+ */
 export function Trouvees() {
   const { piecesTrouvees, chargement } = useApp();
+  const { filtre: slug } = useParams();
   const [recherche, setRecherche] = useState('');
-  const [type, setType] = useState<'Tous' | TypePiece>('Tous');
-  const [commune, setCommune] = useState('Toutes');
+
+  const page = pageRegistreParSlug(slug);
+  const commune = page?.genre === 'commune' ? page.valeur : null;
+  const type = page?.genre === 'type' ? (page.valeur as TypePiece) : null;
 
   const liste = useMemo(
     () =>
       piecesTrouvees.filter((p) => {
-        const okType = type === 'Tous' || p.typePiece === type;
-        const okCommune = commune === 'Toutes' || p.commune === commune;
+        const okType = !type || p.typePiece === type;
+        const okCommune = !commune || p.commune === commune;
         const okRecherche =
           !recherche ||
           normaliser(
@@ -31,25 +42,63 @@ export function Trouvees() {
     [piecesTrouvees, recherche, type, commune],
   );
 
-  const filtre = type !== 'Tous' || commune !== 'Toutes' || recherche !== '';
+  const restreint = Boolean(page) || recherche !== '';
+
+  // Un slug inconnu ne doit pas passer pour une page vide : on le dit.
+  if (slug && !page) {
+    return (
+      <section className="section wrap">
+        <div className="vide">
+          <h1>Ce filtre n’existe pas.</h1>
+          <p>La commune ou le type de pièce demandé ne fait pas partie du registre.</p>
+          <Link to="/trouvees" className="lien" style={{ marginTop: 'var(--s-3)' }}>
+            Voir tout le registre
+            <IconeFleche taille={15} />
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="section wrap">
       <div className="section-tete">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s-3)', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 'var(--s-3)',
+            flexWrap: 'wrap',
+          }}
+        >
           <div>
             <span className="cote">Le registre</span>
-            <h2 style={{ marginTop: 6 }}>Pièces trouvées</h2>
+            <h1 style={{ marginTop: 6, fontSize: 'var(--t-sub)', letterSpacing: '-0.03em' }}>
+              {commune
+                ? `Pièces trouvées à ${commune}`
+                : type
+                  ? `${type} — pièces trouvées`
+                  : 'Pièces trouvées'}
+            </h1>
           </div>
           <Link to="/carte" className="lien" style={{ alignSelf: 'flex-end' }}>
             <IconeCarte taille={15} />
             Voir sur la carte
           </Link>
         </div>
+
         <p>
-          Parcours les pièces déclarées. Les données sensibles restent floutées — elles ne se révèlent
-          qu’à toi, après vérification. Ta pièce est peut-être déjà là dedans.
+          {page
+            ? page.intro
+            : 'Parcours les pièces déclarées. Les données sensibles restent floutées — elles ne se révèlent qu’à toi, après vérification. Ta pièce est peut-être déjà là dedans.'}
         </p>
+
+        {page?.guide && (
+          <Link to={`/guides/${page.guide}`} className="lien" style={{ marginTop: 'var(--s-3)' }}>
+            {commune ? `Perdre sa pièce à ${commune} : le guide` : 'Lire le guide correspondant'}
+            <IconeFleche taille={15} />
+          </Link>
+        )}
       </div>
 
       <div className="grille" style={{ rowGap: 'var(--s-3)', marginBottom: 'var(--s-4)' }}>
@@ -74,32 +123,27 @@ export function Trouvees() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 'var(--s-2)' }}>
-        {FILTRES_TYPE.map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={'jeton' + (type === t ? ' actif' : '')}
-            aria-pressed={type === t}
-            onClick={() => setType(t)}
-          >
-            {t === 'Tous' ? 'Tous types' : t}
-          </button>
+      <nav className="jetons" aria-label="Filtrer par type de pièce">
+        <Jeton to="/trouvees" actif={!type}>
+          Tous types
+        </Jeton>
+        {TYPES_PIECE.map((t) => (
+          <Jeton key={t} to={`/trouvees/${slugifier(t)}`} actif={type === t}>
+            {t}
+          </Jeton>
         ))}
-      </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 'var(--s-4)' }}>
-        {FILTRES_COMMUNE.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={'jeton' + (commune === c ? ' actif' : '')}
-            aria-pressed={commune === c}
-            onClick={() => setCommune(c)}
-          >
+      </nav>
+
+      <nav className="jetons" aria-label="Filtrer par commune" style={{ marginBottom: 'var(--s-4)' }}>
+        <Jeton to="/trouvees" actif={!commune}>
+          Toutes
+        </Jeton>
+        {COMMUNES_LISTEES.map((c) => (
+          <Jeton key={c} to={`/trouvees/${slugifier(c)}`} actif={commune === c}>
             {c}
-          </button>
+          </Jeton>
         ))}
-      </div>
+      </nav>
 
       {chargement && (
         <div className="lignes">
@@ -125,33 +169,101 @@ export function Trouvees() {
 
       {!chargement && liste.length === 0 && (
         <div className="vide">
-          <h3>{filtre ? 'Aucune pièce ne correspond.' : 'Le registre est encore vide.'}</h3>
+          <h2 style={{ fontSize: 'var(--t-sub)', letterSpacing: '-0.03em' }}>
+            {restreint ? 'Aucune pièce ne correspond.' : 'Le registre est encore vide.'}
+          </h2>
           <p>
-            {filtre
+            {restreint
               ? 'Essaie un autre filtre, ou crée ton alerte : dès qu’une pièce à ce nom est déclarée, on te prévient direct.'
               : 'Personne n’a encore déclaré de pièce. Si tu en as ramassé une aujourd’hui, c’est toi qui ouvres le registre.'}
           </p>
-          <div style={{ display: 'flex', gap: 'var(--s-4)', marginTop: 'var(--s-3)', flexWrap: 'wrap' }}>
+          <div
+            style={{ display: 'flex', gap: 'var(--s-4)', marginTop: 'var(--s-3)', flexWrap: 'wrap' }}
+          >
             <Link to="/perdu" className="lien">
               Créer une alerte
               <IconeFleche taille={15} />
             </Link>
-            {filtre && (
-              <button
-                type="button"
+            {restreint && (
+              <Link
+                to="/trouvees"
                 className="lien"
-                onClick={() => {
-                  setType('Tous');
-                  setCommune('Toutes');
-                  setRecherche('');
-                }}
+                onClick={() => setRecherche('')}
               >
-                Effacer les filtres
-              </button>
+                Voir tout le registre
+              </Link>
             )}
           </div>
         </div>
       )}
+
+      {!page && <PlanDuRegistre />}
     </section>
+  );
+}
+
+/** Filtre cliquable. Un lien, pour que chaque vue ait sa propre adresse. */
+function Jeton({
+  to,
+  actif,
+  children,
+}: {
+  to: string;
+  actif: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link to={to} className={'jeton' + (actif ? ' actif' : '')} aria-current={actif ? 'page' : undefined}>
+      {children}
+    </Link>
+  );
+}
+
+/**
+ * Plan du registre, en pied de la vue générale.
+ *
+ * Il donne à chaque page d'agrégat un lien depuis une page atteignable — sans
+ * quoi la moitié d'entre elles resteraient invisibles pour un robot, et pour
+ * quiconque n'a pas pensé à faire défiler les filtres.
+ *
+ * Replié par défaut : déplié, il ajoute près d'un écran de liens sur
+ * téléphone, sur une page qu'on nous a déjà reproché de trop faire défiler.
+ * Le contenu d'un `<details>` reste dans le HTML servi, donc lisible et
+ * suivable par un robot — c'est l'affichage qui est différé, pas le balisage.
+ */
+function PlanDuRegistre() {
+  const communes = PAGES_REGISTRE.filter((p) => p.genre === 'commune');
+  const types = PAGES_REGISTRE.filter((p) => p.genre === 'type');
+
+  return (
+    <details className="plan-registre">
+      <summary>
+        <span className="cote">Parcourir</span>
+        <span className="plan-registre-titre">Par commune ou par type de pièce</span>
+      </summary>
+
+      <nav className="plan-registre-corps" aria-label="Parcourir le registre">
+        <div>
+          <span className="cote">Par commune</span>
+          <ul>
+            {communes.map((p) => (
+              <li key={p.slug}>
+                <Link to={`/trouvees/${p.slug}`}>Pièces trouvées à {p.valeur}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <span className="cote">Par type de pièce</span>
+          <ul>
+            {types.map((p) => (
+              <li key={p.slug}>
+                <Link to={`/trouvees/${p.slug}`}>{p.valeur} trouvée</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
+    </details>
   );
 }

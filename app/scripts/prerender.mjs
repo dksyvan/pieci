@@ -59,10 +59,20 @@ async function main() {
     const { rendre } = await vite.ssrLoadModule('/src/entry-static.tsx');
     const { PAGES_FIXES } = await vite.ssrLoadModule('/src/contenu/pages.ts');
     const { GUIDES } = await vite.ssrLoadModule('/src/contenu/index.ts');
+    const { PAGES_REGISTRE } = await vite.ssrLoadModule('/src/contenu/registre.ts');
 
     const origine = (process.env.VITE_SITE_URL || 'https://pieci.ci').replace(/\/+$/, '');
 
-    /** Toutes les pages à écrire, fixes et guides confondues. */
+    /**
+     * Toutes les pages à écrire.
+     *
+     * Les pages de registre sont pré-rendues sans leur liste : celle-ci arrive
+     * du client, et la figer dans le HTML servirait des entrées périmées. Ce
+     * qui est indexé, c'est ce qui ne bouge pas — le lieu, le type de document,
+     * le contexte, et les liens vers les autres vues. La page reste valide
+     * quand son contenu a entièrement tourné, ce qu'une fiche individuelle ne
+     * pourrait pas faire.
+     */
     const pages = [
       ...PAGES_FIXES.map((p) => ({ ...p, guide: null })),
       ...GUIDES.map((g) => ({
@@ -71,6 +81,13 @@ async function main() {
         description: g.description,
         priorite: '0.8',
         guide: g,
+      })),
+      ...PAGES_REGISTRE.map((p) => ({
+        chemin: `/trouvees/${p.slug}`,
+        titre: p.titre,
+        description: p.description,
+        priorite: '0.6',
+        guide: null,
       })),
     ];
 
