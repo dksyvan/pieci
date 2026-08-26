@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type For
 import { useNavigate } from 'react-router-dom';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import { COMMUNES, type LatLng } from '@partage/communes';
+import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
 import { GeoField } from '../components/GeoField';
 import { BandeauPush } from '../components/BandeauPush';
 import { CartePiece } from '../components/CartePiece';
@@ -58,7 +59,13 @@ export function Declarer() {
   const champPhoto = useRef<HTMLInputElement>(null);
 
   const [enCours, setEnCours] = useState(false);
-  const [publiee, setPubliee] = useState(false);
+  /**
+   * Numéro sous lequel la déclaration a été enregistrée — sa forme canonique.
+   * C'est lui, et pas la saisie brute, que l'abonnement aux notifications doit
+   * utiliser : s'abonner sous « 07 00 00 00 00 » quand le compte s'appelle
+   * « 0700000000 » enverrait les alertes dans le vide.
+   */
+  const [publiee, setPubliee] = useState<string | null>(null);
 
   /**
    * Erreurs de champs, indexées par id du DOM. Le bouton d'envoi reste
@@ -109,6 +116,7 @@ export function Declarer() {
     if (!monPrenom.trim()) manquants.monPrenom = 'Ton prénom, pour te recontacter.';
     if (!monNom.trim()) manquants.monNom = 'Ton nom, pour te recontacter.';
     if (!monTelephone.trim()) manquants.monTel = 'Ton numéro, sinon on ne peut pas te joindre.';
+    else if (!telephoneValide(monTelephone)) manquants.monTel = MESSAGE_TELEPHONE;
 
     setErreurs(manquants);
     if (Object.keys(manquants).length > 0 || !typePiece) {
@@ -116,13 +124,15 @@ export function Declarer() {
       return;
     }
     const [lat, lng] = coords ?? COMMUNES[commune];
+    // Forme canonique : le numéro est la clé du compte (voir shared/telephone.ts).
+    const numero = normaliserTelephone(monTelephone);
 
     setEnCours(true);
     try {
       const urls = photo ? await uploaderPhotoPiece(photo) : null;
 
       await publier({
-        declarant: { telephone: monTelephone, prenom: monPrenom, nom: monNom },
+        declarant: { telephone: numero, prenom: monPrenom, nom: monNom },
         typePiece,
         prenom,
         nom,
@@ -135,7 +145,7 @@ export function Declarer() {
         photoOriginaleUrl: urls?.photoOriginaleUrl,
         photoFlouteeUrl: urls?.photoFlouteeUrl,
       });
-      setPubliee(true);
+      setPubliee(numero);
     } catch (err) {
       afficherToast(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
     } finally {
@@ -143,7 +153,7 @@ export function Declarer() {
     }
   };
 
-  if (publiee) {
+  if (publiee !== null) {
     return (
       <section className="section wrap">
         <div className="grille">
@@ -161,7 +171,7 @@ export function Declarer() {
             </p>
 
             <div style={{ marginTop: 'var(--s-5)' }}>
-              <BandeauPush telephone={monTelephone} onTermine={() => navigate('/trouvees')} />
+              <BandeauPush telephone={publiee} onTermine={() => navigate('/trouvees')} />
             </div>
           </div>
 

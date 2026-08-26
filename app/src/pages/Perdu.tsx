@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import type { LatLng } from '@partage/communes';
+import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
 import { GeoField } from '../components/GeoField';
 import { BandeauPush } from '../components/BandeauPush';
 import { ListeCorrespondances } from '../components/ListeCorrespondances';
@@ -43,6 +44,7 @@ export function Perdu() {
     if (!prenom.trim()) manquants.prenom = 'Écris le prénom inscrit sur la pièce.';
     if (!nom.trim()) manquants.nom = 'Écris le nom inscrit sur la pièce.';
     if (!telephone.trim()) manquants.tel = 'Ton numéro, pour te montrer tes correspondances.';
+    else if (!telephoneValide(telephone)) manquants.tel = MESSAGE_TELEPHONE;
 
     setErreurs(manquants);
     if (Object.keys(manquants).length > 0 || !typePiece) {
@@ -50,18 +52,21 @@ export function Perdu() {
       return;
     }
 
+    // Forme canonique : le numéro est la clé du compte (voir shared/telephone.ts).
+    const numero = normaliserTelephone(telephone);
+
     setEnCours(true);
     try {
       await creerAlertePerte({
-        utilisateur: { telephone, prenom, nom },
+        utilisateur: { telephone: numero, prenom, nom },
         typePiece,
         prenom,
         nom,
         ...(commune && coords ? { commune, lat: coords[0], lng: coords[1] } : {}),
         ...(quartier.trim() ? { quartier: quartier.trim() } : {}),
       });
-      setResultats(await getCorrespondances(telephone));
-      setTelephoneRecherche(telephone);
+      setResultats(await getCorrespondances(numero));
+      setTelephoneRecherche(numero);
     } catch (err) {
       afficherToast(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
     } finally {

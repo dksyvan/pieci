@@ -1,10 +1,9 @@
 import { IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
+import { EstTelephone } from '../../common/telephone';
 
 /** Corps de `POST /push/expo` — abonnement d'une application native. */
 export class EnregistrerJetonDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(20)
+  @EstTelephone()
   telephone: string;
 
   /**

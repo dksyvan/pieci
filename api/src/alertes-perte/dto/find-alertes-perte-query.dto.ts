@@ -1,7 +1,6 @@
-import { IsString, Length } from 'class-validator';
+import { EstTelephone } from '../../common/telephone';
 
 export class FindAlertesPerteQueryDto {
-  @IsString()
-  @Length(8, 20)
+  @EstTelephone()
   telephone: string;
 }

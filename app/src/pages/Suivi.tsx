@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
 import { ListeCorrespondances } from '../components/ListeCorrespondances';
 import { useApp } from '../context/useApp';
 import { ApiError, getCorrespondances, type Correspondance } from '../lib/api';
@@ -7,18 +8,32 @@ export function Suivi() {
   const { afficherToast } = useApp();
 
   const [telephone, setTelephone] = useState('');
+  const [erreurTel, setErreurTel] = useState<string | null>(null);
   const [resultats, setResultats] = useState<Correspondance[] | null>(null);
   const [telephoneRecherche, setTelephoneRecherche] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
   const rechercher = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!telephone.trim() || enCours) return;
+    if (enCours) return;
+
+    // Vérifié ici plutôt qu'au retour de l'API : sans cela, c'est le message
+    // anglais de class-validator qui remontait jusqu'à l'utilisateur.
+    if (!telephoneValide(telephone)) {
+      setErreurTel(MESSAGE_TELEPHONE);
+      document.getElementById('tel')?.focus();
+      return;
+    }
+    setErreurTel(null);
+
+    // La forme canonique part vers l'API : le numéro est la clé du compte,
+    // « 07 00 00 00 00 » et « 0700000000 » doivent désigner la même personne.
+    const numero = normaliserTelephone(telephone);
 
     setEnCours(true);
     try {
-      setResultats(await getCorrespondances(telephone));
-      setTelephoneRecherche(telephone);
+      setResultats(await getCorrespondances(numero));
+      setTelephoneRecherche(numero);
     } catch (err) {
       afficherToast(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
     } finally {
@@ -56,13 +71,23 @@ export function Suivi() {
               inputMode="tel"
               autoComplete="tel"
               value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
+              aria-invalid={erreurTel ? true : undefined}
+              aria-describedby={erreurTel ? 'tel-erreur' : undefined}
+              onChange={(e) => {
+                setTelephone(e.target.value);
+                setErreurTel(null);
+              }}
               placeholder="07 00 00 00 00"
             />
+            {erreurTel && (
+              <p className="erreur" id="tel-erreur">
+                {erreurTel}
+              </p>
+            )}
             <p className="aide">Le même que celui utilisé lors de ta déclaration.</p>
           </div>
 
-          <button className="btn btn-plein btn-large" disabled={!telephone.trim() || enCours}>
+          <button className="btn btn-plein btn-large" disabled={enCours}>
             {enCours ? 'Consultation…' : 'Consulter mon dossier'}
           </button>
         </form>

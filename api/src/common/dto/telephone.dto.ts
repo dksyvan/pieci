@@ -1,8 +1,7 @@
-import { IsString, Length } from 'class-validator';
+import { EstTelephone } from '../telephone';
 
 /** Identifie l'auteur d'une requête par téléphone (modèle de compte sans inscription visible). */
 export class TelephoneDto {
-  @IsString()
-  @Length(8, 20)
+  @EstTelephone()
   telephone: string;
 }
