@@ -565,8 +565,15 @@
     .ligne-fin { align-items: flex-start; text-align: left; margin-top: var(--s-2); }
   }
 
-  /* Ligne cliquable : le trait rouge en marge signale l'accès, l'ombre ne sert à rien */
-  a.ligne.acces { position: relative; align-items: center; }
+  /* Ligne cliquable : le trait rouge en marge signale l'accès, l'ombre ne
+     sert à rien. Son gabarit lui est propre — deux enfants, texte puis
+     flèche : hériter du rail à vignette de `.ligne` (56 px) enverrait le
+     titre dans la colonne étroite, un mot par ligne. */
+  a.ligne.acces {
+    position: relative;
+    align-items: center;
+    grid-template-columns: 1fr auto;
+  }
   a.ligne.acces .ligne-nom,
   a.ligne.acces .ligne-meta { display: block; }
   a.ligne.acces .ligne-fin { flex-direction: row; align-items: center; margin-top: 0; }
@@ -584,8 +591,14 @@
   a.ligne.acces:focus-visible::before { transform: scaleY(1); }
   a.ligne.acces:hover .ligne-fin { color: var(--color-cachet); }
   @media (max-width: 620px) {
-    a.ligne.acces { grid-template-columns: 30px 1fr auto; }
-    a.ligne.acces > .ligne-fin { grid-column: auto; margin-top: 0; }
+    /* La flèche reste en bout de ligne, à rebours de la règle générale qui
+       fait passer `.ligne-fin` sous le texte. */
+    a.ligne.acces { grid-template-columns: 1fr auto; }
+    a.ligne.acces > .ligne-fin {
+      grid-column: auto;
+      justify-self: end;
+      margin-top: 0;
+    }
   }
 
   /* Vignette de pièce — un rectangle de document, pas une image ronde */
@@ -1171,25 +1184,32 @@
     counter-increment: etape;
     display: grid;
     grid-template-columns: 40px 1fr;
-    gap: var(--s-3);
+    column-gap: var(--s-3);
+    row-gap: 4px;
     padding-block: var(--s-4);
     border-top: 1px solid var(--color-filet);
   }
   .guide-etapes > li:first-child { border-top: none; padding-top: 0; }
   .guide-etapes > li::before {
     content: counter(etape, decimal-leading-zero);
+    grid-column: 1;
+    grid-row: 1;
     font-family: var(--f-data);
     font-size: 0.75rem;
     letter-spacing: 0.06em;
     color: var(--color-cachet);
     padding-top: 4px;
   }
+  /* Tout le contenu de l'étape vit dans la colonne de texte. Sans cette
+     règle, le placement automatique envoyait le paragraphe sous le numéro,
+     dans la colonne de 40 px — un mot par ligne. */
+  .guide-etapes > li > * { grid-column: 2; }
   .guide-etapes > li > b {
     font-size: 1.0625rem;
     letter-spacing: -0.02em;
     line-height: 1.25;
   }
-  .guide-etapes .guide-p { margin-top: 4px; }
+  .guide-etapes .guide-p { margin-top: 0; }
 
   /* Encadré : fond papier + filet épais à gauche, jamais d'ombre. */
   .guide-encadre {
