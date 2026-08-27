@@ -10,6 +10,24 @@ export interface PageFixe {
   priorite: string;
 }
 
+/**
+ * Pages pré-rendues mais tenues hors de l'index.
+ *
+ * `/suivi` est une consultation par numéro de téléphone : rien à y indexer.
+ * Le laisser au repli SPA aurait pourtant deux défauts — le HTML servi serait
+ * celui de l'accueil, ce qui décale l'hydratation, et l'onglet porterait un
+ * titre qui n'est pas le sien. On le rend donc comme les autres, avec un
+ * `noindex` explicite et sans entrée au sitemap.
+ */
+export const PAGES_NON_INDEXEES: Array<Omit<PageFixe, 'priorite'>> = [
+  {
+    chemin: '/suivi',
+    titre: 'Mes correspondances — suivre ma déclaration | Pièci',
+    description:
+      'Consultez l’avancement de votre déclaration ou de votre alerte avec votre numéro de téléphone.',
+  },
+];
+
 export const PAGES_FIXES: PageFixe[] = [
   {
     chemin: '/',

@@ -839,6 +839,15 @@
     margin-bottom: var(--s-2);
   }
 
+  /* Au doigt, les filtres passent de 27 à 40 px de haut, et l'écart entre
+     rangées suit. Le réglage vise `pointer: coarse` — au clavier et à la
+     souris, viser 27 px ne coûte rien, et gonfler les jetons sur un écran
+     large repousserait la liste vers le bas sans raison. */
+  @media (pointer: coarse) {
+    .jeton { padding: 10px 14px; }
+    .jetons { gap: 8px; }
+  }
+
   /* Plan du registre : donne à chaque page d'agrégat un lien depuis une page
      atteignable, sans quoi la moitié resterait invisible. Replié par défaut —
      déplié, il ajoute près d'un écran de liens sur téléphone. */
@@ -1039,6 +1048,12 @@
     transition: color 140ms var(--e-micro);
   }
   .pied-nav a:hover { color: var(--color-encre); }
+  /* Huit liens serrés en pied de page : au doigt, ils se manquent. On écarte
+     les rangées et on épaissit la zone touchable, sans changer le dessin. */
+  @media (pointer: coarse) {
+    .pied-nav { gap: var(--s-2) var(--s-3); }
+    .pied-nav a { padding-block: 10px; }
+  }
   /* Marche à suivre iPhone : une consigne, pas une erreur. Le ton est
      informatif — l'utilisateur n'a rien fait de mal, c'est Apple qui impose
      l'installation avant d'autoriser les notifications. */
@@ -1287,6 +1302,11 @@
 
   /* Index des guides : les rubriques se séparent par du blanc, pas par un
      filet de plus — la page en compte déjà assez. */
+  /* Les descriptions restent affichées sur téléphone, à dessein. L'index
+     paraissait interminable tant que `a.ligne.acces` héritait du mauvais
+     gabarit de grille et coupait les titres à un mot par ligne ; la grille
+     réparée, il tient en cinq écrans pour vingt-trois guides. Les masquer
+     n'en économiserait qu'un et demi, au prix de ce qui aide à choisir. */
   .guides-rubrique { margin-top: var(--s-6); }
   .guides-rubrique:first-of-type { margin-top: 0; }
   .guides-rubrique h2 {

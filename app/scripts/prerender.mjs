@@ -57,7 +57,7 @@ async function main() {
 
   try {
     const { rendre } = await vite.ssrLoadModule('/src/entry-static.tsx');
-    const { PAGES_FIXES } = await vite.ssrLoadModule('/src/contenu/pages.ts');
+    const { PAGES_FIXES, PAGES_NON_INDEXEES } = await vite.ssrLoadModule('/src/contenu/pages.ts');
     const { GUIDES } = await vite.ssrLoadModule('/src/contenu/index.ts');
     const { PAGES_REGISTRE } = await vite.ssrLoadModule('/src/contenu/registre.ts');
 
@@ -89,6 +89,7 @@ async function main() {
         priorite: '0.6',
         guide: null,
       })),
+      ...PAGES_NON_INDEXEES.map((p) => ({ ...p, priorite: null, guide: null })),
     ];
 
     const echecs = [];
@@ -116,11 +117,18 @@ async function main() {
       html = remplacerMeta(html, 'twitter:title', page.titre);
       html = remplacerMeta(html, 'twitter:description', page.description);
 
+      // Une page sans priorité ne va pas au sitemap : on le dit aussi aux
+      // robots, plutôt que de compter sur leur discrétion.
+      const noindex =
+        page.priorite === null
+          ? '  <meta name="robots" content="noindex, follow" />\n'
+          : '';
+
       // Canonique : sans elle, `/guides/x` et `/guides/x/` sont deux pages
       // distinctes aux yeux de Google, qui se font concurrence.
       html = html.replace(
         '</head>',
-        `  <link rel="canonical" href="${attr(canonique)}" />\n${
+        `  <link rel="canonical" href="${attr(canonique)}" />\n${noindex}${
           page.guide ? donneesGuide(page.guide, canonique, origine) : ''
         }  </head>`,
       );
@@ -151,6 +159,9 @@ async function main() {
 async function ecrireSitemap(pages, origine) {
   const date = new Date().toISOString().slice(0, 10);
   const urls = pages
+    // Une priorité nulle marque une page pré-rendue mais hors index : elle a
+    // reçu un `noindex`, l'inscrire ici se contredirait.
+    .filter((p) => p.priorite !== null)
     .map((p) => {
       const loc = `${origine}${p.chemin === '/' ? '/' : p.chemin}`;
       const modif = p.guide ? p.guide.miseAJour : date;

@@ -4,8 +4,18 @@ import { PAGES_FIXES } from '../contenu/pages';
 import { GUIDES } from '../contenu';
 import { pageRegistreParSlug } from '../contenu/registre';
 
-/** Titre par défaut : pages sans métadonnées propres, comme le suivi. */
+/** Titre par défaut, pour un chemin qu'on ne reconnaît pas. */
 const DEFAUT = 'Pièci — Ta pièce retrouvée';
+
+/**
+ * Pages volontairement absentes du sitemap, qui méritent tout de même un
+ * titre à elles. `/suivi` est une consultation par numéro de téléphone : rien
+ * à y indexer, mais quelqu'un qui garde l'onglet ouvert en attendant une
+ * correspondance doit pouvoir le retrouver parmi ses autres onglets.
+ */
+const HORS_SITEMAP: Record<string, string> = {
+  '/suivi': 'Mes correspondances — suivre ma déclaration | Pièci',
+};
 
 /**
  * Titre d'une page à partir de son chemin. La même table sert au pré-rendu
@@ -17,6 +27,8 @@ function titrePour(chemin: string): string {
 
   const fixe = PAGES_FIXES.find((p) => p.chemin === propre);
   if (fixe) return fixe.titre;
+
+  if (propre in HORS_SITEMAP) return HORS_SITEMAP[propre];
 
   const slug = propre.startsWith('/guides/') ? propre.slice('/guides/'.length) : null;
   const guide = slug ? GUIDES.find((g) => g.slug === slug) : undefined;
