@@ -10,10 +10,10 @@ const partage = fileURLToPath(new URL('../shared', import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // Chargé pour la substitution de %VITE_SITE_URL% dans index.html ; le
-  // sitemap, lui, est écrit par scripts/prerender.mjs, qui connaît la liste
-  // complète des pages — guides compris.
-  loadEnv(mode, process.cwd(), '')
+  // Chargé pour la substitution de %VITE_SITE_URL% dans index.html, et pour
+  // savoir vers quoi relayer /api en développement. Le sitemap, lui, est écrit
+  // par scripts/prerender.mjs, qui connaît la liste complète des pages.
+  const env = loadEnv(mode, process.cwd(), '')
 
   return {
     resolve: {
@@ -23,6 +23,17 @@ export default defineConfig(({ mode }) => {
     // explicitement, sinon le serveur de dev refuse de le servir.
     server: {
       fs: { allow: ['..', partage] },
+      // En production, /api est relayé vers l'API par le Worker Cloudflare
+      // (app/worker/index.js). Le serveur de développement fait la même chose,
+      // pour que le chemin emprunté soit le même des deux côtés : sans cela,
+      // le relais ne serait jamais exercé avant la mise en ligne.
+      proxy: {
+        '/api': {
+          target: env.API_URL_DEV || 'http://localhost:3000',
+          changeOrigin: true,
+          rewrite: (chemin) => chemin.replace(/^\/api/, ''),
+        },
+      },
     },
     plugins: [
       react(),

@@ -27,8 +27,40 @@ const DELAI_STATS_MS = 1500;
  * est invisible ; dix requêtes par seconde vers Render ne le serait pas. */
 const CACHE_STATS_S = 600;
 
+/** Préfixe sous lequel l'API est servie depuis notre propre domaine. */
+const PREFIXE_API = '/api';
+
+/**
+ * En-têtes de saut : ils décrivent le lien entre deux machines voisines, pas
+ * le message transporté. Un intermédiaire doit les consommer, jamais les
+ * relayer (RFC 9110 §7.6.1).
+ *
+ * `expect` n'est pas là par principe : `curl` l'envoie dès qu'un corps dépasse
+ * le kilooctet, l'amont répond alors « 100 Continue », et un statut sous 200
+ * ne peut pas servir à construire une `Response`. Le relais tombait sur tout
+ * envoi de photo.
+ */
+const ENTETES_DE_SAUT = [
+  'connection',
+  'expect',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+];
+
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+
+    // L'API passe par notre domaine : voir relayerApi() pour le pourquoi.
+    if (url.pathname === PREFIXE_API || url.pathname.startsWith(`${PREFIXE_API}/`)) {
+      return relayerApi(request, url, env);
+    }
+
     const statique = () => env.ASSETS.fetch(request);
 
     if (request.method !== 'GET') return statique();
@@ -38,7 +70,7 @@ export default {
     const type = page.headers.get('content-type') ?? '';
     if (!stats || !type.includes('text/html')) return page;
 
-    const compteListe = comptePourChemin(stats, new URL(request.url).pathname);
+    const compteListe = comptePourChemin(stats, url.pathname);
 
     return new HTMLRewriter()
       .on('span[data-compte="liste"]', new Remplaceur(formater(compteListe)))
@@ -47,6 +79,71 @@ export default {
       .transform(page);
   },
 };
+
+/**
+ * Relaie `/api/*` vers l'API applicative.
+ *
+ * Trois raisons, dans l'ordre d'importance :
+ *
+ * 1. Les bloqueurs de traqueurs coupent `onrender.com` — un domaine
+ *    d'hébergeur mutualisé, présent dans leurs listes. Le site s'affichait
+ *    alors parfaitement, mais le registre restait vide : la panne la plus
+ *    trompeuse qui soit. Servi depuis pieci.ci, l'appel ne ressemble plus à
+ *    un appel tiers, parce qu'il n'en est plus un.
+ * 2. Même origine, donc plus de CORS : plus de requête préalable OPTIONS sur
+ *    chaque écriture, et plus de panne muette le jour où l'on ajoute un
+ *    domaine sans penser à `FRONTEND_URL`.
+ * 3. L'hébergeur cesse d'être exposé dans le code livré au navigateur.
+ *
+ * Le corps de la requête est transmis tel quel, sans être mis en mémoire :
+ * l'envoi de photo peut peser plusieurs mégaoctets.
+ */
+async function relayerApi(request, url, env) {
+  if (!env.API_URL) {
+    return Response.json(
+      { message: 'API non configurée sur ce déploiement.' },
+      { status: 503 },
+    );
+  }
+
+  const chemin = url.pathname.slice(PREFIXE_API.length) || '/';
+  const cible = new URL(chemin + url.search, env.API_URL);
+
+  const enTetesAmont = new Headers(request.headers);
+  for (const nom of ENTETES_DE_SAUT) enTetesAmont.delete(nom);
+
+  // Le corps est transmis en flux, sans être mis en mémoire : une photo peut
+  // peser plusieurs mégaoctets, et `duplex: 'half'` est ce qui autorise ce
+  // flux à circuler.
+  const reponse = await fetch(cible, {
+    method: request.method,
+    headers: enTetesAmont,
+    body: request.body,
+    duplex: 'half',
+  });
+
+  // Un statut hors 200-599 ne peut pas construire une `Response` : plutôt que
+  // de laisser l'exception passer pour une panne du site, on la traduit.
+  if (reponse.status < 200 || reponse.status > 599) {
+    return Response.json(
+      { message: `Réponse inattendue de l’API (${reponse.status}).` },
+      { status: 502 },
+    );
+  }
+
+  // Le registre change à chaque déclaration : rien de tout ceci ne doit
+  // dormir dans un cache intermédiaire. Seuls les comptes agrégés sont mis en
+  // cache, et ils le sont ailleurs (chargerStats).
+  const enTetes = new Headers(reponse.headers);
+  for (const nom of ENTETES_DE_SAUT) enTetes.delete(nom);
+  enTetes.set('cache-control', 'no-store');
+
+  return new Response(reponse.body, {
+    status: reponse.status,
+    statusText: reponse.statusText,
+    headers: enTetes,
+  });
+}
 
 /** Miroir du format côté client (src/lib/stats.ts) : quatre chiffres. */
 function formater(valeur) {

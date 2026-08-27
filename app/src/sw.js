@@ -7,24 +7,36 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 precacheAndRoute(self.__WB_MANIFEST);
 
 /**
- * Origine de l'API, figée au build. La route ci-dessous ne doit intercepter
- * que les appels vers elle : un filtre sur le seul chemin attraperait le même
- * chemin sur n'importe quelle origine, et une panne du gestionnaire ferait
- * alors échouer des requêtes qui ne nous concernent pas.
+ * Base de l'API, figée au build.
+ *
+ * Résolue contre l'origine du service worker, ce qui couvre les deux formes
+ * que peut prendre `VITE_API_URL` : absolue en développement direct, ou
+ * relative (`/api`) quand l'API passe par notre propre domaine. La route
+ * ci-dessous ne doit intercepter que les appels vers cette base : un filtre
+ * sur le seul chemin attraperait le même chemin sur n'importe quelle origine,
+ * et une panne du gestionnaire ferait alors échouer des requêtes qui ne nous
+ * concernent pas.
  */
-const ORIGINE_API = (() => {
+const BASE_API = (() => {
   try {
-    return new URL(import.meta.env.VITE_API_URL).origin;
+    const base = new URL(import.meta.env.VITE_API_URL, self.location.origin);
+    return { origine: base.origin, prefixe: base.pathname.replace(/\/+$/, '') };
   } catch {
     return null;
   }
 })();
 
+/** L'URL vise-t-elle une des routes de données que l'on met en cache ? */
+function estDonneeApi(url) {
+  if (!BASE_API || url.origin !== BASE_API.origine) return false;
+  if (!url.pathname.startsWith(BASE_API.prefixe)) return false;
+  const chemin = url.pathname.slice(BASE_API.prefixe.length);
+  return chemin.startsWith('/pieces-trouvees') || chemin.startsWith('/points-depot');
+}
+
 // Données de l'API : on tente le réseau d'abord, on retombe sur le cache hors-ligne.
 registerRoute(
-  ({ url }) =>
-    url.origin === ORIGINE_API &&
-    (url.pathname.startsWith('/pieces-trouvees') || url.pathname.startsWith('/points-depot')),
+  ({ url }) => estDonneeApi(url),
   new NetworkFirst({
     cacheName: 'pieci-api',
     networkTimeoutSeconds: 5,
