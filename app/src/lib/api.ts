@@ -16,7 +16,23 @@ import {
  * l'URL de base se lit dans `import.meta.env`, et l'envoi de photo passe un
  * `File` que React Native ne connaît pas.
  */
-const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000';
+/**
+ * Base de l'API vue du navigateur.
+ *
+ * `/api` par défaut, et non une URL d'hébergeur : l'API est servie depuis
+ * notre propre domaine, relayée par le Worker (`app/worker/index.js`). Ce
+ * n'est pas une préférence de déploiement mais une condition de
+ * fonctionnement — les bloqueurs de traqueurs coupent les domaines
+ * d'hébergeurs mutualisés, et le registre restait alors vide sans qu'aucune
+ * erreur ne remonte. En faire la valeur par défaut plutôt qu'une variable à
+ * renseigner évite qu'un environnement oublié reparte vers l'appel tiers.
+ *
+ * `VITE_API_BASE` reste là pour viser une autre API — une préproduction, par
+ * exemple. Le serveur de développement relaie `/api` comme le fait le Worker
+ * (voir `server.proxy` dans vite.config.ts), si bien que le même chemin est
+ * emprunté partout.
+ */
+const BASE_URL = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api';
 
 export type {
   ContactInfo,

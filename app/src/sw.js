@@ -10,16 +10,16 @@ precacheAndRoute(self.__WB_MANIFEST);
  * Base de l'API, figée au build.
  *
  * Résolue contre l'origine du service worker, ce qui couvre les deux formes
- * que peut prendre `VITE_API_URL` : absolue en développement direct, ou
- * relative (`/api`) quand l'API passe par notre propre domaine. La route
- * ci-dessous ne doit intercepter que les appels vers cette base : un filtre
- * sur le seul chemin attraperait le même chemin sur n'importe quelle origine,
- * et une panne du gestionnaire ferait alors échouer des requêtes qui ne nous
- * concernent pas.
+ * que la base peut prendre : relative (`/api`, la valeur par défaut, l'API
+ * étant relayée par notre propre domaine) ou absolue, si `VITE_API_BASE`
+ * désigne une autre API. La route ci-dessous ne doit intercepter que les
+ * appels vers cette base : un filtre sur le seul chemin attraperait le même
+ * chemin sur n'importe quelle origine, et une panne du gestionnaire ferait
+ * alors échouer des requêtes qui ne nous concernent pas.
  */
 const BASE_API = (() => {
   try {
-    const base = new URL(import.meta.env.VITE_API_URL, self.location.origin);
+    const base = new URL(import.meta.env.VITE_API_BASE ?? '/api', self.location.origin);
     return { origine: base.origin, prefixe: base.pathname.replace(/\/+$/, '') };
   } catch {
     return null;
