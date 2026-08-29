@@ -272,6 +272,8 @@ export function Declarer() {
           </div>
 
           <GeoField
+            label="Où as-tu trouvé la pièce ?"
+            aide="La commune où tu l’as ramassée — pas celle où tu habites, ni celle marquée sur la pièce."
             commune={commune}
             setCommune={(valeur) => {
               setCommune(valeur);
@@ -293,7 +295,7 @@ export function Declarer() {
           </div>
 
           <div className="champ">
-            <label htmlFor="depot">Où la pièce se trouve-t-elle&nbsp;?</label>
+            <label htmlFor="depot">Où la pièce se trouve-t-elle maintenant&nbsp;?</label>
             <select
               id="depot"
               value={pointDepotId}

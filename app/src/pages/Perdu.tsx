@@ -192,7 +192,13 @@ export function Perdu() {
             </p>
           </div>
 
-          <GeoField commune={commune} setCommune={setCommune} setCoords={setCoords} />
+          <GeoField
+            label="Où l’as-tu perdue ? (facultatif)"
+            aide="Même approximatif, ça aide : une pièce trouvée près de là remonte en premier."
+            commune={commune}
+            setCommune={setCommune}
+            setCoords={setCoords}
+          />
 
           <div className="champ">
             <label htmlFor="quartier">Quartier (facultatif)</label>

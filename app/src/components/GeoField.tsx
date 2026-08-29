@@ -7,14 +7,24 @@ interface GeoFieldProps {
   commune: string;
   setCommune: (commune: string) => void;
   setCoords: (coords: LatLng | null) => void;
+  /**
+   * Ce que le lieu désigne. Obligatoire, et sans valeur par défaut : le
+   * composant sert deux pages où la même liste de communes répond à deux
+   * questions opposées — où la pièce a été trouvée, ou bien où elle a été
+   * perdue. Un libellé neutre comme « Commune ou ville » laissait le lecteur
+   * deviner, et il devinait mal : lieu de naissance ? domicile ?
+   */
+  label: string;
+  /** Précision sous le champ, pour lever le reste de l'ambiguïté. */
+  aide?: string;
   /** Message de champ requis, affiché par le parent à la soumission. */
   erreur?: string;
 }
 
 type Etat = 'repos' | 'chargement' | 'ok' | 'erreur';
 
-/** Sélection de la commune, avec détection optionnelle de la position. */
-export function GeoField({ commune, setCommune, setCoords, erreur }: GeoFieldProps) {
+/** Sélection de la commune, avec relevé optionnel de la position. */
+export function GeoField({ commune, setCommune, setCoords, label, aide, erreur }: GeoFieldProps) {
   const [etat, setEtat] = useState<Etat>('repos');
 
   const localiser = () => {
@@ -46,13 +56,13 @@ export function GeoField({ commune, setCommune, setCoords, erreur }: GeoFieldPro
 
   return (
     <div className="champ">
-      <label htmlFor="commune">Commune ou ville</label>
+      <label htmlFor="commune">{label}</label>
       <div className="duo">
         <select
           id="commune"
           value={commune}
           aria-invalid={erreur ? true : undefined}
-          aria-describedby={erreur ? 'commune-erreur' : undefined}
+          aria-describedby={erreur ? 'commune-erreur' : 'commune-aide'}
           onChange={(e) => {
             const valeur = e.target.value;
             setCommune(valeur);
@@ -60,21 +70,23 @@ export function GeoField({ commune, setCommune, setCoords, erreur }: GeoFieldPro
             setEtat('repos');
           }}
         >
-          <option value="">— Choisir —</option>
+          <option value="">— Choisir la commune —</option>
           {Object.keys(COMMUNES).map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          className="btn"
-          onClick={localiser}
-          disabled={etat === 'chargement'}
-        >
+        {/*
+          « Je suis sur place » plutôt que « Ma position ». Le GPS ne connaît
+          que l'endroit où l'on se tient maintenant : quelqu'un qui a ramassé
+          une pièce le matin et la déclare le soir chez lui obtenait sa propre
+          commune, à l'endroit précis où on lui demandait celle de la
+          trouvaille. Le libellé fait maintenant le tri à sa place.
+        */}
+        <button type="button" className="btn" onClick={localiser} disabled={etat === 'chargement'}>
           <IconeCarte taille={15} />
-          {etat === 'chargement' ? 'Localisation…' : 'Ma position'}
+          {etat === 'chargement' ? 'Localisation…' : 'Je suis sur place'}
         </button>
       </div>
 
@@ -86,12 +98,17 @@ export function GeoField({ commune, setCommune, setCoords, erreur }: GeoFieldPro
       )}
       {etat === 'erreur' && (
         <p className="erreur" role="alert">
-          Position indisponible. Choisis ta commune dans la liste, le résultat sera le même.
+          Position indisponible. Choisis la commune dans la liste, le résultat sera le même.
         </p>
       )}
       {erreur && (
         <p className="erreur" id="commune-erreur">
           {erreur}
+        </p>
+      )}
+      {aide && !erreur && (
+        <p className="aide" id="commune-aide">
+          {aide}
         </p>
       )}
     </div>
