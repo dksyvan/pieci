@@ -48,6 +48,15 @@ export function LieuField({
 }: LieuFieldProps) {
   const [etat, setEtat] = useState<Etat>('repos');
   const [corrigeAMain, setCorrigeAMain] = useState(false);
+  /**
+   * La liste de secours n'apparaît qu'une fois le champ quitté.
+   *
+   * Pendant la frappe, elle surgirait à « Nia » pour disparaître à
+   * « Niangon » — un clignotement sous les doigts. Et rien ne l'annonce : la
+   * liste porte déjà « — Choisir la commune — », dire en plus qu'on n'a pas
+   * reconnu ne renseigne personne et sonne comme un reproche.
+   */
+  const [quitte, setQuitte] = useState(false);
 
   // Tant que la personne n'a pas repris la main, la commune suit le texte.
   useEffect(() => {
@@ -121,8 +130,10 @@ export function LieuField({
           onChange={(e) => {
             setLieu(e.target.value);
             setCorrigeAMain(false);
+            setQuitte(false);
             setEtat('repos');
           }}
+          onBlur={() => setQuitte(true)}
           placeholder="Niangon Sud à Gauche, près de la pharmacie"
         />
         <button type="button" className="btn" onClick={localiser} disabled={etat === 'chargement'}>
@@ -154,14 +165,10 @@ export function LieuField({
         </p>
       )}
 
-      {/* Rien de reconnu, ou correction demandée : on montre la liste. */}
-      {!commune && lieu.trim().length > 0 && (
-        <>
-          <p className="aide" style={{ marginTop: 'var(--s-2)' }}>
-            On n’a pas reconnu la commune dans ce que tu as écrit. Choisis-la&nbsp;:
-          </p>
-          {listeCommunes}
-        </>
+      {/* Rien de reconnu : la liste, sans commentaire. Elle se montre une fois
+          le champ quitté, ou dès qu'une soumission l'a réclamée. */}
+      {!commune && lieu.trim().length > 0 && (quitte || Boolean(erreur)) && (
+        <div style={{ marginTop: 'var(--s-2)' }}>{listeCommunes}</div>
       )}
 
       {etat === 'erreur' && (
