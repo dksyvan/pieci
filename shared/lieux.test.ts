@@ -51,6 +51,38 @@ describe('reconnaissance par le quartier', () => {
   });
 });
 
+describe('pièges gardés à dessein', () => {
+  /**
+   * Ces quartiers portent le nom d'une autre commune, ou d'un quartier
+   * voisin. Ils restent au dictionnaire parce que la règle du nom le plus
+   * long les tranche correctement — mais si cette règle change un jour, ce
+   * sont ces trois cas qui doivent le signaler.
+   */
+  it('rattache Abobo-Doumé à Attécoubé, et non à Abobo', () => {
+    expect(resoudreCommune('Abobo-Doumé').commune).toBe('Attécoubé');
+    expect(resoudreCommune('marché d’Abobo-Doumé').commune).toBe('Attécoubé');
+    // Et « Abobo » seul reste bien Abobo.
+    expect(resoudreCommune('Abobo').commune).toBe('Abobo');
+  });
+
+  it('distingue la Zone 3 de Treichville de la Zone 4 de Marcory', () => {
+    expect(resoudreCommune('Zone 3').commune).toBe('Treichville');
+    expect(resoudreCommune('Zone 4').commune).toBe('Marcory');
+    expect(resoudreCommune('carrefour de la Zone 4').commune).toBe('Marcory');
+  });
+
+  it('n’a pas gardé les noms partagés par plusieurs communes', () => {
+    // « Sicogi » est un bailleur social présent à Yopougon, Abobo et
+    // Koumassi ; « Remblais » existe à Marcory comme à Koumassi. Les
+    // rattacher reviendrait à tirer au sort.
+    expect(QUARTIERS).not.toHaveProperty('Sicogi');
+    expect(QUARTIERS).not.toHaveProperty('Remblais');
+    expect(QUARTIERS).not.toHaveProperty('Grand Marché');
+    // « Port-Bouët 2 » est à Yopougon : le garder ferait dire Port-Bouët.
+    expect(QUARTIERS).not.toHaveProperty('Port-Bouët 2');
+  });
+});
+
 describe('phrases réelles', () => {
   it('démêle un lieu écrit comme on parle', () => {
     const cas: Array<[string, string]> = [
@@ -60,6 +92,12 @@ describe('phrases réelles', () => {
       ['carrefour Zone 4', 'Marcory'],
       ['vers Vridi', 'Port-Bouët'],
       ['quartier Koko à Bouaké', 'Bouaké'],
+      ['gbaka Yopougon Maroc', 'Yopougon'],
+      ['devant la gare de Locodjro', 'Attécoubé'],
+      ['Adjamé Liberté, au marché', 'Adjamé'],
+      ['dans un taxi vers l’aéroport', 'Port-Bouët'],
+      ['Cocody Mermoz, arrêt de bus', 'Cocody'],
+      ['Plateau, vers la Sorbonne', 'Plateau'],
     ];
     for (const [texte, attendu] of cas) {
       expect(resoudreCommune(texte).commune, texte).toBe(attendu);

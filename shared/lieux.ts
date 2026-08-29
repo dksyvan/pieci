@@ -21,10 +21,20 @@ import { levenshtein, normaliser } from './matching';
  * Quartiers et lieux-dits usuels, rattachés à leur commune.
  *
  * Volontairement conservateur : mieux vaut ne rien reconnaître que rattacher
- * une pièce à la mauvaise commune. Les noms ambigus sont écartés — « Grand
- * Marché » existe à Treichville comme à Koumassi, « Remblais » à Marcory
- * comme à Koumassi, et « Port-Bouët 2 » est un quartier de Yopougon, ce qui
- * en ferait un piège parfait.
+ * une pièce à la mauvaise commune — une erreur ici l'envoie sur une page de
+ * registre où son propriétaire ne la cherchera pas.
+ *
+ * Sont donc écartés :
+ * - les noms partagés par plusieurs communes — « Grand Marché » (Treichville
+ *   et Koumassi), « Remblais » (Marcory et Koumassi), et « Sicogi », qui
+ *   désigne un bailleur social présent à Yopougon, Abobo et Koumassi ;
+ * - les mots trop courants pour être un lieu — « Habitat », « Résidentiel »,
+ *   « Nouveau Quartier », « Camp Militaire » ;
+ * - « Port-Bouët 2 », qui est un quartier de Yopougon : le piège parfait.
+ *
+ * Deux pièges sont en revanche gardés, parce que la règle du nom le plus long
+ * les résout correctement : « Abobo-Doumé » est à Attécoubé et non à Abobo,
+ * « Zone 3 » à Treichville quand « Zone 4 » est à Marcory.
  */
 export const QUARTIERS: Record<string, string> = {
   // Yopougon
@@ -37,17 +47,27 @@ export const QUARTIERS: Record<string, string> = {
   Wassakara: 'Yopougon',
   Andokoi: 'Yopougon',
   Selmer: 'Yopougon',
+  Maroc: 'Yopougon',
+  Koweït: 'Yopougon',
+  Yaosséhi: 'Yopougon',
+  Micao: 'Yopougon',
+  Doukouré: 'Yopougon',
 
   // Cocody
   Riviera: 'Cocody',
   Angré: 'Cocody',
   'Deux-Plateaux': 'Cocody',
+  'II Plateaux': 'Cocody',
   Danga: 'Cocody',
   Blockhauss: 'Cocody',
   Bonoumin: 'Cocody',
   Attoban: 'Cocody',
   Palmeraie: 'Cocody',
   Vallon: 'Cocody',
+  Mermoz: 'Cocody',
+  'Saint-Jean': 'Cocody',
+  Akouédo: 'Cocody',
+  Abatta: 'Cocody',
 
   // Abobo
   'Abobo Gare': 'Abobo',
@@ -57,28 +77,50 @@ export const QUARTIERS: Record<string, string> = {
   Sagbé: 'Abobo',
   'N’Dotré': 'Abobo',
   'Abobo Baoulé': 'Abobo',
+  'Abobo Té': 'Abobo',
+  Plaque: 'Abobo',
+  Agbékoi: 'Abobo',
 
   // Adjamé
   'Forum des Marchés': 'Adjamé',
   Williamsville: 'Adjamé',
   Roxy: 'Adjamé',
   '220 Logements': 'Adjamé',
+  Liberté: 'Adjamé',
+  Bracodi: 'Adjamé',
+  'Saint-Michel': 'Adjamé',
+  Paillet: 'Adjamé',
 
   // Marcory
   'Zone 4': 'Marcory',
   Biétry: 'Marcory',
   Anoumabo: 'Marcory',
+  Aliodan: 'Marcory',
 
   // Koumassi
-  Sicogi: 'Koumassi',
+  Prodomo: 'Koumassi',
 
   // Port-Bouët
   Vridi: 'Port-Bouët',
   Gonzagueville: 'Port-Bouët',
   Adjouffou: 'Port-Bouët',
+  Anani: 'Port-Bouët',
+  'Jean-Folly': 'Port-Bouët',
+  Aéroport: 'Port-Bouët',
 
   // Treichville
   Biafra: 'Treichville',
+  Arras: 'Treichville',
+  'Zone 3': 'Treichville',
+
+  // Attécoubé
+  Locodjro: 'Attécoubé',
+  Boribana: 'Attécoubé',
+  'Abobo-Doumé': 'Attécoubé',
+
+  // Plateau
+  'Cité Administrative': 'Plateau',
+  Sorbonne: 'Plateau',
 
   // Bouaké
   Koko: 'Bouaké',
