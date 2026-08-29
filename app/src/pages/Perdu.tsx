@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import type { LatLng } from '@partage/communes';
 import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
-import { GeoField } from '../components/GeoField';
+import { LieuField } from '../components/LieuField';
 import { BandeauPush } from '../components/BandeauPush';
 import { ListeCorrespondances } from '../components/ListeCorrespondances';
 import { useApp } from '../context/useApp';
@@ -192,23 +192,15 @@ export function Perdu() {
             </p>
           </div>
 
-          <GeoField
-            label="Où l’as-tu perdue ? (facultatif)"
-            aide="Même approximatif, ça aide : une pièce trouvée près de là remonte en premier."
+          <LieuField
+            label="Où l’as-tu perdue ? (facultatif)"
+            aide="Même approximatif — un quartier, un marché, une ligne de gbaka. Une pièce trouvée près de là remonte en premier."
+            lieu={quartier}
+            setLieu={setQuartier}
             commune={commune}
             setCommune={setCommune}
             setCoords={setCoords}
           />
-
-          <div className="champ">
-            <label htmlFor="quartier">Quartier (facultatif)</label>
-            <input
-              id="quartier"
-              value={quartier}
-              onChange={(e) => setQuartier(e.target.value)}
-              placeholder="Niangon Sud à Gauche"
-            />
-          </div>
 
           <button className="btn btn-plein btn-large" disabled={enCours}>
             {enCours ? 'Recherche en cours…' : 'Lancer la recherche'}

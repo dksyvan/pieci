@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import { COMMUNES, type LatLng } from '@partage/communes';
 import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
-import { GeoField } from '../components/GeoField';
+import { LieuField } from '../components/LieuField';
 import { BandeauPush } from '../components/BandeauPush';
 import { CartePiece } from '../components/CartePiece';
 import { IconeValide } from '../components/Icones';
@@ -112,7 +112,8 @@ export function Declarer() {
     if (!typePiece) manquants.type = 'Choisis le type de pièce trouvée.';
     if (!prenom.trim()) manquants.prenom = 'Écris le prénom inscrit sur la pièce.';
     if (!nom.trim()) manquants.nom = 'Écris le nom inscrit sur la pièce.';
-    if (!commune) manquants.commune = 'Choisis la commune où tu l’as trouvée.';
+    if (!quartier.trim()) manquants.lieu = 'Écris où tu as trouvé la pièce — le quartier suffit.';
+    else if (!commune) manquants.lieu = 'Choisis la commune dans la liste, juste en dessous.';
     if (!monPrenom.trim()) manquants.monPrenom = 'Ton prénom, pour te recontacter.';
     if (!monNom.trim()) manquants.monNom = 'Ton nom, pour te recontacter.';
     if (!monTelephone.trim()) manquants.monTel = 'Ton numéro, sinon on ne peut pas te joindre.';
@@ -271,28 +272,19 @@ export function Declarer() {
             </div>
           </div>
 
-          <GeoField
-            label="Où as-tu trouvé la pièce ?"
-            aide="La commune où tu l’as ramassée — pas celle où tu habites, ni celle marquée sur la pièce."
-            commune={commune}
-            setCommune={(valeur) => {
-              setCommune(valeur);
-              effacerErreur('commune');
+          <LieuField
+            label="Où as-tu trouvé la pièce ?"
+            aide="Le quartier, le carrefour, le marché — écris comme tu le dirais. C’est ce détail qui fait qu’on se reconnaît."
+            lieu={quartier}
+            setLieu={(valeur) => {
+              setQuartier(valeur);
+              effacerErreur('lieu');
             }}
+            commune={commune}
+            setCommune={setCommune}
             setCoords={setCoords}
-            erreur={erreurs.commune}
+            erreur={erreurs.lieu}
           />
-
-          <div className="champ">
-            <label htmlFor="quartier">Quartier (facultatif)</label>
-            <input
-              id="quartier"
-              value={quartier}
-              onChange={(e) => setQuartier(e.target.value)}
-              placeholder="Niangon Sud à Gauche"
-            />
-            <p className="aide">Plus c’est précis, plus vite le propriétaire se repère.</p>
-          </div>
 
           <div className="champ">
             <label htmlFor="depot">Où la pièce se trouve-t-elle maintenant&nbsp;?</label>
