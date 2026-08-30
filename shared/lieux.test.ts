@@ -71,15 +71,41 @@ describe('pièges gardés à dessein', () => {
     expect(resoudreCommune('carrefour de la Zone 4').commune).toBe('Marcory');
   });
 
-  it('n’a pas gardé les noms partagés par plusieurs communes', () => {
-    // « Sicogi » est un bailleur social présent à Yopougon, Abobo et
-    // Koumassi ; « Remblais » existe à Marcory comme à Koumassi. Les
-    // rattacher reviendrait à tirer au sort.
-    expect(QUARTIERS).not.toHaveProperty('Sicogi');
+  /**
+   * « Sicogi » est le nom d'un bailleur social, qui a bâti dans plusieurs
+   * communes. Employé seul à Abidjan il désigne Koumassi Sicogi, et c'est à
+   * ce titre qu'il figure au dictionnaire. Le cas gênant reste possible —
+   * quelqu'un qui écrit la cité Sicogi de Yopougon — et se règle par la
+   * priorité donnée aux communes à égalité de score. Ce test est le garde-fou
+   * de cette règle : si elle change, c'est ici que ça se verra.
+   */
+  it('laisse la commune nommée l’emporter sur « Sicogi »', () => {
+    expect(resoudreCommune('Sicogi').commune).toBe('Koumassi');
+    expect(resoudreCommune('Yopougon Sicogi').commune).toBe('Yopougon');
+    expect(resoudreCommune('cité Sicogi à Abobo').commune).toBe('Abobo');
+  });
+
+  it('n’a pas gardé les noms partagés sans usage dominant', () => {
+    // Contrairement à « Sicogi », rien ne désigne une commune plutôt qu'une
+    // autre pour ceux-ci : les rattacher reviendrait à tirer au sort.
     expect(QUARTIERS).not.toHaveProperty('Remblais');
     expect(QUARTIERS).not.toHaveProperty('Grand Marché');
     // « Port-Bouët 2 » est à Yopougon : le garder ferait dire Port-Bouët.
     expect(QUARTIERS).not.toHaveProperty('Port-Bouët 2');
+  });
+
+  /**
+   * Limite connue de « Nord-Est » : c'est aussi un point cardinal. « au nord
+   * est du carrefour » sera lu comme Koumassi. Le nom est gardé parce qu'à
+   * Abidjan, employé dans un champ de lieu, il désigne le plus souvent
+   * Koumassi Nord-Est — et parce que la commune déduite est toujours affichée
+   * avec de quoi la corriger.
+   */
+  it('reconnaît « Nord-Est » comme Koumassi, point cardinal compris', () => {
+    expect(resoudreCommune('Nord-Est').commune).toBe('Koumassi');
+    expect(resoudreCommune('Koumassi Nord-Est').commune).toBe('Koumassi');
+    // Le faux positif assumé, fixé ici pour qu'il ne surprenne personne.
+    expect(resoudreCommune('au nord est du carrefour').commune).toBe('Koumassi');
   });
 });
 

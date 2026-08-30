@@ -26,15 +26,16 @@ import { levenshtein, normaliser } from './matching';
  *
  * Sont donc écartés :
  * - les noms partagés par plusieurs communes — « Grand Marché » (Treichville
- *   et Koumassi), « Remblais » (Marcory et Koumassi), et « Sicogi », qui
- *   désigne un bailleur social présent à Yopougon, Abobo et Koumassi ;
+ *   et Koumassi), « Remblais » (Marcory et Koumassi) ;
  * - les mots trop courants pour être un lieu — « Habitat », « Résidentiel »,
  *   « Nouveau Quartier », « Camp Militaire » ;
  * - « Port-Bouët 2 », qui est un quartier de Yopougon : le piège parfait.
  *
- * Deux pièges sont en revanche gardés, parce que la règle du nom le plus long
+ * Sont gardés en revanche des noms qui ressemblent à des pièges, parce que la
+ * règle du nom le plus long — et, à égalité, la priorité donnée aux communes —
  * les résout correctement : « Abobo-Doumé » est à Attécoubé et non à Abobo,
- * « Zone 3 » à Treichville quand « Zone 4 » est à Marcory.
+ * « Zone 3 » à Treichville quand « Zone 4 » est à Marcory, et « Yopougon
+ * Sicogi » reste Yopougon bien que « Sicogi » seul désigne Koumassi.
  */
 export const QUARTIERS: Record<string, string> = {
   // Yopougon
@@ -99,6 +100,17 @@ export const QUARTIERS: Record<string, string> = {
 
   // Koumassi
   Prodomo: 'Koumassi',
+  Soweto: 'Koumassi',
+  'Nord-Est': 'Koumassi',
+  // « Sicogi » désigne un bailleur social qui a bâti dans plusieurs communes,
+  // ce qui avait d'abord fait écarter le nom. Il est rétabli sur indication
+  // du terrain : employé seul, à Abidjan, il désigne Koumassi Sicogi. Le cas
+  // gênant — « Yopougon Sicogi » — se règle tout seul, la commune nommée
+  // l'emportant sur le quartier à égalité de score (voir resoudreCommune).
+  Sicogi: 'Koumassi',
+
+  // Bingerville
+  'Nouveau Goudron': 'Bingerville',
 
   // Port-Bouët
   Vridi: 'Port-Bouët',
