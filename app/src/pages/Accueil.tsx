@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../context/useApp';
 import { COMMUNES } from '@partage/communes';
 import { compteurValorisant } from '@partage/vitrine';
+import { nomPublic } from '@partage/partage';
 import { relDate } from '../lib/format';
 import { CartePiece } from '../components/CartePiece';
 import { IconeFleche } from '../components/Icones';
@@ -216,7 +217,7 @@ export function Accueil() {
                     <div className="ligne" key={p.id} style={{ gridTemplateColumns: '1fr auto' }}>
                       <div>
                         <div className="ligne-nom" style={{ fontSize: '0.9375rem' }}>
-                          {p.prenom} {p.nomInitiale}.
+                          {nomPublic(p)}
                         </div>
                         <div className="ligne-meta donnee">
                           {p.typePiece.toUpperCase()} · {p.commune}

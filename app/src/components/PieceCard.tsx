@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { nomPublic } from '@partage/partage';
 import type { PieceTrouveePublique } from '../lib/api';
 import { relDate } from '../lib/format';
 import { DocThumb } from './DocThumb';
@@ -17,8 +18,12 @@ export function PieceCard({ piece }: PieceCardProps) {
       <DocThumb photoFlouteeUrl={piece.photoFlouteeUrl} />
 
       <div>
+        {/* Le nom mène à la fiche : c'est la page qu'on partage, et le
+            registre est le seul endroit d'où quelqu'un d'autre que le
+            déclarant peut y arriver. La colonne de droite garde le chemin
+            direct du propriétaire, qui n'a rien à faire d'une fiche. */}
         <h3 className="ligne-nom">
-          {piece.prenom} {piece.nomInitiale}.
+          <Link to={`/piece/${piece.id}`}>{nomPublic(piece)}</Link>
         </h3>
         <p className="ligne-meta donnee" style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           {piece.typePiece}

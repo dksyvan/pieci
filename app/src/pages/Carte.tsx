@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { nomPublic } from '@partage/partage';
 import * as L from 'leaflet';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/useApp';
@@ -41,10 +42,10 @@ export function Carte() {
         ? `${echapperHtml(p.commune)}, ${echapperHtml(p.quartier)}`
         : echapperHtml(p.commune);
 
-      L.marker([p.lat, p.lng], { icon: repere(CACHET), alt: `${p.prenom} ${p.nomInitiale}.` })
+      L.marker([p.lat, p.lng], { icon: repere(CACHET), alt: nomPublic(p) })
         .addTo(carte)
         .bindPopup(
-          `<b>${echapperHtml(p.prenom)} ${echapperHtml(p.nomInitiale)}.</b><br>` +
+          `<b>${echapperHtml(nomPublic(p))}</b><br>` +
             `<span style="text-transform:uppercase;letter-spacing:.06em;font-size:11px">${echapperHtml(p.typePiece)}</span><br>` +
             `<small>${lieu} · déclarée ${relDate(p.dateTrouvaille)}</small>${photo}`,
         );
