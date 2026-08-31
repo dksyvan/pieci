@@ -27,7 +27,7 @@
  */
 
 import { depuisPieceBrute } from '../../shared/api-types.ts';
-import { lieuDe, nomPublic, titreDePartage } from '../../shared/partage.ts';
+import { descriptionDePartage, nomPublic, titreDePartage } from '../../shared/partage.ts';
 
 /** Réponse d'API au-delà de laquelle on renonce : le keep-warm rend une
  * attente plus longue anormale, et la page se suffit sans ses comptes. */
@@ -198,9 +198,7 @@ async function servirFiche(request, url, env) {
 
   const piece = depuisPieceBrute(brute);
   const titre = `${titreDePartage(piece)} | Pièci`;
-  const description =
-    `${piece.typePiece} déclarée à ${lieuDe(piece)} au nom de ${nomPublic(piece)}. ` +
-    'Si c’est ta pièce, ou celle de quelqu’un que tu connais, la récupération est gratuite et sans intermédiaire.';
+  const description = descriptionDePartage(piece);
   const lien = new URL(`${PREFIXE_FICHE}${id}`, url).toString();
 
   let rewriter = new HTMLRewriter()

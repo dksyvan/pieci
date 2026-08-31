@@ -1389,9 +1389,16 @@
     .fiche-piece { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
   }
 
+  /* La photo est floutee : elle atteste d'une declaration reelle, elle ne se
+     lit pas. Non bridee, elle occupait un ecran entier sur telephone et
+     repoussait le partage — qui est la raison d'etre de la page — sous la
+     ligne de flottaison. On la recadre donc, sans rien perdre puisqu'il n'y a
+     rien a y voir. */
   .fiche-photo {
     display: block;
     width: 100%;
+    max-height: 260px;
+    object-fit: cover;
     border: 1px solid var(--color-filet);
     border-radius: var(--r-bloc);
     background: var(--color-papier-2);

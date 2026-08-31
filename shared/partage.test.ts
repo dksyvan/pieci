@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TYPES_PIECE } from './types';
 import {
   ORIGINE,
+  descriptionDePartage,
   lienFacebook,
   lienWhatsApp,
   lieuDe,
@@ -84,6 +85,37 @@ describe('message envoyé', () => {
 
   it('ne commence pas par l’URL', () => {
     expect(message.startsWith('http')).toBe(false);
+  });
+
+  /**
+   * L'initiale porte deja son point : ponctuer la phrase sans regarder donnait
+   * « au nom de Adjoua N.. », dans un texte destine a circuler tel quel. Le
+   * cas s'est produit en production ; il est fige ici pour toutes les phrases
+   * du module, pas seulement celle qui l'a revele.
+   */
+  it('ne double jamais le point final', () => {
+    for (const type of TYPES_PIECE) {
+      const piece = { ...PIECE, typePiece: type };
+      expect(messageComplet(piece), type).not.toContain('..');
+      expect(titreDePartage(piece), type).not.toContain('..');
+      expect(descriptionDePartage(piece), type).not.toContain('..');
+    }
+  });
+});
+
+describe('description d’aperçu', () => {
+  it('accorde le participe, comme le titre', () => {
+    expect(descriptionDePartage({ ...PIECE, typePiece: 'CNI' })).toContain('CNI déclarée');
+    expect(descriptionDePartage({ ...PIECE, typePiece: 'Passeport' })).toContain(
+      'Passeport déclaré à',
+    );
+  });
+
+  it('dit où, au nom de qui, et ce que ça coûte', () => {
+    const d = descriptionDePartage(PIECE);
+    expect(d).toContain('Niangon Sud, Yopougon');
+    expect(d).toContain('Adjoua N.');
+    expect(d).toContain('gratuite');
   });
 });
 

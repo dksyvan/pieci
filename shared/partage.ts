@@ -40,6 +40,17 @@ const GENRE: Record<TypePiece, 'f' | 'm'> = {
   'Carte consulaire': 'f',
 };
 
+/**
+ * Termine une phrase sans doubler le point.
+ *
+ * Toutes ces phrases finissent par l'identité, qui finit elle-même par
+ * l'initiale et son point. Ajouter la ponctuation sans regarder donnait
+ * « au nom de Serge Alan D.. » — dans un message destiné à circuler tel quel.
+ */
+function ponctuer(phrase: string): string {
+  return phrase.endsWith('.') ? phrase : `${phrase}.`;
+}
+
 /** URL publique d'une pièce du registre. */
 export function urlPiece(id: string, origine: string = ORIGINE): string {
   return `${origine}/piece/${id}`;
@@ -88,7 +99,7 @@ export function texteDePartage(
   piece: Pick<PieceTrouveePublique, 'typePiece' | 'prenom' | 'nomInitiale' | 'commune' | 'quartier'>,
 ): string {
   return [
-    `🪪 ${titreDePartage(piece)}.`,
+    `🪪 ${ponctuer(titreDePartage(piece))}`,
     '',
     'Si tu reconnais ce nom, préviens la personne : sa pièce est enregistrée sur Pièci. La récupération est gratuite, et aucun numéro n’est publié.',
   ].join('\n');
@@ -100,6 +111,25 @@ export function messageComplet(
   origine: string = ORIGINE,
 ): string {
   return `${texteDePartage(piece)}\n\n${urlPiece(piece.id, origine)}\n\nFais tourner, ça peut sauver quelqu’un 🙏`;
+}
+
+/**
+ * Description d'aperçu — celle que WhatsApp et Facebook affichent sous le
+ * titre, et que le Worker écrit dans les balises `og:` (voir
+ * app/worker/index.js). Elle vit ici pour la même raison que le reste : une
+ * phrase recopiée au bord aurait fini par ne plus dire la même chose que le
+ * site, et par perdre l'accord au passage.
+ */
+export function descriptionDePartage(
+  piece: Pick<PieceTrouveePublique, 'typePiece' | 'prenom' | 'nomInitiale' | 'commune' | 'quartier'>,
+): string {
+  const declaree = GENRE[piece.typePiece] === 'f' ? 'déclarée' : 'déclaré';
+  return (
+    ponctuer(
+      `${piece.typePiece} ${declaree} à ${lieuDe(piece)} au nom de ${nomPublic(piece)}`,
+    ) +
+    ' Si c’est ta pièce, ou celle de quelqu’un que tu connais, la récupération est gratuite et sans intermédiaire.'
+  );
 }
 
 /**
