@@ -81,6 +81,22 @@ export async function getPiecesTrouvees(): Promise<PieceTrouveePublique[]> {
   return brutes.map(depuisPieceBrute);
 }
 
+/**
+ * Une pièce seule, par son identifiant.
+ *
+ * Sert la page publique `/piece/:id`, qui est l'objet même qu'on partage dans
+ * les groupes. Aller la chercher directement plutôt que de filtrer la liste
+ * évite de faire dépendre l'affichage d'une pièce du chargement de tout le
+ * registre — et rend un 404 franc quand elle a été restituée, au lieu d'une
+ * page vide sans explication.
+ */
+export async function getPieceTrouvee(id: string): Promise<PieceTrouveePublique> {
+  const brute = await requete<PieceTrouveePubliqueBrute>(
+    `/pieces-trouvees/${encodeURIComponent(id)}`,
+  );
+  return depuisPieceBrute(brute);
+}
+
 export function creerPieceTrouvee(donnees: NouvellePieceTrouvee): Promise<{ id: string }> {
   return requete('/pieces-trouvees', { method: 'POST', body: JSON.stringify(donnees) });
 }

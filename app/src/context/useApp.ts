@@ -30,8 +30,12 @@ export interface AppContextValue {
   toast: string | null;
   /** Affiche un message dans le toast pendant quelques secondes. */
   afficherToast: (message: string) => void;
-  /** Publie une nouvelle déclaration de pièce trouvée et rafraîchit la liste. */
-  publier: (donnees: NouvellePieceTrouvee) => Promise<void>;
+  /**
+   * Publie une nouvelle déclaration de pièce trouvée et rafraîchit la liste.
+   * Rend l'identifiant de la pièce créée : c'est lui qui donne au déclarant le
+   * lien à faire circuler, juste après l'envoi (voir pages/Declarer.tsx).
+   */
+  publier: (donnees: NouvellePieceTrouvee) => Promise<string>;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);

@@ -61,9 +61,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const publier = useCallback(
     async (donnees: NouvellePieceTrouvee) => {
-      await creerPieceTrouvee(donnees);
+      const { id } = await creerPieceTrouvee(donnees);
       setPiecesTrouvees(await getPiecesTrouvees());
       afficherToast("✅ Déclaration publiée, Anitché ! Je vais brobro le propriétaire…");
+      return id;
     },
     [afficherToast],
   );

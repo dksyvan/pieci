@@ -23,12 +23,13 @@ not_found_handling = "single-page-application"
 # celle qu'on publie partout.
 html_handling = "drop-trailing-slash"
 
-# Deux familles de chemins passent par le Worker : les pages du registre, où
-# il écrit les comptes vivants, et /api/*, qu'il relaie vers l'API applicative
-# (voir worker/index.js). Tout le reste part du serveur d'assets directement —
-# chemin rapide, zéro exécution.
+# Trois familles de chemins passent par le Worker : les pages du registre, où
+# il écrit les comptes vivants ; les fiches /piece/*, dont il compose les
+# balises d'aperçu pièce par pièce ; et /api/*, qu'il relaie vers l'API
+# applicative (voir worker/index.js). Tout le reste part du serveur d'assets
+# directement — chemin rapide, zéro exécution.
 #
 # /api/* doit impérativement figurer ici : sans cette ligne, le repli SPA
 # répondrait index.html à chaque appel d'API, et le client recevrait du HTML
 # là où il attend du JSON.
-run_worker_first = ["/trouvees", "/trouvees/*", "/api/*"]
+run_worker_first = ["/trouvees", "/trouvees/*", "/piece/*", "/api/*"]

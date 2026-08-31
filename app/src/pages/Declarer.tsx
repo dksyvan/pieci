@@ -6,6 +6,7 @@ import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partag
 import { LieuField } from '../components/LieuField';
 import { BandeauPush } from '../components/BandeauPush';
 import { CartePiece } from '../components/CartePiece';
+import { PartagePiece } from '../components/PartagePiece';
 import { IconeValide } from '../components/Icones';
 import { useApp } from '../context/useApp';
 import { ApiError, uploaderPhotoPiece } from '../lib/api';
@@ -66,6 +67,13 @@ export function Declarer() {
    * « 0700000000 » enverrait les alertes dans le vide.
    */
   const [publiee, setPubliee] = useState<string | null>(null);
+  /**
+   * Identifiant de la pièce publiée : c'est lui qui donne au déclarant le lien
+   * à faire circuler. Le partage est l'unique moment où le trouveur peut
+   * encore agir — après, la pièce dort au registre en attendant qu'on la
+   * cherche.
+   */
+  const [fiche, setFiche] = useState<string | null>(null);
 
   /**
    * Erreurs de champs, indexées par id du DOM. Le bouton d'envoi reste
@@ -132,7 +140,7 @@ export function Declarer() {
     try {
       const urls = photo ? await uploaderPhotoPiece(photo) : null;
 
-      await publier({
+      const idPiece = await publier({
         declarant: { telephone: numero, prenom: monPrenom, nom: monNom },
         typePiece,
         prenom,
@@ -146,6 +154,7 @@ export function Declarer() {
         photoOriginaleUrl: urls?.photoOriginaleUrl,
         photoFlouteeUrl: urls?.photoFlouteeUrl,
       });
+      setFiche(idPiece);
       setPubliee(numero);
     } catch (err) {
       afficherToast(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
@@ -170,6 +179,28 @@ export function Declarer() {
               Merci pour ton geste. L’algorithme compare déjà avec les alertes en cours — si quelqu’un
               cherche cette pièce, on te le signale, et c’est lui qui te contactera.
             </p>
+
+            {/* Le partage vient avant les notifications, et ce n'est pas un
+                détail d'ordre : c'est le seul geste qui augmente les chances
+                de cette pièce-là. Passé cet écran, le trouveur n'a plus rien
+                à faire — la pièce attend qu'on vienne la chercher. */}
+            {fiche && (
+              <div style={{ marginTop: 'var(--s-5)' }}>
+                <PartagePiece
+                  piece={{
+                    id: fiche,
+                    typePiece: typePiece as TypePiece,
+                    prenom,
+                    // Même forme que la vue publique, point compris (voir nomPublic).
+                    nomInitiale: `${nom.charAt(0).toUpperCase()}.`,
+                    commune,
+                    quartier: quartier.trim() || null,
+                  }}
+                  titre="Maintenant, fais-la circuler"
+                  intro="Le registre attend qu’on vienne le consulter ; un message, lui, arrive chez les gens. Envoie la fiche dans ton groupe de quartier ou dans un groupe d’objets trouvés — c’est ce qui fait la différence entre une pièce déclarée et une pièce rendue."
+                />
+              </div>
+            )}
 
             <div style={{ marginTop: 'var(--s-5)' }}>
               <BandeauPush telephone={publiee} onTermine={() => navigate('/trouvees')} />

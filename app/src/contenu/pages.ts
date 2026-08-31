@@ -26,6 +26,17 @@ export const PAGES_NON_INDEXEES: Array<Omit<PageFixe, 'priorite'>> = [
     description:
       'Consultez l’avancement de votre déclaration ou de votre alerte avec votre numéro de téléphone.',
   },
+  {
+    // Gabarit des fiches `/piece/:id`. Le Worker le sert pour chaque
+    // identifiant et y écrit les balises d'aperçu (voir worker/index.js) :
+    // sans ce fichier, le repli SPA renverrait le HTML de l'accueil sous une
+    // URL de fiche. Hors index par principe — on indexe le lieu, jamais la
+    // personne (voir contenu/registre.ts).
+    chemin: '/piece',
+    titre: 'Pièce trouvée — fiche du registre | Pièci',
+    description:
+      'Fiche d’une pièce d’identité trouvée et déclarée sur Pièci. Récupération gratuite, sans intermédiaire.',
+  },
 ];
 
 export const PAGES_FIXES: PageFixe[] = [

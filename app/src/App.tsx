@@ -5,6 +5,7 @@ import { Accueil } from './pages/Accueil';
 import { Trouvees } from './pages/Trouvees';
 import { Declarer } from './pages/Declarer';
 import { Perdu } from './pages/Perdu';
+import { Piece } from './pages/Piece';
 import { Suivi } from './pages/Suivi';
 import { Soutenir } from './pages/Soutenir';
 import { Guides } from './pages/Guides';
@@ -35,6 +36,12 @@ export default function App() {
             </Suspense>
           }
         />
+        {/* La fiche d'une pièce, telle qu'on la partage. `/piece` sans
+            identifiant est le gabarit que le Worker habille pour chaque
+            fiche : rendu ici pour être pré-rendu, il redirige tout visiteur
+            qui l'atteindrait vraiment. */}
+        <Route path="piece" element={<Piece />} />
+        <Route path="piece/:id" element={<Piece />} />
         <Route path="declarer" element={<Declarer />} />
         <Route path="perdu" element={<Perdu />} />
         <Route path="suivi" element={<Suivi />} />

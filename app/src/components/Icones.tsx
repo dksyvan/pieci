@@ -138,3 +138,50 @@ export function IconeGuide(p: IconeProps) {
     </svg>
   );
 }
+
+export function IconePartage(p: IconeProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M12 15V4" />
+      <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
+      <path d="M5 13v6.5h14V13" />
+    </svg>
+  );
+}
+
+/**
+ * WhatsApp — le seul pictogramme de marque du jeu, et donc le seul rempli.
+ * Un combiné générique ne serait pas reconnu : ce qui décide quelqu'un à
+ * appuyer, c'est de voir l'application qu'il utilise tous les jours.
+ */
+export function IconeWhatsApp({ taille = 18, className }: IconeProps) {
+  return (
+    <svg
+      width={taille}
+      height={taille}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      focusable={false}
+      className={className}
+    >
+      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2m5.8 14.16c-.25.69-1.43 1.32-1.99 1.4-.51.08-1.15.11-1.86-.12-.43-.14-.98-.32-1.68-.62-2.96-1.28-4.9-4.26-5.04-4.46-.15-.2-1.21-1.61-1.21-3.07s.77-2.18 1.04-2.48c.27-.3.59-.37.79-.37s.39 0 .57.01c.18.01.42-.07.66.5.25.6.84 2.06.91 2.21.07.15.12.32.02.52-.1.2-.15.32-.3.5-.15.17-.31.39-.44.52-.15.15-.3.31-.13.61.17.3.76 1.25 1.63 2.02 1.12.99 2.06 1.3 2.36 1.45.3.15.47.12.65-.07.18-.2.75-.87.95-1.17.2-.3.4-.25.67-.15.27.1 1.72.81 2.02.96.3.15.5.22.57.35.07.12.07.72-.18 1.41" />
+    </svg>
+  );
+}
+
+export function IconeFacebook({ taille = 18, className }: IconeProps) {
+  return (
+    <svg
+      width={taille}
+      height={taille}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      focusable={false}
+      className={className}
+    >
+      <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.77-3.91 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.45 2.91h-2.33V22c4.78-.76 8.44-4.92 8.44-9.94" />
+    </svg>
+  );
+}

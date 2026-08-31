@@ -15,6 +15,7 @@ const DEFAUT = 'Pièci — Ta pièce retrouvée';
  */
 const HORS_SITEMAP: Record<string, string> = {
   '/suivi': 'Mes correspondances — suivre ma déclaration | Pièci',
+  '/piece': 'Pièce trouvée — fiche du registre | Pièci',
 };
 
 /**
@@ -33,6 +34,11 @@ function titrePour(chemin: string): string {
   const slug = propre.startsWith('/guides/') ? propre.slice('/guides/'.length) : null;
   const guide = slug ? GUIDES.find((g) => g.slug === slug) : undefined;
   if (guide) return `${guide.titre} | Pièci`;
+
+  // La fiche d'une pièce précise son propre titre une fois chargée (voir
+  // pages/Piece.tsx) : ici on ne donne que le titre d'attente, celui que porte
+  // l'onglet pendant que la fiche arrive.
+  if (propre.startsWith('/piece/')) return HORS_SITEMAP['/piece'];
 
   if (propre.startsWith('/trouvees/')) {
     const page = pageRegistreParSlug(propre.slice('/trouvees/'.length));
