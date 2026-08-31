@@ -3,7 +3,9 @@ import {
   Controller,
   Get,
   HttpStatus,
+  Param,
   ParseFilePipeBuilder,
+  ParseUUIDPipe,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -52,5 +54,18 @@ export class PiecesTrouveesController {
   @Get('stats')
   stats() {
     return this.piecesTrouvees.stats();
+  }
+
+  /**
+   * Une pièce seule, pour sa page publique et l'aperçu au partage.
+   *
+   * Déclarée après `stats` : Nest éprouve les routes dans l'ordre du fichier,
+   * et un `:id` placé plus haut avalerait `/pieces-trouvees/stats`. Le filtre
+   * d'UUID n'est pas décoratif non plus — il répond 400 sur un identifiant
+   * malformé au lieu de laisser Postgres refuser la conversion en 500.
+   */
+  @Get(':id')
+  findOnePublic(@Param('id', ParseUUIDPipe) id: string) {
+    return this.piecesTrouvees.findOnePublic(id);
   }
 }

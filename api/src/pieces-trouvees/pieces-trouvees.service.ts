@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
@@ -93,6 +93,24 @@ export class PiecesTrouveesService {
     return this.dataSource.query<PieceTrouveePubliqueDto[]>(
       `SELECT * FROM v_pieces_trouvees_publiques ORDER BY date_trouvaille DESC`,
     );
+  }
+
+  /**
+   * Une pièce du registre, par son identifiant.
+   *
+   * Même source que la liste — la vue publique, et elle seule. Une pièce
+   * restituée, expirée ou en attente n'y figure plus : son lien cesse alors de
+   * répondre, ce qui est le comportement voulu. Un lien partagé dans un groupe
+   * WhatsApp survit des mois à la restitution ; il ne doit pas continuer
+   * d'exposer une identité après coup.
+   */
+  async findOnePublic(id: string): Promise<PieceTrouveePubliqueDto> {
+    const [piece] = await this.dataSource.query<PieceTrouveePubliqueDto[]>(
+      `SELECT * FROM v_pieces_trouvees_publiques WHERE id = $1`,
+      [id],
+    );
+    if (!piece) throw new NotFoundException('Cette pièce n’est plus au registre.');
+    return piece;
   }
 
   /**

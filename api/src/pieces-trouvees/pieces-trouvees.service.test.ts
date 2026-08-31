@@ -133,3 +133,47 @@ describe('PiecesTrouveesService.stats', () => {
     await expect(service.stats()).resolves.toEqual({ total: 0, parCommune: {}, parType: {} });
   });
 });
+
+describe('PiecesTrouveesService.findOnePublic', () => {
+  function creerService(lignes: unknown[]) {
+    const query = vi.fn(async () => lignes);
+    const service = new PiecesTrouveesService(
+      {} as Repository<PieceTrouvee>,
+      { query } as unknown as DataSource,
+      {} as UtilisateursService,
+      creerMatchingMock(),
+    );
+    return { service, query };
+  }
+
+  it('lit la vue publique, jamais la table', async () => {
+    const ligne = { id: 'piece-1', prenom: 'Adjoua', nom_initiale: 'N', commune: 'Yopougon' };
+    const { service, query } = creerService([ligne]);
+
+    await expect(service.findOnePublic('piece-1')).resolves.toBe(ligne);
+
+    // La vue est ce qui garantit qu'aucun nom entier ni contact ne sort d'ici.
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('v_pieces_trouvees_publiques'),
+      ['piece-1'],
+    );
+  });
+
+  it('passe l’identifiant en parametre, sans le concatener', async () => {
+    const { service, query } = creerService([{ id: 'x' }]);
+
+    await service.findOnePublic("' OR 1=1 --");
+
+    const [sql, parametres] = query.mock.calls[0] as [string, unknown[]];
+    expect(sql).not.toContain('OR 1=1');
+    expect(parametres).toEqual(["' OR 1=1 --"]);
+  });
+
+  it('refuse une piece absente de la vue plutot que de rendre du vide', async () => {
+    // Restituee, expiree ou jamais existante : de l'exterieur, c'est pareil.
+    // Un lien partage il y a trois mois doit cesser de repondre, pas afficher
+    // une fiche a moitie vide.
+    const { service } = creerService([]);
+    await expect(service.findOnePublic('inconnue')).rejects.toThrow(/registre/);
+  });
+});
