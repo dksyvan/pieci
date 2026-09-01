@@ -68,6 +68,27 @@ describe('formulation', () => {
     expect(lieuDe(PIECE)).toBe('Niangon Sud, Yopougon');
     expect(lieuDe({ ...PIECE, quartier: null })).toBe('Yopougon');
   });
+
+  /**
+   * Depuis que l'endroit s'ecrit librement, les gens nomment la commune
+   * d'eux-memes. La coller derriere donnait « Mairie de Yopougon, Yopougon »
+   * jusque dans le titre des pages et les messages partages.
+   */
+  it('n’ajoute pas la commune quand le texte la nomme deja', () => {
+    expect(lieuDe({ commune: 'Yopougon', quartier: 'Mairie de Yopougon' })).toBe(
+      'Mairie de Yopougon',
+    );
+    expect(lieuDe({ commune: 'Cocody', quartier: 'Cocody Angré 8e tranche' })).toBe(
+      'Cocody Angré 8e tranche',
+    );
+    // Accents et casse ne doivent pas faire echouer la comparaison.
+    expect(lieuDe({ commune: 'Adjamé', quartier: 'marché d’ADJAME' })).toBe('marché d’ADJAME');
+    expect(lieuDe({ commune: 'Port-Bouët', quartier: 'vers port bouet' })).toBe('vers port bouet');
+    // Et une commune reellement absente reste ajoutee.
+    expect(lieuDe({ commune: 'Yopougon', quartier: 'carrefour Gesco' })).toBe(
+      'carrefour Gesco, Yopougon',
+    );
+  });
 });
 
 describe('message envoyé', () => {

@@ -1,5 +1,6 @@
 import type { PieceTrouveePublique } from './api-types';
 import type { TypePiece } from './types';
+import { normaliser } from './matching';
 
 /**
  * Composition des messages de partage d'une pièce trouvée.
@@ -74,9 +75,18 @@ export function nomPublic(piece: Pick<PieceTrouveePublique, 'prenom' | 'nomIniti
  * Lieu tel qu'on le prononce : l'endroit précis d'abord, la commune ensuite.
  * « Niangon Sud, Yopougon » parle à quelqu'un ; « Yopougon » seul, beaucoup
  * moins — c'est un million d'habitants.
+ *
+ * La commune n'est ajoutée que si elle manque. Depuis que l'endroit s'écrit
+ * librement, les gens la nomment d'eux-mêmes — « Cocody Angré 8e tranche »,
+ * « Mairie de Yopougon » — et la coller derrière donnait « Mairie de Yopougon,
+ * Yopougon » jusque dans le titre des pages et les messages partagés.
  */
 export function lieuDe(piece: Pick<PieceTrouveePublique, 'commune' | 'quartier'>): string {
-  return piece.quartier ? `${piece.quartier}, ${piece.commune}` : piece.commune;
+  if (!piece.quartier) return piece.commune;
+  const detail = normaliser(piece.quartier);
+  return detail.includes(normaliser(piece.commune))
+    ? piece.quartier
+    : `${piece.quartier}, ${piece.commune}`;
 }
 
 /** Une ligne qui suffit à comprendre : sert de titre de page et d'objet de partage. */

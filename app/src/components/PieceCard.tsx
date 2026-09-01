@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { nomPublic } from '@partage/partage';
+import { lieuDe, nomPublic } from '@partage/partage';
 import type { PieceTrouveePublique } from '../lib/api';
 import { relDate } from '../lib/format';
 import { DocThumb } from './DocThumb';
@@ -11,8 +11,6 @@ interface PieceCardProps {
 
 /** Une entrée du registre. Identité partiellement masquée, comme sur un extrait. */
 export function PieceCard({ piece }: PieceCardProps) {
-  const lieu = piece.quartier ? `${piece.commune}, ${piece.quartier}` : piece.commune;
-
   return (
     <article className="ligne">
       <DocThumb photoFlouteeUrl={piece.photoFlouteeUrl} />
@@ -28,7 +26,7 @@ export function PieceCard({ piece }: PieceCardProps) {
         <p className="ligne-meta donnee" style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           {piece.typePiece}
         </p>
-        <p className="ligne-meta">{lieu}</p>
+        <p className="ligne-meta">{lieuDe(piece)}</p>
         {piece.depotNom && (
           <p style={{ marginTop: 6 }}>
             <span className="pastille p-officiel">Déposée · {piece.depotNom}</span>
