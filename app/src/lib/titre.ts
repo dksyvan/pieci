@@ -16,6 +16,7 @@ const DEFAUT = 'Pièci — Ta pièce retrouvée';
 const HORS_SITEMAP: Record<string, string> = {
   '/suivi': 'Mes correspondances — suivre ma déclaration | Pièci',
   '/piece': 'Pièce trouvée — fiche du registre | Pièci',
+  '/saisie': 'Saisie en série — vider un tiroir de pièces | Pièci',
 };
 
 /**

@@ -37,6 +37,14 @@ export const PAGES_NON_INDEXEES: Array<Omit<PageFixe, 'priorite'>> = [
     description:
       'Fiche d’une pièce d’identité trouvée et déclarée sur Pièci. Récupération gratuite, sans intermédiaire.',
   },
+  {
+    // Outil confié à un partenaire qui garde un tiroir de pièces. Ni indexée
+    // ni dans la navigation : on la transmet par son adresse.
+    chemin: '/saisie',
+    titre: 'Saisie en série — vider un tiroir de pièces | Pièci',
+    description:
+      'Enregistrer d’un coup les pièces d’identité gardées dans un tiroir : mairie, commissariat, pharmacie.',
+  },
 ];
 
 export const PAGES_FIXES: PageFixe[] = [

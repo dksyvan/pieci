@@ -1377,6 +1377,52 @@
     color: var(--color-sourdine);
   }
 
+  /* ---- Saisie en serie --------------------------------------------------- */
+
+  /* Un releve, pas une liste a puces : la personne verifie trente lignes a la
+     suite, et c'est l'alignement du rang et du nom qui rend l'erreur visible. */
+  .liste-saisie {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--color-filet);
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .liste-saisie li {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--color-filet);
+  }
+  .liste-saisie li[data-etat='envoyee'] { color: var(--color-sourdine); }
+  .liste-saisie li[data-etat='echec'] { background: color-mix(in srgb, var(--color-cachet) 6%, transparent); }
+
+  .saisie-rang {
+    font-family: var(--font-util);
+    font-size: var(--t-micro);
+    letter-spacing: 0.08em;
+    color: var(--color-sourdine);
+  }
+  .saisie-nom { display: block; min-width: 0; overflow-wrap: anywhere; }
+  .saisie-type {
+    display: block;
+    margin-top: 2px;
+    font-family: var(--font-util);
+    font-size: var(--t-micro);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-sourdine);
+  }
+  .saisie-echec {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--t-fine);
+    color: var(--color-cachet);
+  }
+
   /* ---- Fiche d'une piece ------------------------------------------------ */
 
   .fiche-piece {

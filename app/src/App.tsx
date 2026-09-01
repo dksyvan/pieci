@@ -6,6 +6,7 @@ import { Trouvees } from './pages/Trouvees';
 import { Declarer } from './pages/Declarer';
 import { Perdu } from './pages/Perdu';
 import { Piece } from './pages/Piece';
+import { Saisie } from './pages/Saisie';
 import { Suivi } from './pages/Suivi';
 import { Soutenir } from './pages/Soutenir';
 import { Guides } from './pages/Guides';
@@ -43,6 +44,10 @@ export default function App() {
         <Route path="piece" element={<Piece />} />
         <Route path="piece/:id" element={<Piece />} />
         <Route path="declarer" element={<Declarer />} />
+        {/* Saisie en serie, confiee a un partenaire qui garde un tiroir de
+            pieces. Volontairement absente de la navigation : c'est un outil,
+            pas une porte d'entree. */}
+        <Route path="saisie" element={<Saisie />} />
         <Route path="perdu" element={<Perdu />} />
         <Route path="suivi" element={<Suivi />} />
         <Route path="soutenir" element={<Soutenir />} />
