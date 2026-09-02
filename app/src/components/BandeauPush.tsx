@@ -17,7 +17,18 @@ function base64UrlVersOctets(base64Url: string): Uint8Array {
 
 type Etat = 'repos' | 'chargement' | 'ok' | 'refuse' | 'erreur';
 
-/** Proposition d'abonnement aux notifications, après une déclaration. */
+/**
+ * Proposition d'abonnement aux notifications.
+ *
+ * Apparaît après une déclaration, et de nouveau sur `/suivi` tant que
+ * l'appareil n'est pas abonné. Une seule occasion ne suffisait pas : sur
+ * vingt et un comptes, sept seulement recevaient leurs correspondances, et
+ * les quatorze autres n'avaient plus jamais l'occasion de dire oui.
+ *
+ * Le texte énonce la conséquence plutôt que l'avantage, parce que c'est la
+ * conséquence qui est vraie : sans notification, personne ne prévient — le
+ * numéro ne sert qu'à la mise en relation, et le SMS n'est pas branché.
+ */
 export function BandeauPush({ telephone, onTermine }: Props) {
   const [etat, setEtat] = useState<Etat>('repos');
 
@@ -74,12 +85,17 @@ export function BandeauPush({ telephone, onTermine }: Props) {
         </span>
         <div>
           <b style={{ fontSize: '1.0625rem', letterSpacing: '-0.02em' }}>
-            On te notifie&nbsp;?
+            Sans notification, tu ne sauras rien.
           </b>
           <p className="aide" style={{ marginTop: 4 }}>
-            Reçois une alerte dès qu’une correspondance est trouvée — même quand l’appli est fermée.
-            Gratuit, annulable à tout moment. Sinon il faudra repasser sur l’onglet Suivi de temps en
-            temps.
+            On ne t’appellera pas&nbsp;: ton numéro sert à te mettre en relation avec l’autre
+            personne, jamais à te démarcher. Si une pièce à ton nom est déclarée demain, la
+            notification est la seule chose qui te le dira tout de suite. Sinon il faut revenir ici
+            toi-même, régulièrement, et espérer tomber au bon moment.
+          </p>
+          <p className="aide" style={{ marginTop: 4 }}>
+            C’est gratuit, ça marche même quand l’appli est fermée, et tu peux la couper quand tu
+            veux.
           </p>
 
           {indisponible === 'ios-onglet' && (
@@ -124,7 +140,7 @@ export function BandeauPush({ telephone, onTermine }: Props) {
               </button>
             )}
             <button type="button" className="lien" onClick={onTermine}>
-              {indisponible ? 'J’ai compris' : 'Non merci'}
+              {indisponible ? 'J’ai compris' : 'Plus tard'}
             </button>
           </div>
         </div>

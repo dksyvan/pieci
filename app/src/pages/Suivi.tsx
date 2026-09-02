@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
+import { BandeauPush } from '../components/BandeauPush';
+import { IconeValide } from '../components/Icones';
 import { ListeCorrespondances } from '../components/ListeCorrespondances';
 import { useApp } from '../context/useApp';
 import { ApiError, getCorrespondances, type Correspondance } from '../lib/api';
+import { abonnementLocal } from '../lib/push';
 
 export function Suivi() {
   const { afficherToast } = useApp();
@@ -12,6 +15,26 @@ export function Suivi() {
   const [resultats, setResultats] = useState<Correspondance[] | null>(null);
   const [telephoneRecherche, setTelephoneRecherche] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+
+  /**
+   * Abonnement de cet appareil : `null` tant qu'on ne sait pas.
+   *
+   * C'est ici que la proposition doit revenir. Quelqu'un qui consulte cette
+   * page vient précisément parce qu'il n'a pas été prévenu — c'est le moment
+   * où l'intérêt de la notification se démontre tout seul, sans insister.
+   */
+  const [abonne, setAbonne] = useState<boolean | null>(null);
+  const [pushEcarte, setPushEcarte] = useState(false);
+
+  useEffect(() => {
+    let vivant = true;
+    void abonnementLocal().then((oui) => {
+      if (vivant) setAbonne(oui);
+    });
+    return () => {
+      vivant = false;
+    };
+  }, []);
 
   const rechercher = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -101,6 +124,30 @@ export function Suivi() {
                 ici avec leur niveau de confiance.
               </p>
             </div>
+          )}
+
+          {resultats !== null && telephoneRecherche && abonne === false && !pushEcarte && (
+            <div style={{ marginBottom: 'var(--s-4)' }}>
+              <BandeauPush
+                telephone={telephoneRecherche}
+                onTermine={() => {
+                  setPushEcarte(true);
+                  // « Plus tard » et « c'est activé » passent tous deux par
+                  // ici : on relit l'état réel plutôt que de le supposer, sans
+                  // quoi un refus afficherait la confirmation d'un abonnement
+                  // qui n'existe pas.
+                  void abonnementLocal().then(setAbonne);
+                }}
+              />
+            </div>
+          )}
+
+          {resultats !== null && abonne === true && (
+            <p className="constat" style={{ marginBottom: 'var(--s-4)' }}>
+              <IconeValide taille={14} />
+              Les notifications sont actives sur cet appareil&nbsp;: tu seras prévenu sans avoir à
+              revenir.
+            </p>
           )}
 
           {resultats !== null && telephoneRecherche && (
