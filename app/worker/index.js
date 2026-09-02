@@ -43,6 +43,22 @@ const PREFIXE_API = '/api';
 /** Préfixe des fiches partagées, servies par le gabarit `/piece`. */
 const PREFIXE_FICHE = '/piece/';
 
+/** Adresse encodée dans les QR codes imprimés. */
+const CHEMIN_QR = '/qr';
+
+/** Attente maximale de l'API pour enregistrer un scan, hors du chemin critique. */
+const DELAI_SCAN_MS = 5000;
+
+/**
+ * Supports sur lesquels un QR code est imprimé.
+ *
+ * Recopié depuis api/src/scans-qr/sources.ts, comme `slugifier` plus bas et
+ * pour la même raison : wrangler empaquette ce Worker seul. Les deux listes
+ * doivent bouger ensemble — mais l'API ramène de toute façon l'inconnu à
+ * « inconnu », donc un oubli ici fausse un compte, il ne casse rien.
+ */
+const SOURCES_QR = ['polo', 'casquette', 'flyer', 'sticker', 'event'];
+
 /**
  * Attente maximale pour la fiche d'une pièce.
  *
@@ -76,7 +92,7 @@ const ENTETES_DE_SAUT = [
 ];
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // L'API passe par notre domaine : voir relayerApi() pour le pourquoi.
@@ -87,6 +103,9 @@ export default {
     const statique = () => env.ASSETS.fetch(request);
 
     if (request.method !== 'GET') return statique();
+
+    // Les QR codes imprimés : on redirige d'abord, on compte ensuite.
+    if (url.pathname === CHEMIN_QR) return servirQr(request, url, env, ctx);
 
     // Les fiches partagées : un gabarit unique, habillé pièce par pièce.
     if (url.pathname.startsWith(PREFIXE_FICHE)) return servirFiche(request, url, env);
@@ -169,6 +188,68 @@ async function relayerApi(request, url, env) {
     statusText: reponse.statusText,
     headers: enTetes,
   });
+}
+
+/**
+ * Redirige un scan de QR code vers l'accueil, et le compte au passage.
+ *
+ * L'ordre compte, et il est l'inverse de l'intuition : on construit la
+ * redirection d'abord, on demande l'enregistrement ensuite, par
+ * `ctx.waitUntil`. La personne qui scanne un polo dans la rue ne doit pas
+ * attendre une écriture en base — encore moins un réveil de l'API, qui dort
+ * sur une offre modeste. Une panne de l'API fait perdre un compte, jamais une
+ * visite.
+ *
+ * Pourquoi passer par notre domaine plutôt que par un raccourcisseur : un QR
+ * imprimé sur un vêtement ne se corrige pas. Le jour où le service tiers
+ * ferme ou expire, tous les polos déjà portés pointent vers rien. Ici,
+ * l'adresse est à nous et le rebond se change par un déploiement.
+ */
+function servirQr(request, url, env, ctx) {
+  const demandee = (url.searchParams.get('s') || '').trim().toLowerCase();
+  const source = SOURCES_QR.includes(demandee) ? demandee : 'inconnu';
+
+  // L'origine du site plutôt qu'une adresse en dur : en production c'est
+  // pieci.ci, et ailleurs le rebond reste sur le déploiement qu'on teste au
+  // lieu de partir vers la production.
+  const destination = new URL('/', url);
+  destination.searchParams.set('utm_source', 'merch');
+  destination.searchParams.set('utm_medium', 'qr');
+  destination.searchParams.set('utm_campaign', source);
+
+  const reponse = Response.redirect(destination.toString(), 302);
+
+  if (env.API_URL && ctx?.waitUntil) {
+    ctx.waitUntil(enregistrerScan(request, env, source));
+  }
+
+  return reponse;
+}
+
+/** Poste le scan à l'API. N'échoue jamais bruyamment : le visiteur est déjà parti. */
+async function enregistrerScan(request, env, source) {
+  const ip = request.headers.get('cf-connecting-ip');
+  try {
+    await fetch(`${env.API_URL}/scans-qr`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Sert au limiteur de débit : sans elle, tous les scans arriveraient
+        // sous l'adresse de Cloudflare et se compteraient entre eux.
+        ...(ip ? { 'X-Pieci-Ip': ip } : {}),
+      },
+      body: JSON.stringify({
+        source,
+        userAgent: (request.headers.get('user-agent') || '').slice(0, 400) || undefined,
+        ip: ip || undefined,
+        pays: request.cf?.country || undefined,
+      }),
+      signal: AbortSignal.timeout(DELAI_SCAN_MS),
+    });
+  } catch {
+    // Un compte perdu ne vaut pas un log d'erreur : la redirection, elle, est
+    // déjà partie.
+  }
 }
 
 /**

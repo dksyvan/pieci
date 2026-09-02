@@ -12,6 +12,7 @@ import { CorrespondancesModule } from './correspondances/correspondances.module'
 import { ExpirationModule } from './expiration/expiration.module';
 import { PushModule } from './push/push.module';
 import { SanteModule } from './sante/sante.module';
+import { ScansQrModule } from './scans-qr/scans-qr.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { SanteModule } from './sante/sante.module';
     CorrespondancesModule,
     ExpirationModule,
     PushModule,
+    ScansQrModule,
   ],
 })
 export class AppModule {}

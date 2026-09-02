@@ -7,6 +7,7 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { JournalAccesContact } from '../journal-acces-contact/entities/journal-acces-contact.entity';
 import { PushSubscription } from '../push/entities/push-subscription.entity';
 import { ExpoPushToken } from '../push/entities/expo-push-token.entity';
+import { ScanQr } from '../scans-qr/entities/scan-qr.entity';
 
 export const ENTITIES = [
   Utilisateur,
@@ -18,4 +19,5 @@ export const ENTITIES = [
   JournalAccesContact,
   PushSubscription,
   ExpoPushToken,
+  ScanQr,
 ];
