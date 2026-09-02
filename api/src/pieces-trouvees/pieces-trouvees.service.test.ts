@@ -164,7 +164,7 @@ describe('PiecesTrouveesService.findOnePublic', () => {
 
     await service.findOnePublic("' OR 1=1 --");
 
-    const [sql, parametres] = query.mock.calls[0] as [string, unknown[]];
+    const [sql, parametres] = query.mock.calls[0] as unknown as [string, unknown[]];
     expect(sql).not.toContain('OR 1=1');
     expect(parametres).toEqual(["' OR 1=1 --"]);
   });

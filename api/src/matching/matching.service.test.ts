@@ -76,7 +76,14 @@ describe('MatchingService.traiterNouvelleAlerte', () => {
     });
   });
 
-  it("ne fait rien si l'alerte n'a pas de position", async () => {
+  /**
+   * Le lieu est facultatif sur « j'ai perdu ma piece » — on ne sait pas
+   * toujours ou on l'a perdue. Ces alertes etaient abandonnees en silence :
+   * la personne lisait « ton alerte est enregistree, on te previent » et
+   * n'etait jamais prevenue, meme pour une piece declaree le lendemain a son
+   * nom exact. Trois alertes reelles etaient dans cet etat en production.
+   */
+  it("apparie une alerte sans position, sans borne geographique", async () => {
     const alerteRow = {
       id: 'alerte-1',
       prenom: 'Awa',
@@ -87,8 +94,18 @@ describe('MatchingService.traiterNouvelleAlerte', () => {
       lat: null,
       lng: null,
     };
+    const candidatRow = {
+      id: 'piece-1',
+      prenom: 'Awa',
+      nom: 'Koné',
+      type_piece: TypePiece.CNI,
+      date_trouvaille: new Date('2026-01-01'),
+      declarant_id: 'user-trouveur',
+      lat: 5.345,
+      lng: -3.978,
+    };
 
-    const query = vi.fn().mockResolvedValueOnce([alerteRow]);
+    const query = vi.fn().mockResolvedValueOnce([alerteRow]).mockResolvedValueOnce([candidatRow]);
     const dataSource = { query } as unknown as DataSource;
 
     const repo = creerCorrespondancesRepoMock();
@@ -97,9 +114,14 @@ describe('MatchingService.traiterNouvelleAlerte', () => {
     const service = new MatchingService(repo, dataSource, notifications);
     await service.traiterNouvelleAlerte('alerte-1');
 
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(repo.upsert).not.toHaveBeenCalled();
-    expect(notifications.creer).not.toHaveBeenCalled();
+    // La requete des candidats renonce a ST_DWithin plutot qu'au rapprochement.
+    const [sqlCandidats, parametres] = query.mock.calls[1] as [string, unknown[]];
+    expect(sqlCandidats).not.toContain('ST_DWithin');
+    expect(parametres).toHaveLength(2);
+
+    // Identite et type pesent 0,85 a eux seuls : bien au-dessus du seuil.
+    expect(repo.upsert).toHaveBeenCalled();
+    expect(notifications.creer).toHaveBeenCalledTimes(2);
   });
 
   it("n'enregistre rien si aucun candidat ne dépasse le seuil d'affichage", async () => {
@@ -173,6 +195,53 @@ describe('MatchingService.traiterNouvellePiece', () => {
     );
     expect(notifications.creer).toHaveBeenCalledWith(
       expect.objectContaining({ utilisateurId: 'user-demandeur', correspondanceId: 'corr-1' }),
+    );
+  });
+
+  /**
+   * Symetrique du precedent, et le cas que l'utilisateur a demande de
+   * garantir : Kone declare sa perte sans preciser le lieu, Koffi declare la
+   * trouvaille deux jours plus tard, Kone doit etre prevenu.
+   */
+  it("retient les alertes sans position quand une piece est declaree", async () => {
+    const pieceRow = {
+      id: 'piece-1',
+      prenom: 'Awa',
+      nom: 'Koné',
+      type_piece: TypePiece.CNI,
+      date_trouvaille: new Date('2026-01-03'),
+      declarant_id: 'user-trouveur',
+      lat: 5.345,
+      lng: -3.978,
+    };
+    const alerteRow = {
+      id: 'alerte-1',
+      prenom: 'Awa',
+      nom: 'Koné',
+      type_piece: TypePiece.CNI,
+      created_at: new Date('2026-01-01'),
+      utilisateur_id: 'user-demandeur',
+      lat: null,
+      lng: null,
+    };
+
+    const query = vi.fn().mockResolvedValueOnce([pieceRow]).mockResolvedValueOnce([alerteRow]);
+    const dataSource = { query } as unknown as DataSource;
+
+    const repo = creerCorrespondancesRepoMock();
+    const notifications = creerNotificationsMock();
+
+    const service = new MatchingService(repo, dataSource, notifications);
+    await service.traiterNouvellePiece('piece-1');
+
+    // La clause qui excluait ces alertes ne doit pas revenir.
+    const [sqlCandidats] = query.mock.calls[1] as [string, unknown[]];
+    expect(sqlCandidats).not.toContain('position IS NOT NULL');
+    expect(sqlCandidats).toContain('position IS NULL');
+
+    expect(repo.upsert).toHaveBeenCalled();
+    expect(notifications.creer).toHaveBeenCalledWith(
+      expect.objectContaining({ utilisateurId: 'user-demandeur' }),
     );
   });
 

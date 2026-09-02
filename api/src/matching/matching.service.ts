@@ -70,9 +70,11 @@ export class MatchingService {
    * À appeler après la création d'une alerte de perte : recherche les
    * trouvailles disponibles compatibles et enregistre les correspondances.
    *
-   * Ne fait rien si l'alerte n'a pas de position : la position est optionnelle
-   * à la déclaration (AlertesPerteService), mais nécessaire au matching
-   * automatique.
+   * Fonctionne avec ou sans position. Le lieu est facultatif sur « j'ai perdu
+   * ma pièce » — on ne sait pas toujours où on l'a perdue — et une alerte
+   * sans lieu était jusqu'ici abandonnée en silence : la personne lisait
+   * « ton alerte est enregistrée, on te prévient » et n'était jamais
+   * prévenue, même pour une pièce déclarée le lendemain à son nom exact.
    */
   async traiterNouvelleAlerte(alerteId: string): Promise<void> {
     const [alerte] = await this.dataSource.query<AlerteAvecPosition[]>(
@@ -82,24 +84,31 @@ export class MatchingService {
       [alerteId],
     );
 
-    if (!alerte || alerte.lat === null || alerte.lng === null) return;
+    if (!alerte) return;
 
+    const situee = alerte.lat !== null && alerte.lng !== null;
+
+    // Le filtre géographique borne la taille du candidat-set ; il ne décide
+    // de rien. Sans position, on renonce à la borne plutôt qu'au
+    // rapprochement — le filtre par type suffit à garder la requête sobre.
     const candidats = await this.dataSource.query<PieceAvecPosition[]>(
       `SELECT id, prenom, nom, type_piece, date_trouvaille, declarant_id,
               ST_Y(position::geometry) AS lat, ST_X(position::geometry) AS lng
        FROM pieces_trouvees
        WHERE statut = $1
          AND type_piece = $2
-         AND ST_DWithin(position, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5)`,
-      [StatutTrouvaille.DISPONIBLE, alerte.type_piece, alerte.lng, alerte.lat, RAYON_PREFILTRE_M],
+         ${situee ? 'AND ST_DWithin(position, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5)' : ''}`,
+      situee
+        ? [StatutTrouvaille.DISPONIBLE, alerte.type_piece, alerte.lng, alerte.lat, RAYON_PREFILTRE_M]
+        : [StatutTrouvaille.DISPONIBLE, alerte.type_piece],
     );
 
     const perte: PersonnePiece = {
       nom: alerte.nom,
       prenom: alerte.prenom,
       typePiece: alerte.type_piece,
-      lat: alerte.lat,
-      lng: alerte.lng,
+      lat: alerte.lat === null ? null : Number(alerte.lat),
+      lng: alerte.lng === null ? null : Number(alerte.lng),
       date: alerte.created_at,
     };
 
@@ -140,14 +149,17 @@ export class MatchingService {
 
     if (!piece) return;
 
+    // `position IS NULL` est retenu, pas écarté : c'est le cas de quelqu'un
+    // qui ignore où il a perdu sa pièce, et c'est précisément celui qui a le
+    // plus besoin qu'on la retrouve pour lui.
     const candidats = await this.dataSource.query<AlerteAvecPosition[]>(
       `SELECT id, prenom, nom, type_piece, created_at, utilisateur_id,
               ST_Y(position::geometry) AS lat, ST_X(position::geometry) AS lng
        FROM alertes_perte
        WHERE statut = $1
          AND type_piece = $2
-         AND position IS NOT NULL
-         AND ST_DWithin(position, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5)`,
+         AND (position IS NULL
+              OR ST_DWithin(position, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5))`,
       [StatutAlerte.ACTIVE, piece.type_piece, piece.lng, piece.lat, RAYON_PREFILTRE_M],
     );
 
@@ -166,8 +178,8 @@ export class MatchingService {
       nom: c.nom,
       prenom: c.prenom,
       typePiece: c.type_piece,
-      lat: Number(c.lat),
-      lng: Number(c.lng),
+      lat: c.lat === null ? null : Number(c.lat),
+      lng: c.lng === null ? null : Number(c.lng),
       date: c.created_at,
     }));
 

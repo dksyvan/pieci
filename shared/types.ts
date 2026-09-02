@@ -26,10 +26,18 @@ export interface Coordonnees {
  * Forme commune à une trouvaille et à une alerte de perte pour les besoins
  * du matching : identité de la pièce + position + date.
  */
-export interface PersonnePiece extends Coordonnees {
+export interface PersonnePiece {
   nom: string;
   prenom: string;
   typePiece: TypePiece;
+  /**
+   * Position, quand on l'a. Le lieu est facultatif à la déclaration d'une
+   * perte — quelqu'un qui a perdu sa pièce ne sait pas toujours où. Une
+   * alerte sans position doit rester appariable : l'identité et le type
+   * pèsent 0,85 à eux seuls, très au-dessus du seuil de rétention.
+   */
+  lat: number | null;
+  lng: number | null;
   /** Date ISO 8601 (trouvaille) ou date de création de l'alerte (perte). */
   date: string;
 }

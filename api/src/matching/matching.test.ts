@@ -114,6 +114,54 @@ describe('scoreMatch — pondération du type de pièce', () => {
   });
 });
 
+describe('scoreMatch — une perte sans lieu reste appariable', () => {
+  /**
+   * Le lieu est facultatif quand on declare une perte : on ne sait pas
+   * toujours ou on a perdu sa piece. Ces alertes etaient ecartees avant
+   * meme d'etre scorees, ce qui rendait la promesse « on te previent »
+   * fausse pour elles.
+   *
+   * L'identite et le type valent 0,85 a eux seuls — le seuil est a 0,55.
+   * La geographie affine un classement, elle ne decide pas d'un
+   * rapprochement.
+   */
+  const perteSansLieu: PersonnePiece = {
+    nom: 'Traoré',
+    prenom: 'Mariam',
+    typePiece: TypePiece.CNI,
+    lat: null,
+    lng: null,
+    date: '2026-06-10',
+  };
+  const trouvaille: PersonnePiece = {
+    nom: 'Traoré',
+    prenom: 'Mariam',
+    typePiece: TypePiece.CNI,
+    lat: 5.42,
+    lng: -4.02,
+    date: '2026-06-10',
+  };
+
+  it('depasse largement le seuil sans aucune coordonnee', () => {
+    const { score, dist } = scoreMatch(perteSansLieu, trouvaille);
+    expect(score).toBeGreaterThanOrEqual(SEUIL_AFFICHAGE);
+    expect(score).toBeCloseTo(1 - POIDS.geo, 10);
+    // La distance n'est pas zero : elle est inconnue, et le dit.
+    expect(dist).toBeNull();
+  });
+
+  it('laisse l’avantage aux rapprochements situes', () => {
+    const situe = scoreMatch({ ...perteSansLieu, lat: 5.42, lng: -4.02 }, trouvaille);
+    const sansLieu = scoreMatch(perteSansLieu, trouvaille);
+    expect(situe.score).toBeGreaterThan(sansLieu.score);
+  });
+
+  it('n’apparie toujours pas deux personnes differentes', () => {
+    const autre = scoreMatch(perteSansLieu, { ...trouvaille, nom: 'Ouattara', prenom: 'Ibrahim' });
+    expect(autre.score).toBeLessThan(SEUIL_AFFICHAGE);
+  });
+});
+
 describe('niveauConfiance', () => {
   it('classe correctement les bornes de confiance', () => {
     expect(niveauConfiance(0.95)).toBe(NiveauConfiance.FORTE);

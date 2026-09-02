@@ -142,8 +142,8 @@ const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 export interface ScoreMatch {
   /** Score de confiance global, entre 0 et 1. */
   score: number;
-  /** Distance entre la perte et la trouvaille, en kilomètres. */
-  dist: number;
+  /** Distance en kilomètres, ou `null` si l'un des deux n'est pas situé. */
+  dist: number | null;
 }
 
 /**
@@ -154,8 +154,14 @@ export interface PersonnePiece {
   nom: string;
   prenom: string;
   typePiece: TypePiece;
-  lat: number;
-  lng: number;
+  /**
+   * Position, quand on l'a. Le lieu est facultatif à la déclaration d'une
+   * perte — quelqu'un qui a perdu sa pièce ne sait pas toujours où. Une
+   * alerte sans position doit rester appariable : l'identité et le type
+   * pèsent 0,85 à eux seuls, très au-dessus du seuil de rétention.
+   */
+  lat: number | null;
+  lng: number | null;
   /** Date de la trouvaille, ou date de création de l'alerte (perte). */
   date: string | Date;
 }
@@ -171,8 +177,15 @@ export function scoreMatch(perte: PersonnePiece, trouvaille: PersonnePiece): Sco
   const sPrenom = simNom(perte.prenom, trouvaille.prenom);
   const sType = perte.typePiece === trouvaille.typePiece ? 1 : 0;
 
-  const dist = haversine(perte.lat, perte.lng, trouvaille.lat, trouvaille.lng);
-  const proxGeo = Math.exp(-dist / ECHELLE_GEO_KM);
+  // Sans position des deux côtés, la proximité géographique ne vaut pas zéro
+  // par défaut de preuve : elle ne pèse simplement pas. Les rapprochements
+  // situés gardent donc leur avantage au classement, sans que les autres
+  // soient écartés.
+  const dist =
+    perte.lat !== null && perte.lng !== null && trouvaille.lat !== null && trouvaille.lng !== null
+      ? haversine(perte.lat, perte.lng, trouvaille.lat, trouvaille.lng)
+      : null;
+  const proxGeo = dist === null ? 0 : Math.exp(-dist / ECHELLE_GEO_KM);
 
   const joursEcart = Math.abs(
     (new Date(perte.date).getTime() - new Date(trouvaille.date).getTime()) / MS_PAR_JOUR,
