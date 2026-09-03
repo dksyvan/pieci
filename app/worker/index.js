@@ -226,22 +226,51 @@ function servirQr(request, url, env, ctx) {
   return reponse;
 }
 
-/** Poste le scan à l'API. N'échoue jamais bruyamment : le visiteur est déjà parti. */
-async function enregistrerScan(request, env, source) {
+/**
+ * Empreinte du visiteur, pour le seul limiteur de débit.
+ *
+ * L'adresse ne quitte jamais le bord : elle est condensée ici, et c'est le
+ * condensé qui part vers l'API. Celui-ci ne sert qu'à compter les requêtes
+ * d'une même personne pendant une minute — sans lui, tous les scans
+ * arriveraient sous l'adresse de Cloudflare et se compteraient entre eux, si
+ * bien que trente personnes scannant le kakémono au même événement
+ * s'excluraient les unes les autres.
+ *
+ * Douze octets suffisent : on ne cherche pas l'unicité mondiale, seulement à
+ * distinguer deux visiteurs pendant soixante secondes.
+ */
+async function empreinteVisiteur(request) {
   const ip = request.headers.get('cf-connecting-ip');
+  if (!ip) return null;
+
+  const octets = new TextEncoder().encode(`pieci-qr:${ip}`);
+  const condense = new Uint8Array(await crypto.subtle.digest('SHA-256', octets));
+  return Array.from(condense.slice(0, 12))
+    .map((o) => o.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * Poste le scan à l'API. N'échoue jamais bruyamment : le visiteur est déjà
+ * parti, et un compte perdu vaut mieux qu'une visite perdue.
+ *
+ * Ce qui part : le support, le user-agent, le pays. Pas l'adresse — la
+ * confidentialité by design est un principe non négociable du projet
+ * (CLAUDE.md, section 2), et savoir quel support amène du monde ne demande
+ * d'identifier personne.
+ */
+async function enregistrerScan(request, env, source) {
   try {
+    const empreinte = await empreinteVisiteur(request);
     await fetch(`${env.API_URL}/scans-qr`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Sert au limiteur de débit : sans elle, tous les scans arriveraient
-        // sous l'adresse de Cloudflare et se compteraient entre eux.
-        ...(ip ? { 'X-Pieci-Ip': ip } : {}),
+        ...(empreinte ? { 'X-Pieci-Visiteur': empreinte } : {}),
       },
       body: JSON.stringify({
         source,
         userAgent: (request.headers.get('user-agent') || '').slice(0, 400) || undefined,
-        ip: ip || undefined,
         pays: request.cf?.country || undefined,
       }),
       signal: AbortSignal.timeout(DELAI_SCAN_MS),

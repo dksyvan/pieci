@@ -11,6 +11,9 @@ import { IsOptional, IsString, Length, MaxLength } from 'class-validator';
  * public, donc n'importe qui peut poster ici : la source est ramenée à une
  * liste fermée par le service, et les longueurs sont bornées pour qu'un corps
  * gonflé ne remplisse pas la table.
+ *
+ * Aucun champ d'adresse : le Worker n'en transmet pas, et l'API n'en
+ * accepterait pas — `whitelist: true` écarte tout champ non déclaré ici.
  */
 export class CreateScanQrDto {
   @IsOptional()
@@ -22,11 +25,6 @@ export class CreateScanQrDto {
   @IsString()
   @MaxLength(400)
   userAgent?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(45)
-  ip?: string;
 
   @IsOptional()
   @IsString()

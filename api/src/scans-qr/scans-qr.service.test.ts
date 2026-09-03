@@ -52,12 +52,22 @@ describe('ScansQrService.enregistrer', () => {
   it('accepte un scan entièrement nu', async () => {
     const { service, insert } = creerService();
     await service.enregistrer({});
-    expect(insert).toHaveBeenCalledWith({
-      source: 'inconnu',
-      userAgent: null,
-      ip: null,
-      pays: null,
-    });
+    expect(insert).toHaveBeenCalledWith({ source: 'inconnu', userAgent: null, pays: null });
+  });
+
+  /**
+   * Confidentialite by design, principe non negociable du projet (CLAUDE.md
+   * section 2) : compter les scans par support ne demande d'identifier
+   * personne. Le champ n'existe plus au DTO, mais un objet peut toujours en
+   * porter un — ce test fige le fait qu'il n'atteint jamais la table.
+   */
+  it('n’écrit aucune adresse, même si on lui en glisse une', async () => {
+    const { service, insert } = creerService();
+    await service.enregistrer({ source: 'polo', ip: '196.0.0.1' } as never);
+
+    const ecrit = insert.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.keys(ecrit).sort()).toEqual(['pays', 'source', 'userAgent']);
+    expect(JSON.stringify(ecrit)).not.toContain('196.0.0.1');
   });
 
   it('met le pays en capitales', async () => {

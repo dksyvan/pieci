@@ -21,16 +21,13 @@ export class ScanQr {
   userAgent: string | null;
 
   /**
-   * Adresse du visiteur, telle que Cloudflare la voit.
+   * Code pays ISO à deux lettres, fourni par le bord (`request.cf.country`).
    *
-   * Longueur 45 : c'est la taille d'une IPv6 en notation longue, et les
-   * réseaux mobiles ivoiriens en distribuent. `null` quand l'en-tête manque —
-   * un scan sans adresse reste un scan, on ne le jette pas pour autant.
+   * C'est la seule donnée géographique retenue, et il n'y en aura pas d'autre.
+   * L'adresse IP n'est ni stockée ni transmise à l'API : la confidentialité by
+   * design est un principe non négociable du projet (CLAUDE.md, section 2), et
+   * savoir quel support amène du monde ne demande d'identifier personne.
    */
-  @Column({ type: 'varchar', length: 45, nullable: true })
-  ip: string | null;
-
-  /** Code pays ISO à deux lettres, fourni par le bord (`request.cf.country`). */
   @Column({ type: 'varchar', length: 2, nullable: true })
   pays: string | null;
 

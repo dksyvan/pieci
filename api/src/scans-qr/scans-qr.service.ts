@@ -33,7 +33,6 @@ export class ScansQrService {
     await this.scans.insert({
       source: sourceConnue(dto.source),
       userAgent: dto.userAgent ?? null,
-      ip: dto.ip ?? null,
       pays: dto.pays ? dto.pays.toUpperCase() : null,
     });
   }
