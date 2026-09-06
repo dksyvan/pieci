@@ -56,7 +56,10 @@ export default defineConfig(({ mode }) => {
           start_url: '/',
           display: 'standalone',
           background_color: '#F4F2EC',
-          theme_color: '#F4F2EC',
+          // Même valeur que le <meta name="theme-color"> de index.html : les
+          // deux teintent la même barre de navigateur, et divergeraient sans
+          // que rien ne le signale.
+          theme_color: '#0F2A43',
           icons: [
             { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
             { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

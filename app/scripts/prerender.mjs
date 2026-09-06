@@ -110,12 +110,18 @@ async function main() {
 
       let html = gabarit;
       html = html.replace(/<title>[^<]*<\/title>/i, `<title>${attr(page.titre)}</title>`);
+      // L'aperçu au partage peut différer du titre indexé : deux lecteurs,
+      // deux besoins (voir PageFixe dans src/contenu/pages.ts). Sans valeur
+      // propre, il reprend celle de Google.
+      const titrePartage = page.titrePartage ?? page.titre;
+      const descriptionPartage = page.descriptionPartage ?? page.description;
+
       html = remplacerMeta(html, 'description', page.description);
-      html = remplacerMeta(html, 'og:title', page.titre, 'property');
-      html = remplacerMeta(html, 'og:description', page.description, 'property');
+      html = remplacerMeta(html, 'og:title', titrePartage, 'property');
+      html = remplacerMeta(html, 'og:description', descriptionPartage, 'property');
       html = remplacerMeta(html, 'og:url', canonique, 'property');
-      html = remplacerMeta(html, 'twitter:title', page.titre);
-      html = remplacerMeta(html, 'twitter:description', page.description);
+      html = remplacerMeta(html, 'twitter:title', titrePartage);
+      html = remplacerMeta(html, 'twitter:description', descriptionPartage);
 
       // Une page sans priorité ne va pas au sitemap : on le dit aussi aux
       // robots, plutôt que de compter sur leur discrétion.

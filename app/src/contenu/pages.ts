@@ -8,6 +8,21 @@ export interface PageFixe {
   titre: string;
   description: string;
   priorite: string;
+  /**
+   * Titre et description de l'aperçu au partage, quand ils doivent différer
+   * de ceux destinés à Google.
+   *
+   * Ce ne sont pas les mêmes lecteurs. Le titre indexé doit contenir les mots
+   * qu'on tape dans une barre de recherche — « pièce d'identité perdue en
+   * Côte d'Ivoire » — et il est long par nécessité. L'aperçu WhatsApp, lui,
+   * est lu en une seconde dans un fil de discussion : il doit tenir en quatre
+   * mots et donner envie d'appuyer.
+   *
+   * Les deux se servent sans se gêner, par des balises distinctes. Sans
+   * précision, l'aperçu reprend le titre indexé.
+   */
+  titrePartage?: string;
+  descriptionPartage?: string;
 }
 
 /**
@@ -53,6 +68,11 @@ export const PAGES_FIXES: PageFixe[] = [
     titre: 'Pièci — Retrouver sa pièce d’identité perdue en Côte d’Ivoire',
     description:
       'Pièce d’identité perdue ou trouvée en Côte d’Ivoire ? Déclarez-la sur Pièci : la recherche se fait par nom, sans numéro. Gratuit.',
+    // L'accueil est la page qu'on colle dans les groupes : son aperçu se lit
+    // en une seconde, quand son titre indexé vise une requête Google.
+    titrePartage: 'Pièci — Ta pièce retrouvée',
+    descriptionPartage:
+      'Tu trouves une pièce d’identité, tu la déclares. Le propriétaire est prévenu automatiquement. Gratuit, sécurisé, 100 % ivoirien.',
     priorite: '1.0',
   },
   {
