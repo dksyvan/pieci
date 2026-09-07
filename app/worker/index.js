@@ -46,6 +46,16 @@ const PREFIXE_FICHE = '/piece/';
 /** Adresse encodée dans les QR codes imprimés. */
 const CHEMIN_QR = '/qr';
 
+/**
+ * Adresse du QR qui mène à WhatsApp.
+ *
+ * Court volontairement : chaque caractère encodé ajoute des modules, et ce
+ * code-ci part sur des stickers, donc en petit format. « pieci.ci/wa » tient
+ * en bien moins de modules que « pieci.ci/qr?s=whatsapp », et se relit de
+ * plus loin.
+ */
+const CHEMIN_WHATSAPP = '/wa';
+
 /** Attente maximale de l'API pour enregistrer un scan, hors du chemin critique. */
 const DELAI_SCAN_MS = 5000;
 
@@ -57,7 +67,7 @@ const DELAI_SCAN_MS = 5000;
  * doivent bouger ensemble — mais l'API ramène de toute façon l'inconnu à
  * « inconnu », donc un oubli ici fausse un compte, il ne casse rien.
  */
-const SOURCES_QR = ['polo', 'casquette', 'flyer', 'sticker', 'event'];
+const SOURCES_QR = ['polo', 'casquette', 'flyer', 'sticker', 'event', 'whatsapp'];
 
 /**
  * Attente maximale pour la fiche d'une pièce.
@@ -106,6 +116,7 @@ export default {
 
     // Les QR codes imprimés : on redirige d'abord, on compte ensuite.
     if (url.pathname === CHEMIN_QR) return servirQr(request, url, env, ctx);
+    if (url.pathname === CHEMIN_WHATSAPP) return servirWhatsApp(request, url, env, ctx);
 
     // Les fiches partagées : un gabarit unique, habillé pièce par pièce.
     if (url.pathname.startsWith(PREFIXE_FICHE)) return servirFiche(request, url, env);
@@ -224,6 +235,46 @@ function servirQr(request, url, env, ctx) {
   }
 
   return reponse;
+}
+
+/**
+ * Redirige vers WhatsApp, et compte le scan.
+ *
+ * Le compte WhatsApp n'existe pas encore au moment où ce code est imprimé, et
+ * c'est précisément pourquoi la route existe. Un QR sur un sticker ne se
+ * corrige pas : s'il portait directement un lien `wa.me`, il faudrait
+ * réimprimer toute la série au moindre changement de numéro — ou le jour où
+ * l'on passe du compte au canal. Ici, l'adresse imprimée est à nous, et la
+ * destination se règle par une variable.
+ *
+ * Tant que `WHATSAPP_URL` n'est pas renseignée, le scan mène à l'accueil.
+ * Jamais une page morte : quelqu'un qui scanne un sticker collé au comptoir
+ * d'une pharmacie doit arriver quelque part, même si Keïta n'a pas encore
+ * ouvert le compte.
+ */
+function servirWhatsApp(request, url, env, ctx) {
+  const destination = destinationWhatsApp(env, url);
+  const reponse = Response.redirect(destination, 302);
+
+  if (env.API_URL && ctx?.waitUntil) {
+    ctx.waitUntil(enregistrerScan(request, env, 'whatsapp'));
+  }
+
+  return reponse;
+}
+
+/** L'adresse WhatsApp configurée, ou l'accueil à défaut. Ne jette jamais. */
+function destinationWhatsApp(env, url) {
+  const repli = new URL('/', url).toString();
+  if (!env.WHATSAPP_URL) return repli;
+
+  try {
+    // Une valeur mal formée dans la configuration ne doit pas transformer un
+    // sticker en cul-de-sac : on retombe sur l'accueil.
+    return new URL(env.WHATSAPP_URL).toString();
+  } catch {
+    return repli;
+  }
 }
 
 /**

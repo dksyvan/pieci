@@ -13,6 +13,14 @@ déploiement.
 | `pieci-qr-event.svg` | `https://pieci.ci/qr?s=event` | Disponible — kakémono |
 | `pieci-qr-casquette.svg` | `https://pieci.ci/qr?s=casquette` | Disponible |
 | `pieci-qr-polo.svg` | `https://pieci.ci/qr?s=polo` | Écarté — les polos sont partis sans QR |
+| `pieci-qr-wa.svg` | `https://pieci.ci/wa` | **En service** — sticker WhatsApp |
+
+Le sticker WhatsApp mène au compte WhatsApp Business ou au canal Pièci. Tant
+que `WHATSAPP_URL` n'est pas renseignée dans `app/wrangler.toml`, il mène à
+l'accueil — jamais nulle part. L'adresse imprimée étant la nôtre, les
+stickers déjà collés suivront le jour où la destination sera configurée,
+sans réimpression. Son adresse est volontairement courte : moins de modules,
+donc un code plus robuste en petit format.
 
 Chaque support existe en deux versions : nue, et `-logo` avec le pin Pièci au
 centre. La version nue a le plus de marge à l'impression ; prenez-la au

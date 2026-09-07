@@ -70,6 +70,18 @@ describe('ScansQrService.enregistrer', () => {
     expect(JSON.stringify(ecrit)).not.toContain('196.0.0.1');
   });
 
+  /**
+   * Le sticker WhatsApp arrive par la route /wa, qui fixe elle-meme la source
+   * — mais elle traverse le meme chemin que le reste et doit donc etre
+   * reconnue, sans quoi ses scans se rangeraient sous « inconnu » et le
+   * support paraitrait ne rien rapporter.
+   */
+  it('reconnait le sticker WhatsApp', async () => {
+    const { service, insert } = creerService();
+    await service.enregistrer({ source: 'whatsapp' });
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ source: 'whatsapp' }));
+  });
+
   it('met le pays en capitales', async () => {
     const { service, insert } = creerService();
     await service.enregistrer({ source: 'flyer', pays: 'ci' });

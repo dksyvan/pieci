@@ -10,8 +10,13 @@
  * Un support inconnu n'est pas rejeté : il est rangé sous « inconnu ». Un QR
  * déjà imprimé sur un vêtement ne se corrige pas, donc rien de ce qui vient
  * d'un support réel ne doit être perdu.
+ *
+ * « whatsapp » désigne le sticker dont le QR mène à WhatsApp plutôt qu'au
+ * site (route `/wa`). C'est une entorse assumée : la colonne dit le support,
+ * et là elle dit la destination. Distinguer les deux demanderait une colonne
+ * de plus pour une seule ligne de nuance.
  */
-export const SOURCES = ['polo', 'casquette', 'flyer', 'sticker', 'event'] as const;
+export const SOURCES = ['polo', 'casquette', 'flyer', 'sticker', 'event', 'whatsapp'] as const;
 
 export type Source = (typeof SOURCES)[number] | 'inconnu';
 
