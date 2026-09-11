@@ -432,12 +432,36 @@ class InjecteurFiche {
     this.brute = brute;
   }
   element(e) {
-    // `<` échappé : un prénom contenant « </script> » terminerait la balise et
-    // ferait passer le reste de la fiche pour du balisage. Le cas est absurde,
-    // la conséquence ne l'est pas.
-    const json = JSON.stringify(this.brute).replace(/</g, '\\u003c');
-    e.append(`<script>window.__PIECI_PIECE__=${json}</script>`, { html: true });
+    // Échappé comme toute donnée écrite dans un <script> : voir jsonPourScript.
+    e.append(`<script>window.__PIECI_PIECE__=${jsonPourScript(this.brute)}</script>`, { html: true });
   }
+}
+
+/**
+ * Sérialise une valeur pour l'écrire dans un <script> en ligne.
+ *
+ * JSON.stringify ne suffit pas : il laisse passer « </script> », que
+ * l'analyseur HTML prend pour la fin de la balise, quel que soit l'endroit où
+ * il tombe — y compris au milieu d'une chaîne JSON. Tout ce qui suit est
+ * alors exécuté comme du code.
+ *
+ * Le cas n'était pas théorique. Les comptes du registre étaient écrits ainsi
+ * sans échappement, et leurs clés sont les communes déclarées — un champ que
+ * n'importe qui peut remplir sans compte. Une commune « </script><script>… »
+ * aurait exécuté son code chez tous les visiteurs de /trouvees. Personne ne
+ * l'a fait : la base a été vérifiée, aucune donnée ne contient de balise.
+ *
+ * Les trois caractères sont remplacés par leur échappement Unicode, que JSON
+ * relit à l'identique : la donnée ne change pas, seul son transport change.
+ * Toute injection de données dans un <script> doit passer par ici — c'est le
+ * fait d'avoir deux façons de faire qui avait laissé l'une des deux sans
+ * protection.
+ */
+function jsonPourScript(valeur) {
+  return JSON.stringify(valeur)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
 }
 
 /** Miroir du format côté client (src/lib/stats.ts) : quatre chiffres. */
@@ -461,7 +485,7 @@ class InjecteurStats {
   element(e) {
     // Script classique en tête : il s'exécute avant le bundle (module différé),
     // donc avant l'hydratation qui en dépend.
-    e.append(`<script>window.__PIECI_STATS__=${JSON.stringify(this.stats)}</script>`, {
+    e.append(`<script>window.__PIECI_STATS__=${jsonPourScript(this.stats)}</script>`, {
       html: true,
     });
   }

@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { TypePiece } from '../../common/enums';
 import { FindOrCreateUtilisateurDto } from '../../utilisateurs/dto/find-or-create-utilisateur.dto';
+import { SansBalise } from '../../common/texte';
 
 export class CreateAlertePerteDto {
   @ValidateNested()
@@ -21,20 +22,24 @@ export class CreateAlertePerteDto {
 
   @IsString()
   @Length(1, 100)
+  @SansBalise()
   prenom: string;
 
   @IsString()
   @Length(1, 100)
+  @SansBalise()
   nom: string;
 
   @IsOptional()
   @IsString()
   @Length(1, 100)
+  @SansBalise()
   commune?: string;
 
   @IsOptional()
   @IsString()
   @Length(1, 150)
+  @SansBalise()
   quartier?: string;
 
   @IsOptional()

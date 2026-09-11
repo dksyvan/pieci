@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import { TypePiece } from '../../common/enums';
 import { FindOrCreateUtilisateurDto } from '../../utilisateurs/dto/find-or-create-utilisateur.dto';
+import { SansBalise } from '../../common/texte';
 
 export class CreatePieceTrouveeDto {
   @ValidateNested()
@@ -22,19 +23,23 @@ export class CreatePieceTrouveeDto {
 
   @IsString()
   @Length(1, 100)
+  @SansBalise()
   prenom: string;
 
   @IsString()
   @Length(1, 100)
+  @SansBalise()
   nom: string;
 
   @IsString()
   @Length(1, 100)
+  @SansBalise()
   commune: string;
 
   @IsOptional()
   @IsString()
   @Length(1, 150)
+  @SansBalise()
   quartier?: string;
 
   @IsLatitude()
@@ -51,6 +56,7 @@ export class CreatePieceTrouveeDto {
   @IsOptional()
   @IsString()
   @Length(1, 200)
+  @SansBalise()
   pointDepotAutre?: string;
 
   @IsOptional()
