@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Icône carrée pour Google : le favicon affiché à côté du nom de site
+         dans les résultats doit être au rapport 1:1, et plus grand que
+         48 px. Les navigateurs gardent le SVG ; Google trouve ici de quoi
+         ne pas retomber sur l'icône générique. -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Pièci — la plateforme ivoirienne qui rapproche automatiquement les pièces d'identité trouvées et leurs propriétaires." />
     <meta name="author" content="DIBY Yvan" />
@@ -42,33 +47,68 @@
 
     <title>Pièci — Ta pièce retrouvée</title>
 
+    <!-- Invite d'installation, captée avant le bundle.
+         Chrome émet « beforeinstallprompt » quand il juge le site
+         installable, et une seule fois par chargement. Le bundle est un
+         module, exécuté après l'analyse du document : s'il était seul à
+         écouter, l'événement pourrait partir avant lui et être perdu. Ce
+         script classique s'exécute tout de suite et le garde de côté
+         (voir src/lib/installation.ts). preventDefault retire le bandeau
+         natif de Chrome : c'est notre bouton qui propose, au moment voulu. -->
+    <script>
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__PIECI_INSTALL__ = e;
+        window.dispatchEvent(new Event('pieci:installable'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__PIECI_INSTALL__ = null;
+        window.dispatchEvent(new Event('pieci:installee'));
+      });
+    </script>
+
+    <!-- Données structurées de la page d'accueil, en un seul graphe.
+         - WebSite porte le NOM DE SITE que Google affiche au-dessus du
+           résultat. C'est le mécanisme documenté pour « pieci » : le mot
+           est aussi une chaîne de radio lettone et le nombre cinq en
+           letton, et Google n'attribue pas le même nom de site à deux sites
+           mondiaux. alternateName lui donne les formes qu'on tape vraiment.
+         - Organization relie Pièci à ses profils publics (sameAs). Seuls y
+           figurent des profils vérifiés comme les nôtres : un sameAs vers le
+           compte de quelqu'un d'autre dirait à Google que nous sommes lui.
+         - Pas de SearchAction : Google a retiré le champ de recherche des
+           résultats le 21 novembre 2024, la balise ne produit plus rien.
+         - Plus de WebApplication : Google n'en tire un résultat enrichi
+           qu'avec une note ou des avis, et signale le nœud invalide sans
+           eux. Des avis inventés sont interdits ; l'identité du site est
+           désormais portée par WebSite et Organization. -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Pièci",
-        "url": "%VITE_SITE_URL%/",
-        "applicationCategory": "UtilitiesApplication",
-        "operatingSystem": "Web",
-        "inLanguage": "fr",
-        "description": "Pièci rapproche automatiquement les pièces d'identité trouvées et leurs propriétaires en Côte d'Ivoire.",
-        "author": {
-          "@type": "Person",
-          "name": "DIBY Yvan"
-        },
-        "creator": {
-          "@type": "Person",
-          "name": "DIBY Yvan"
-        },
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "XOF"
-        },
-        "areaServed": {
-          "@type": "Country",
-          "name": "Côte d'Ivoire"
-        }
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "%VITE_SITE_URL%/#site",
+            "name": "Pièci",
+            "alternateName": ["Pieci", "Pieci CI", "pieci.ci"],
+            "url": "%VITE_SITE_URL%/",
+            "inLanguage": "fr",
+            "publisher": { "@id": "%VITE_SITE_URL%/#organisation" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "%VITE_SITE_URL%/#organisation",
+            "name": "Pièci",
+            "alternateName": ["Pieci", "Pieci CI", "pieci.ci"],
+            "url": "%VITE_SITE_URL%/",
+            "logo": "%VITE_SITE_URL%/pwa-512x512.png",
+            "areaServed": { "@type": "Country", "name": "Côte d'Ivoire" },
+            "sameAs": [
+              "https://www.linkedin.com/company/pieci/",
+              "https://www.facebook.com/profile.php?id=61594015171211"
+            ]
+          }
+        ]
       }
     </script>
   </head>

@@ -18,6 +18,27 @@ export function estIOS(): boolean {
   );
 }
 
+/**
+ * Navigateur intégré à une application : Facebook, Instagram, LinkedIn,
+ * Google, WeChat…
+ *
+ * C'est par là qu'arrive une bonne part des visiteurs — un lien touché dans un
+ * groupe — et on ne peut rien y installer : ces navigateurs n'ont ni l'invite
+ * de Chrome ni le « Sur l'écran d'accueil » de Safari. Sur iPhone, les
+ * reconnaître compte doublement : leur user-agent contient « iPhone », si
+ * bien que sans ce test on y montrait les étapes Safari, impossibles à suivre.
+ *
+ * Deux signes : un jeton d'application connu, ou, sur iOS, l'absence du jeton
+ * « Safari/ » — Safari et Chrome iOS le portent tous deux, les vues web
+ * intégrées non.
+ */
+export function estNavigateurIntegre(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  if (/FBAN|FBAV|FBIOS|Instagram|LinkedInApp|Line[/]|MicroMessenger|GSA[/]/.test(ua)) return true;
+  return estIOS() && !/Safari[/]/.test(ua);
+}
+
 /** La page tourne-t-elle en application installée, et non dans un onglet ? */
 export function estInstallee(): boolean {
   if (typeof window === 'undefined') return false;

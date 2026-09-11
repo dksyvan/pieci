@@ -60,9 +60,9 @@ export const cniPerdue: Guide = {
         },
         {
           type: 'encadre',
-          titre: 'Le piège du numéro',
+          titre: 'Votre nom suffit',
           texte:
-            'La plupart des services de recherche vous demandent le numéro inscrit sur la pièce. Or ce numéro, vous l’avez perdu avec elle. Pièci cherche par votre nom, et tolère les variantes d’orthographe : « N’Guessan », « Nguessan » et « N Guessan » mènent au même résultat.',
+            'Pièci cherche par votre nom, et tolère les variantes d’orthographe : « N’Guessan », « Nguessan » et « N Guessan » mènent au même résultat.',
         },
       ],
     },

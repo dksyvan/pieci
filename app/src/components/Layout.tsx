@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Logo } from './Logo';
+import { BoutonInstaller } from './BoutonInstaller';
 import {
   IconeAccueil,
   IconeCarte,
@@ -77,6 +78,7 @@ export function Layout() {
               </NavLink>
             ))}
           </nav>
+          <BoutonInstaller />
         </div>
       </header>
 
@@ -111,11 +113,16 @@ export function Layout() {
             Ni numéro de pièce, ni photo nette, ni téléphone : rien de tout ça n’est publié. Les
             coordonnées ne circulent qu’après confirmation des deux côtés.
           </p>
+          {/* Le domaine écrit en clair : c'est la seule forme sans accent de la
+              marque qui apparaisse dans le texte, et c'est celle qu'on tape.
+              Une mention, pas une liste — voir index.html. Le commentaire est
+              hors du paragraphe exprès : placé dedans, il coupait le texte en
+              deux et JSX supprimait l'espace de la jonction (« Yvan.© »). */}
           <p className="pied-mention">
             Pièci — la solidarité ivoirienne, rendue efficace.
             <br />
             Conçu et développé par <b style={{ color: 'var(--color-encre)' }}>DIBY&nbsp;Yvan</b>.
-            © {ANNEE} · Abidjan, Côte d’Ivoire.
+            © {ANNEE} · pieci.ci · Abidjan, Côte d’Ivoire.
           </p>
         </div>
       </footer>

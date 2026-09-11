@@ -275,6 +275,63 @@
   }
   @media (max-width: 980px) { .onglets { display: none; } }
 
+  /* ---- Installer l'application ------------------------------------------ */
+
+  /* Collé aux onglets sur ordinateur ; sur téléphone, où les onglets passent
+     dans la barre du bas, il prend leur place à droite du logo. */
+  .installer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-left: var(--s-2);
+  }
+  @media (max-width: 980px) { .installer { margin-left: auto; } }
+
+  .btn-installer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--color-cachet);
+    border-radius: var(--r-bloc);
+    background: transparent;
+    color: var(--color-cachet);
+    font-family: var(--font-util);
+    font-weight: 600;
+    font-size: var(--t-micro);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 150ms var(--e-micro), color 150ms var(--e-micro);
+  }
+  .btn-installer:hover,
+  .btn-installer[aria-expanded='true'] { background: var(--color-cachet); color: var(--color-papier); }
+  @media (pointer: coarse) { .btn-installer { min-height: 44px; } }
+
+  .installer-aide {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: min(300px, calc(100vw - 2 * var(--s-4)));
+    padding: var(--s-4);
+    background: var(--color-papier);
+    border: 1px solid var(--color-encre);
+    border-radius: var(--r-bloc);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--color-encre) 18%, transparent);
+    font-size: var(--t-fine);
+    line-height: var(--lh-lead);
+  }
+  .installer-aide ol { margin: var(--s-2) 0; padding-left: 1.2em; }
+  .installer-aide li { margin-top: 4px; }
+  .installer-icone {
+    display: inline-flex;
+    vertical-align: -2px;
+    margin: 0 4px;
+    color: var(--color-cachet);
+  }
+
   /* ---- Bandeau d'accueil — l'en-tête d'un document, pas un hero --------- */
 
   /* Le bandeau d'accueil : un fond légèrement sourd suffit à le détacher de la
