@@ -34,11 +34,17 @@ function estDonneeApi(url) {
   return chemin.startsWith('/pieces-trouvees') || chemin.startsWith('/points-depot');
 }
 
+const CACHE_API = 'pieci-api-v2';
+const CACHES_PERIMES = ['pieci-api'];
+
 // Données de l'API : on tente le réseau d'abord, on retombe sur le cache hors-ligne.
 registerRoute(
   ({ url }) => estDonneeApi(url),
   new NetworkFirst({
-    cacheName: 'pieci-api',
+    // Nom versionné : la forme des pièces a changé (NOM + initiales). L'ancien
+    // cache est supprimé à l'activation, sinon une réponse d'avant pouvait
+    // être servie hors ligne pendant 24 h, avec des noms vides.
+    cacheName: CACHE_API,
     networkTimeoutSeconds: 5,
     plugins: [
       new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 }),
@@ -60,7 +66,11 @@ registerRoute(
 );
 
 self.skipWaiting();
-self.addEventListener('activate', () => self.clients.claim());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    Promise.all(CACHES_PERIMES.map((nom) => caches.delete(nom))).then(() => self.clients.claim()),
+  );
+});
 
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? { title: 'Pièci', body: 'Nouvelle correspondance !' };

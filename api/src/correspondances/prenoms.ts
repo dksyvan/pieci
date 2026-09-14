@@ -23,8 +23,45 @@ function distance(a: string, b: string): number {
   return d[a.length][b.length];
 }
 
+/**
+ * Normalisation du défi : celle du rapprochement, puis tout ce qui n'est pas
+ * une lettre devient un blanc. « Aya. », tapé par un trouveur pressé, doit
+ * valoir « Aya ».
+ */
+function nettoyer(valeur: string | null | undefined): string {
+  return normaliser(valeur).replace(/[^a-z ]/g, ' ').replace(/ +/g, ' ').trim();
+}
+
+/**
+ * Plus petite somme de distances pour associer chaque prénom attendu à un
+ * prénom saisi distinct. Les listes sont courtes (bornées par l'appelant) :
+ * l'exploration complète reste instantanée.
+ */
+function coutAssociation(attendus: string[], saisis: string[]): number {
+  const pris = new Array<boolean>(saisis.length).fill(false);
+  const explorer = (i: number): number => {
+    if (i === attendus.length) return 0;
+    let meilleur = Number.POSITIVE_INFINITY;
+    for (let j = 0; j < saisis.length; j++) {
+      if (pris[j]) continue;
+      pris[j] = true;
+      meilleur = Math.min(meilleur, distance(attendus[i], saisis[j]) + explorer(i + 1));
+      pris[j] = false;
+    }
+    return meilleur;
+  };
+  return explorer(0);
+}
+
 /** En dessous de cette longueur, une seule faute tolérée rend le prénom devinable. */
 const LETTRES_MIN_POUR_TOLERANCE = 5;
+
+/**
+ * Prénoms saisis en plus de ceux inscrits par le trouveur. Un seul : assez
+ * pour le trouveur qui n'a tapé que « Serge » d'une carte « Serge Yvan »,
+ * trop peu pour qu'une liste de prénoms courants serve de réponse.
+ */
+const PRENOMS_EN_PLUS_MAX = 1;
 
 /**
  * Les prénoms saisis sont-ils ceux inscrits sur la pièce ?
@@ -33,25 +70,28 @@ const LETTRES_MIN_POUR_TOLERANCE = 5;
  * initiales sur l'annonce, doit deviner. La comparaison est donc indulgente
  * sur la forme et stricte sur le fond :
  *
- * - accents, casse, tirets et apostrophes ne comptent pas — c'est `normaliser`,
- *   celle du rapprochement : « Serge-Yvan » et « serge yvan » passent ;
+ * - accents, casse, tirets, apostrophes et ponctuation ne comptent pas :
+ *   « Serge-Yvan » et « serge yvan » passent ;
  * - l'ordre non plus : « Yvan Serge » passe ;
  * - les espaces non plus : « Nda » passe pour « N'Da » ;
+ * - un prénom de plus est accepté : le trouveur n'a peut-être tapé qu'une
+ *   partie de ce qui est inscrit, et le propriétaire, lui, écrit tout. Un
+ *   prénom de moins, jamais ;
  * - une faute de frappe est tolérée, à trois conditions qui ferment chacune un
  *   raccourci que l'annonce publique offrirait sinon :
- *   1. aucun jeton saisi d'une seule lettre — les initiales sont affichées,
+ *   1. aucun prénom saisi d'une seule lettre — les initiales sont affichées,
  *      et « Ange Y » ne doit pas valoir « Ange Ya » ;
- *   2. un prénom attendu d'au moins cinq lettres — sur « Aya », une faute
- *      tolérée fait passer « Ay », à une lettre de l'initiale ;
- *   3. la faute porte sur l'ensemble, pas une par prénom.
+ *   2. des prénoms attendus d'au moins cinq lettres en tout — sur « Aya »,
+ *      une faute tolérée fait passer « Ay », à une lettre de l'initiale ;
+ *   3. une faute pour l'ensemble, pas une par prénom.
  *
  * Ce n'est pas une serrure. C'est un filtre contre le curieux et
  * l'opportuniste ; la sécurité réelle vient de la confirmation du trouveur
  * et de la remise en main propre, au guichet d'un point de dépôt.
  */
 export function prenomsConcordent(saisis: string, attendus: string): boolean {
-  const a = normaliser(saisis);
-  const b = normaliser(attendus);
+  const a = nettoyer(saisis);
+  const b = nettoyer(attendus);
   if (!a || !b) return false;
 
   if (a === b) return true;
@@ -59,12 +99,12 @@ export function prenomsConcordent(saisis: string, attendus: string): boolean {
 
   const jetonsA = a.split(' ');
   const jetonsB = b.split(' ');
-  const trieA = [...jetonsA].sort().join(' ');
-  const trieB = [...jetonsB].sort().join(' ');
-  if (trieA === trieB) return true;
+  if (jetonsA.length < jetonsB.length) return false;
+  if (jetonsA.length > jetonsB.length + PRENOMS_EN_PLUS_MAX) return false;
 
-  if (jetonsA.some((jeton) => jeton.length < 2)) return false;
-  if (b.replace(/ /g, '').length < LETTRES_MIN_POUR_TOLERANCE) return false;
+  const tolerance =
+    jetonsA.every((jeton) => jeton.length >= 2) &&
+    b.replace(/ /g, '').length >= LETTRES_MIN_POUR_TOLERANCE;
 
-  return distance(a, b) <= 1 || distance(trieA, trieB) <= 1;
+  return coutAssociation(jetonsB, jetonsA) <= (tolerance ? 1 : 0);
 }

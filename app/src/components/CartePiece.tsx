@@ -1,5 +1,5 @@
 interface CartePieceProps {
-  /** Nom affiché sur la pièce — prénom + initiale, comme dans le registre public. */
+  /** Nom affiché sur la pièce — NOM + initiales du prénom, comme dans le registre public. */
   nom?: string;
   /** Type de pièce inscrit en haut à gauche. */
   type?: string;

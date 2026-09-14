@@ -216,6 +216,20 @@ export const SEUIL_FORTE = 0.8;
 export type Match<T extends PersonnePiece> = T & ScoreMatch;
 
 /**
+ * Ressemblance de prénom supposée quand la décision de retenir un
+ * rapprochement ne doit rien révéler du prénom (voir `prenomNeutre`).
+ *
+ * Une alerte créée après la publication d'une pièce peut avoir été fabriquée
+ * d'après le registre : nom public exact, nom légèrement abîmé pour se
+ * placer juste sous le seuil, puis un prénom d'essai. Si le prénom décidait
+ * de la création de la correspondance, sa simple existence dirait « chaud »
+ * ou « froid ». Avec une valeur fixe, elle ne dépend que du nom, du type, du
+ * lieu et de la date — tous déjà publics. Le score enregistré, lui, reste le
+ * vrai : seul le trouveur le voit.
+ */
+export const SIM_PRENOM_NEUTRE = 0.5;
+
+/**
  * Recherche, parmi une base de trouvailles (déjà pré-filtrée par
  * `ST_DWithin`), celles qui correspondent à une alerte de perte, triées par
  * score de confiance décroissant.
@@ -225,10 +239,16 @@ export type Match<T extends PersonnePiece> = T & ScoreMatch;
 export function trouverMatches<T extends PersonnePiece>(
   perte: PersonnePiece,
   base: readonly T[],
+  options: { prenomNeutre?: boolean } = {},
 ): Array<Match<T>> {
   return base
     .map((trouvaille) => ({ ...trouvaille, ...scoreMatch(perte, trouvaille) }))
-    .filter((candidat) => candidat.score >= SEUIL_AFFICHAGE)
+    .filter((candidat) => {
+      const retenu = options.prenomNeutre
+        ? candidat.score + POIDS.prenom * (SIM_PRENOM_NEUTRE - simNom(perte.prenom, candidat.prenom))
+        : candidat.score;
+      return retenu >= SEUIL_AFFICHAGE;
+    })
     .sort((a, b) => b.score - a.score);
 }
 

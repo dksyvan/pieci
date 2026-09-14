@@ -180,7 +180,7 @@ export function Saisie() {
   const ajouter = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!brouillon.typePiece) return setErreur('Choisis le type de document.');
-    if (!brouillon.prenom.trim()) return setErreur('Écris le prénom inscrit sur la pièce.');
+    if (!brouillon.prenom.trim()) return setErreur('Écris les prénoms inscrits sur la pièce.');
     if (!brouillon.nom.trim()) return setErreur('Écris le nom inscrit sur la pièce.');
 
     setErreur(null);
@@ -398,7 +398,7 @@ export function Saisie() {
 
             <div className="duo">
               <div className="champ">
-                <label htmlFor="prenom">Prénom sur la pièce</label>
+                <label htmlFor="prenom">Prénoms sur la pièce (tous)</label>
                 <input
                   id="prenom"
                   ref={champPrenom}

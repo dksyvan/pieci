@@ -138,7 +138,9 @@ export class CorrespondancesService {
    *
    * Message d'échec neutre — « Ça ne correspond pas. » — sans jamais dire
    * ce qui est faux ni combien de prénoms sont attendus. Trois essais par
-   * demandeur, dix par pièce, puis trente minutes de blocage (DefisService).
+   * demandeur sur trente minutes, dix par pièce sur une journée
+   * (DefisService). C'est le seul chemin qui lève le défi pour une alerte
+   * créée après la pièce, et il est compté.
    */
   async repondreDefi(
     id: string,
@@ -154,8 +156,14 @@ export class CorrespondancesService {
     if (!this.defiRequis(correspondance)) return this.versResume(correspondance, utilisateur);
 
     const pieceId = correspondance.pieceTrouvee.id;
-    if (this.defis.estBloque(pieceId, utilisateur.telephone)) {
-      throw new HttpException('Trop d’essais. Réessaie dans trente minutes.', HttpStatus.TOO_MANY_REQUESTS);
+    const blocage = this.defis.estBloque(pieceId, utilisateur.telephone);
+    if (blocage) {
+      throw new HttpException(
+        blocage === 'piece'
+          ? 'Trop d’essais sur cette pièce. Réessaie demain.'
+          : 'Trop d’essais. Réessaie dans trente minutes.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     if (!prenomsConcordent(prenoms, correspondance.pieceTrouvee.prenom)) {
@@ -172,16 +180,32 @@ export class CorrespondancesService {
   /**
    * Le demandeur doit-il encore répondre au défi ?
    *
-   * Non s'il l'a réussi. Non s'il a saisi les bons prénoms en créant son
-   * alerte : le vrai propriétaire, qui écrit ses prénoms sans y penser, ne
-   * voit jamais la question. Non enfin si la pièce n'a pas de prénom
-   * renseigné — il n'y a rien à demander, et la confirmation du trouveur
-   * reste la seule validation.
+   * Non s'il l'a réussi. Non si la pièce n'a pas de prénom renseigné — il
+   * n'y a rien à demander, et la confirmation du trouveur reste la seule
+   * validation.
+   *
+   * Non, enfin, s'il avait écrit les bons prénoms dans une alerte créée
+   * AVANT la déclaration de la pièce : c'est le cas de Koné, qui déclare sa
+   * perte le 30 et dont la pièce est trouvée le 1er. Ces prénoms ne pouvaient
+   * venir que de lui, la pièce n'était encore affichée nulle part.
+   *
+   * Une alerte créée après, en revanche, a pu être fabriquée d'après le
+   * registre public. La dispenser sur ses prénoms faisait de chaque alerte un
+   * essai gratuit, que DefisService ne voyait jamais : il suffisait de créer
+   * « N'GUESSAN Adjoua », « N'GUESSAN Aya », « N'GUESSAN Akissi »… et de
+   * lire `defiRequis` pour savoir lequel était le bon. Pour elle, seul
+   * POST /:id/defi, compté, lève la question.
    */
   private defiRequis(correspondance: Correspondance): boolean {
+    const { pieceTrouvee: piece, alertePerte: alerte } = correspondance;
     if (correspondance.defiReussiLe) return false;
-    if (!correspondance.pieceTrouvee.prenom?.trim()) return false;
-    return !prenomsConcordent(correspondance.alertePerte.prenom, correspondance.pieceTrouvee.prenom);
+    if (!piece.prenom?.trim()) return false;
+
+    const alerteAnterieure =
+      !!alerte.createdAt &&
+      !!piece.createdAt &&
+      new Date(alerte.createdAt).getTime() < new Date(piece.createdAt).getTime();
+    return !(alerteAnterieure && prenomsConcordent(alerte.prenom, piece.prenom));
   }
 
   /** Rejette la correspondance. Un seul rejet suffit à la clôturer. */
@@ -273,8 +297,17 @@ export class CorrespondancesService {
 
     return {
       id: correspondance.id,
-      score: correspondance.score,
-      niveauConfiance: correspondance.niveauConfiance,
+      /*
+       * Ni score ni niveau pour le demandeur. Le score mesure aussi la
+       * ressemblance des prénoms et la distance au lieu exact de la
+       * trouvaille, à quatre décimales : en créant des alertes au nom public
+       * et en lisant le score, on retrouvait le prénom lettre par lettre
+       * (« Adj » 0,79, « Adjo » 0,83, « Adjoua » 0,89) et la position du
+       * trouveur par trilatération. Le niveau, plus grossier, dit la même
+       * chose en trois paliers. Le trouveur, qui a la pièce en main, les garde.
+       */
+      score: estTrouveur ? correspondance.score : null,
+      niveauConfiance: estTrouveur ? correspondance.niveauConfiance : null,
       statut: correspondance.statut,
       dateCalcul: correspondance.dateCalcul,
       pieceTrouvee: {

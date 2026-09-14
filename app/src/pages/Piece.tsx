@@ -205,7 +205,7 @@ export function Piece() {
             */}
             <Link
               to="/perdu"
-              state={{ typePiece: piece.typePiece, nom: piece.nom }}
+              state={{ typePiece: piece.typePiece, nom: piece.nom, pieceId: piece.id }}
               className="btn btn-plein btn-large"
             >
               C’est ma pièce — la récupérer

@@ -21,9 +21,14 @@ const TAILLE_MAX_PHOTO = 8 * 1024 * 1024; // 8 Mo
 export class PiecesTrouveesController {
   constructor(private readonly piecesTrouvees: PiecesTrouveesService) {}
 
+  /**
+   * Ne renvoie que l'identifiant : l'entité porte le compte du déclarant,
+   * retrouvé par un numéro que rien ne vérifie (voir AlertesPerteController).
+   */
   @Post()
-  create(@Body() dto: CreatePieceTrouveeDto) {
-    return this.piecesTrouvees.create(dto);
+  async create(@Body() dto: CreatePieceTrouveeDto): Promise<{ id: string }> {
+    const { id } = await this.piecesTrouvees.create(dto);
+    return { id };
   }
 
   @Post('photo')

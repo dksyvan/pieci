@@ -28,11 +28,13 @@ function FormulaireDefi({
   telephone,
   onReussi,
   onRejeter,
+  occupe,
 }: {
   correspondance: Correspondance;
   telephone: string;
   onReussi: (maj: Correspondance) => void;
   onRejeter: () => void;
+  occupe: boolean;
 }) {
   const [prenoms, setPrenoms] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
@@ -76,7 +78,7 @@ function FormulaireDefi({
       <button className="btn btn-plein" disabled={envoi || !prenoms.trim()}>
         {envoi ? 'Vérification…' : 'Vérifier'}
       </button>
-      <button type="button" className="lien" onClick={onRejeter} disabled={envoi}>
+      <button type="button" className="lien" onClick={onRejeter} disabled={envoi || occupe}>
         Pas la mienne
       </button>
     </form>
@@ -160,8 +162,10 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
       </div>
 
       {resultats.map((r) => {
-        const bande = bandeConfiance(r.score);
-        const pct = Math.round(r.score * 100);
+        // Le score n'est envoyé qu'au trouveur : pour le demandeur, il
+        // trahissait le prénom et le lieu exact (voir l'API).
+        const bande = r.score === null ? null : bandeConfiance(r.score);
+        const pct = r.score === null ? 0 : Math.round(r.score * 100);
         const occupe = actionEnCours === r.id;
         const contact = contacts[r.id];
 
@@ -201,6 +205,7 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
               telephone={telephone}
               onReussi={onChange}
               onRejeter={() => executer(r.id, rejeterCorrespondance)}
+              occupe={occupe}
             />
           );
         } else {
@@ -228,13 +233,21 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
 
         return (
           <div className="corr" key={r.id}>
-            <div className="jauge" style={{ color: bande.couleur }}>
-              <div className="jauge-val">{pct}%</div>
-              <div className="jauge-barre">
-                <span style={{ width: `${pct}%` } as CSSProperties} />
+            {bande ? (
+              <div className="jauge" style={{ color: bande.couleur }}>
+                <div className="jauge-val">{pct}%</div>
+                <div className="jauge-barre">
+                  <span style={{ width: `${pct}%` } as CSSProperties} />
+                </div>
+                <div className="jauge-lbl">{bande.label}</div>
               </div>
-              <div className="jauge-lbl">{bande.label}</div>
-            </div>
+            ) : (
+              <div className="jauge" style={{ color: 'var(--color-sourdine)' }}>
+                <div className="jauge-lbl" style={{ marginTop: 0 }}>
+                  À vérifier
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="ligne-nom">

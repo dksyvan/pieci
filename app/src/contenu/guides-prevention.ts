@@ -207,7 +207,7 @@ export const usurpationIdentite: Guide = {
           type: 'encadre',
           titre: 'Pourquoi le registre public reste discret',
           texte:
-            'Pièci n’affiche que le prénom et l’initiale du nom, et floute les données sensibles. Publier une pièce en clair pour aider son propriétaire créerait exactement le risque qu’on cherche à écarter.',
+            'Pièci n’affiche que le nom de famille et les initiales du prénom, et floute les données sensibles. Publier une pièce en clair pour aider son propriétaire créerait exactement le risque qu’on cherche à écarter.',
         },
       ],
     },

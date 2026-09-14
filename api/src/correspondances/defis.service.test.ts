@@ -16,23 +16,23 @@ describe('DefisService', () => {
     const defis = new DefisService();
     defis.echec('piece-1', '0700000001');
     defis.echec('piece-1', '0700000001');
-    expect(defis.estBloque('piece-1', '0700000001')).toBe(false);
+    expect(defis.estBloque('piece-1', '0700000001')).toBeNull();
 
     defis.echec('piece-1', '0700000001');
-    expect(defis.estBloque('piece-1', '0700000001')).toBe(true);
+    expect(defis.estBloque('piece-1', '0700000001')).toBeTruthy();
 
     vi.advanceTimersByTime(29 * MINUTE);
-    expect(defis.estBloque('piece-1', '0700000001')).toBe(true);
+    expect(defis.estBloque('piece-1', '0700000001')).toBeTruthy();
     vi.advanceTimersByTime(2 * MINUTE);
-    expect(defis.estBloque('piece-1', '0700000001')).toBe(false);
+    expect(defis.estBloque('piece-1', '0700000001')).toBeNull();
   });
 
   it('ne bloque pas un autre demandeur, ni une autre pièce', () => {
     const defis = new DefisService();
     for (let i = 0; i < 3; i++) defis.echec('piece-1', '0700000001');
 
-    expect(defis.estBloque('piece-1', '0700000002')).toBe(false);
-    expect(defis.estBloque('piece-2', '0700000001')).toBe(false);
+    expect(defis.estBloque('piece-1', '0700000002')).toBeNull();
+    expect(defis.estBloque('piece-2', '0700000001')).toBeNull();
   });
 
   /**
@@ -43,8 +43,8 @@ describe('DefisService', () => {
     const defis = new DefisService();
     for (let i = 0; i < 10; i++) defis.echec('piece-1', `07000000${String(i).padStart(2, '0')}`);
 
-    expect(defis.estBloque('piece-1', '0799999999')).toBe(true);
-    expect(defis.estBloque('piece-2', '0799999999')).toBe(false);
+    expect(defis.estBloque('piece-1', '0799999999')).toBeTruthy();
+    expect(defis.estBloque('piece-2', '0799999999')).toBeNull();
   });
 
   /**
@@ -57,15 +57,15 @@ describe('DefisService', () => {
       defis.echec('piece-1', `07000000${String(i).padStart(2, '0')}`);
       vi.advanceTimersByTime(40 * MINUTE);
     }
-    expect(defis.estBloque('piece-1', '0799999999')).toBe(false);
+    expect(defis.estBloque('piece-1', '0799999999')).toBeNull();
 
     defis.echec('piece-1', '0700000099');
-    expect(defis.estBloque('piece-1', '0799999999')).toBe(true);
+    expect(defis.estBloque('piece-1', '0799999999')).toBeTruthy();
 
     vi.advanceTimersByTime(23 * 60 * MINUTE);
-    expect(defis.estBloque('piece-1', '0799999999')).toBe(true);
+    expect(defis.estBloque('piece-1', '0799999999')).toBeTruthy();
     vi.advanceTimersByTime(2 * 60 * MINUTE);
-    expect(defis.estBloque('piece-1', '0799999999')).toBe(false);
+    expect(defis.estBloque('piece-1', '0799999999')).toBeNull();
   });
 
   it('remet le compteur du demandeur à zéro quand il répond juste', () => {
@@ -75,7 +75,7 @@ describe('DefisService', () => {
     defis.succes('piece-1', '0700000001');
     defis.echec('piece-1', '0700000001');
 
-    expect(defis.estBloque('piece-1', '0700000001')).toBe(false);
+    expect(defis.estBloque('piece-1', '0700000001')).toBeNull();
   });
 
   it('oublie des échecs trop anciens pour compter ensemble', () => {
@@ -85,6 +85,16 @@ describe('DefisService', () => {
     vi.advanceTimersByTime(31 * MINUTE);
     defis.echec('piece-1', '0700000001');
 
-    expect(defis.estBloque('piece-1', '0700000001')).toBe(false);
+    expect(defis.estBloque('piece-1', '0700000001')).toBeNull();
+  });
+
+  /** La cause décide du message : trente minutes ou demain. */
+  it('nomme la cause du blocage', () => {
+    const defis = new DefisService();
+    for (let i = 0; i < 3; i++) defis.echec('piece-1', '0700000001');
+    expect(defis.estBloque('piece-1', '0700000001')).toBe('demandeur');
+
+    for (let i = 0; i < 10; i++) defis.echec('piece-2', `07000000${String(i).padStart(2, '0')}`);
+    expect(defis.estBloque('piece-2', '0799999999')).toBe('piece');
   });
 });

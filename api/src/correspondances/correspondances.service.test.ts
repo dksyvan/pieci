@@ -51,6 +51,7 @@ const pieceTrouvee = {
   dateTrouvaille: new Date('2026-01-01T00:00:00Z'),
   photoFlouteeUrl: null,
   declarant: trouveur,
+  createdAt: new Date('2026-01-01T12:00:00Z'),
 } as PieceTrouvee;
 
 const alertePerte = {
@@ -60,6 +61,8 @@ const alertePerte = {
   nom: 'Bamba',
   commune: 'Cocody',
   utilisateur: demandeur,
+  // Alerte créée avant la déclaration de la pièce : le cas de Koné.
+  createdAt: new Date('2025-12-30T08:00:00Z'),
 } as AlertePerte;
 
 function creerCorrespondance(overrides: Partial<Correspondance> = {}): Correspondance {
@@ -439,10 +442,52 @@ describe('défi des prénoms', () => {
     expect(notifications.creer).not.toHaveBeenCalled();
   });
 
-  it('laisse confirmer sans question le demandeur qui a saisi les bons prénoms', async () => {
+  it('laisse confirmer sans question le demandeur dont l’alerte, antérieure à la pièce, portait les bons prénoms', async () => {
     const { service } = monter(creerCorrespondance(), demandeur);
     const resultat = await service.confirmer('corr-1', demandeur.telephone);
     expect(resultat.confirmeParMoi).toBe(true);
+  });
+
+  /**
+   * Une alerte créée après la publication a pu être fabriquée d'après le
+   * registre. Si ses prénoms suffisaient à lever le défi, chaque alerte
+   * était un essai gratuit, invisible pour DefisService, et `defiRequis`
+   * disait lequel était le bon.
+   */
+  it('exige le défi pour une alerte postérieure à la pièce, même avec les bons prénoms', async () => {
+    const alerteTardive = { ...alertePerte, createdAt: new Date('2026-01-05T00:00:00Z') } as AlertePerte;
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteTardive }), demandeur);
+
+    const [vue] = await service.findByTelephone(demandeur.telephone);
+    expect(vue.defiRequis).toBe(true);
+    await expect(service.confirmer('corr-1', demandeur.telephone)).rejects.toThrow(ForbiddenException);
+
+    const apres = await service.repondreDefi('corr-1', demandeur.telephone, 'Issa');
+    expect(apres.defiRequis).toBe(false);
+  });
+
+  it('ne donne au demandeur ni score ni niveau, qui trahissaient le prénom et le lieu', async () => {
+    const { service } = monter(creerCorrespondance(), demandeur);
+    const [vue] = await service.findByTelephone(demandeur.telephone);
+    expect(vue.score).toBeNull();
+    expect(vue.niveauConfiance).toBeNull();
+  });
+
+  it('garde score et niveau pour le trouveur', async () => {
+    const { service } = monter(creerCorrespondance(), trouveur);
+    const [vue] = await service.findByTelephone(trouveur.telephone);
+    expect(vue.score).toBe(0.9);
+    expect(vue.niveauConfiance).toBe(NiveauConfiance.FORTE);
+  });
+
+  it('annonce « demain » quand c’est la pièce qui est fermée', async () => {
+    const defis = new DefisService();
+    for (let i = 0; i < 10; i++) defis.echec('piece-1', `07000000${String(i).padStart(2, '0')}`);
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), demandeur, defis);
+
+    await expect(service.repondreDefi('corr-1', demandeur.telephone, 'Issa')).rejects.toThrow(
+      'Trop d’essais sur cette pièce. Réessaie demain.',
+    );
   });
 
   it('ne pose jamais la question au trouveur', async () => {

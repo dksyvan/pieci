@@ -49,14 +49,23 @@ export class DefisService {
   private readonly parDemandeur = new Map<string, Compteur>();
   private readonly parPiece = new Map<string, Compteur>();
 
-  /** Le défi est-il bloqué pour ce demandeur sur cette pièce ? */
-  estBloque(pieceId: string, demandeur: string): boolean {
+  /**
+   * Le défi est-il bloqué pour ce demandeur sur cette pièce, et pourquoi ?
+   *
+   * La cause sert au seul message : « trente minutes » quand c'est le
+   * demandeur qui s'est trompé, « demain » quand c'est la pièce qui est
+   * fermée. Annoncer trente minutes pour un blocage d'une journée renvoyait
+   * le vrai propriétaire au même refus toutes les demi-heures, sans qu'il
+   * comprenne. Le message ne dit jamais que d'autres numéros ont essayé.
+   */
+  estBloque(pieceId: string, demandeur: string): 'piece' | 'demandeur' | null {
     const maintenant = Date.now();
     this.purger(maintenant);
-    return (
-      (this.parPiece.get(pieceId)?.bloqueJusqua ?? 0) > maintenant ||
-      (this.parDemandeur.get(this.cle(pieceId, demandeur))?.bloqueJusqua ?? 0) > maintenant
-    );
+    if ((this.parPiece.get(pieceId)?.bloqueJusqua ?? 0) > maintenant) return 'piece';
+    if ((this.parDemandeur.get(this.cle(pieceId, demandeur))?.bloqueJusqua ?? 0) > maintenant) {
+      return 'demandeur';
+    }
+    return null;
   }
 
   /** Enregistre une réponse fausse. */

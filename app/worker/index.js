@@ -168,6 +168,14 @@ async function relayerApi(request, url, env) {
   const enTetesAmont = new Headers(request.headers);
   for (const nom of ENTETES_DE_SAUT) enTetesAmont.delete(nom);
 
+  // L'empreinte du visiteur est posée ici, jamais reprise du client : sans
+  // cela, chacun l'écrirait lui-même et le limiteur de l'API compterait ce
+  // qu'on lui dit de compter. Sans elle, toutes les requêtes arriveraient
+  // sous l'adresse de Cloudflare et se limiteraient entre elles.
+  enTetesAmont.delete('x-pieci-visiteur');
+  const empreinte = await empreinteVisiteur(request);
+  if (empreinte) enTetesAmont.set('x-pieci-visiteur', empreinte);
+
   // Le corps est transmis en flux, sans être mis en mémoire : une photo peut
   // peser plusieurs mégaoctets, et `duplex: 'half'` est ce qui autorise ce
   // flux à circuler.

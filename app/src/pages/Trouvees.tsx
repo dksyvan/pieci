@@ -4,12 +4,38 @@ import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import { COMMUNES } from '@partage/communes';
 import { normaliser } from '@partage/matching';
 import { useApp } from '../context/useApp';
+import type { PieceTrouveePublique } from '../lib/api';
 import { PAGES_REGISTRE, pageRegistreParSlug, slugifier } from '../contenu/registre';
 import { formaterCompte, statsServeur } from '../lib/stats';
 import { PieceCard } from '../components/PieceCard';
 import { IconeCarte, IconeFleche, IconeRecherche } from '../components/Icones';
 
 const COMMUNES_LISTEES = Object.keys(COMMUNES);
+
+/**
+ * La pièce répond-elle à la recherche libre ?
+ *
+ * Chaque mot doit se retrouver dans la fiche, dans n'importe quel ordre. Un
+ * prénom tapé en entier est accepté quand son initiale est affichée et que le
+ * nom de famille a été reconnu : quelqu'un qui cherche « Kouassi Adjoua »
+ * doit trouver « KOUASSI A. », que l'annonce n'écrit pas autrement. Rien de
+ * plus n'est révélé — le filtre ne lit que ce que la page affiche déjà.
+ */
+function repondA(p: PieceTrouveePublique, recherche: string): boolean {
+  const mots = normaliser(recherche).split(' ').filter(Boolean);
+  if (mots.length === 0) return true;
+
+  const fiche = normaliser(
+    `${p.nom} ${p.prenomInitiales ?? ''} ${p.commune} ${p.quartier ?? ''} ${p.typePiece}`,
+  );
+  const nom = normaliser(p.nom);
+  const initiales = normaliser(p.prenomInitiales).split(/[^a-z]+/).filter(Boolean);
+  const nomReconnu = mots.some((mot) => mot.length > 1 && nom.includes(mot));
+
+  return mots.every(
+    (mot) => fiche.includes(mot) || (nomReconnu && mot.length > 1 && initiales.includes(mot[0])),
+  );
+}
 
 /**
  * Le registre, entier ou filtré par commune ou par type.
@@ -33,11 +59,7 @@ export function Trouvees() {
       piecesTrouvees.filter((p) => {
         const okType = !type || p.typePiece === type;
         const okCommune = !commune || p.commune === commune;
-        const okRecherche =
-          !recherche ||
-          normaliser(
-            `${p.nom} ${p.prenomInitiales ?? ''} ${p.commune} ${p.quartier ?? ''} ${p.typePiece}`,
-          ).includes(normaliser(recherche));
+        const okRecherche = repondA(p, recherche);
         return okType && okCommune && okRecherche;
       }),
     [piecesTrouvees, recherche, type, commune],

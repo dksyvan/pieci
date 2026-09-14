@@ -135,8 +135,9 @@ export interface CorrespondanceAlerte {
  */
 export interface Correspondance {
   id: string;
-  score: number;
-  niveauConfiance: NiveauConfiance;
+  /** Pour le trouveur seulement ; null pour le demandeur (voir l'API). */
+  score: number | null;
+  niveauConfiance: NiveauConfiance | null;
   statut: StatutCorrespondance;
   dateCalcul: string;
   pieceTrouvee: CorrespondancePiece;
@@ -158,13 +159,19 @@ export interface ContactInfo {
   email: string | null;
 }
 
-/** Convertit la forme snake_case du serveur vers celle utilisée par les apps. */
+/**
+ * Convertit la forme snake_case du serveur vers celle utilisée par les apps.
+ *
+ * Défensive sur le nom : le service worker peut servir, hors ligne, une
+ * réponse mise en cache avant le changement de la vue publique. Mieux vaut un
+ * nom vide qu'« undefined » dans un message partagé.
+ */
 export function depuisPieceBrute(p: PieceTrouveePubliqueBrute): PieceTrouveePublique {
   return {
     id: p.id,
     typePiece: p.type_piece,
-    nom: p.nom,
-    prenomInitiales: p.prenom_initiales,
+    nom: typeof p.nom === 'string' ? p.nom : '',
+    prenomInitiales: typeof p.prenom_initiales === 'string' ? p.prenom_initiales : null,
     commune: p.commune,
     quartier: p.quartier,
     dateTrouvaille: p.date_trouvaille,

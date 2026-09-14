@@ -81,7 +81,7 @@ export const cniPerdue: Guide = {
         {
           type: 'paragraphe',
           texte:
-            'Tant que les deux parties n’ont pas confirmé, aucune coordonnée ne circule. Le registre public n’affiche que le prénom et l’initiale du nom, et les photos sont floutées avant publication : le numéro, la date de naissance et la signature restent illisibles.',
+            'Tant que les deux parties n’ont pas confirmé, aucune coordonnée ne circule. Le registre public n’affiche que le nom de famille et les initiales du prénom, et les photos sont floutées avant publication : le numéro, la date de naissance et la signature restent illisibles.',
         },
       ],
     },
@@ -213,7 +213,7 @@ export const jaiTrouveUneCni: Guide = {
           type: 'liste',
           items: [
             'Votre numéro reste privé jusqu’à confirmation des deux côtés.',
-            'Le registre public n’affiche que le prénom et l’initiale du nom du propriétaire.',
+            'Le registre public n’affiche que le nom de famille et les initiales du prénom du propriétaire.',
             'Vous n’êtes jamais obligé de rencontrer qui que ce soit chez vous.',
             'Vous pouvez déposer la pièce dans un lieu sûr et ne plus vous en occuper.',
           ],

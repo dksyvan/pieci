@@ -16,6 +16,10 @@ import { PersonnePiece, niveauConfiance, trouverMatches } from './matching';
  */
 const RAYON_PREFILTRE_M = 100_000;
 
+/** Position d'une pièce au grain du registre public (v_pieces_trouvees_publiques). */
+const LAT_ARRONDIE = 'round(ST_Y(position::geometry)::numeric, 2)::float8';
+const LNG_ARRONDIE = 'round(ST_X(position::geometry)::numeric, 2)::float8';
+
 interface AlerteAvecPosition {
   id: string;
   prenom: string;
@@ -91,13 +95,20 @@ export class MatchingService {
     // Le filtre géographique borne la taille du candidat-set ; il ne décide
     // de rien. Sans position, on renonce à la borne plutôt qu'au
     // rapprochement — le filtre par type suffit à garder la requête sobre.
+    //
+    // Les pièces sont lues à la position ARRONDIE du registre public, pour le
+    // filtre comme pour le score. Celui qui crée l'alerte choisit son point :
+    // avec la position exacte, il lui suffisait de déplacer ce point jusqu'à
+    // ce que la correspondance apparaisse ou disparaisse au bord du rayon,
+    // trois fois, pour retrouver par trilatération l'endroit exact où se
+    // tenait le trouveur. À 1 km près, le rapprochement ne perd rien.
     const candidats = await this.dataSource.query<PieceAvecPosition[]>(
       `SELECT id, prenom, nom, type_piece, date_trouvaille, declarant_id,
-              ST_Y(position::geometry) AS lat, ST_X(position::geometry) AS lng
+              ${LAT_ARRONDIE} AS lat, ${LNG_ARRONDIE} AS lng
        FROM pieces_trouvees
        WHERE statut = $1
          AND type_piece = $2
-         ${situee ? 'AND ST_DWithin(position, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5)' : ''}`,
+         ${situee ? `AND ST_DWithin(ST_SetSRID(ST_MakePoint(${LNG_ARRONDIE}, ${LAT_ARRONDIE}), 4326)::geography, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5)` : ''}`,
       situee
         ? [StatutTrouvaille.DISPONIBLE, alerte.type_piece, alerte.lng, alerte.lat, RAYON_PREFILTRE_M]
         : [StatutTrouvaille.DISPONIBLE, alerte.type_piece],
@@ -123,8 +134,12 @@ export class MatchingService {
       date: c.date_trouvaille,
     }));
 
+    // Prénom neutre : l'alerte cherche parmi des pièces déjà publiées, et
+    // l'existence de la correspondance ne doit rien dire du prénom (voir
+    // SIM_PRENOM_NEUTRE). L'autre sens — une pièce nouvelle face aux alertes
+    // existantes — n'offre pas cette prise : personne ne choisit ses essais.
     await this.enregistrerCorrespondances(
-      trouverMatches(perte, base).map((m) => ({
+      trouverMatches(perte, base, { prenomNeutre: true }).map((m) => ({
         pieceTrouveeId: m.id,
         pieceDeclarantId: m.declarantId,
         alertePerteId: alerteId,

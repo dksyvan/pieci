@@ -7,7 +7,13 @@ import { LieuField } from '../components/LieuField';
 import { BandeauPush } from '../components/BandeauPush';
 import { ListeCorrespondances } from '../components/ListeCorrespondances';
 import { useApp } from '../context/useApp';
-import { ApiError, creerAlertePerte, getCorrespondances, type Correspondance } from '../lib/api';
+import {
+  ApiError,
+  creerAlertePerte,
+  getCorrespondances,
+  repondreDefi,
+  type Correspondance,
+} from '../lib/api';
 import { montrerPremierChamp, type ErreursChamps } from '../lib/formulaire';
 
 export function Perdu() {
@@ -19,10 +25,20 @@ export function Perdu() {
    * — que l'annonce ne montre pas, et qui prouvent que c'est bien la sienne.
    * Le type n'est repris que s'il fait partie de la liste, l'état de
    * navigation pouvant venir de n'importe où.
+   *
+   * L'identifiant de la pièce sert à répondre tout de suite au défi des
+   * prénoms avec ceux que la personne vient d'écrire : l'alerte étant créée
+   * après la publication de la pièce, le serveur exige cette réponse, et
+   * la lui faire retaper serait inutile.
    */
-  const depuisFiche = useLocation().state as { typePiece?: unknown; nom?: unknown } | null;
+  const depuisFiche = useLocation().state as {
+    typePiece?: unknown;
+    nom?: unknown;
+    pieceId?: unknown;
+  } | null;
   const typeFiche = TYPES_PIECE.find((t) => t === depuisFiche?.typePiece) ?? '';
   const nomFiche = typeof depuisFiche?.nom === 'string' ? depuisFiche.nom : '';
+  const pieceFiche = typeof depuisFiche?.pieceId === 'string' ? depuisFiche.pieceId : null;
 
   const [typePiece, setTypePiece] = useState<TypePiece | ''>(typeFiche);
   const [prenom, setPrenom] = useState('');
@@ -53,7 +69,7 @@ export function Perdu() {
 
     const manquants: ErreursChamps = {};
     if (!typePiece) manquants.type = 'Choisis le type de pièce perdue.';
-    if (!prenom.trim()) manquants.prenom = 'Écris le prénom inscrit sur la pièce.';
+    if (!prenom.trim()) manquants.prenom = 'Écris les prénoms inscrits sur la pièce.';
     if (!nom.trim()) manquants.nom = 'Écris le nom inscrit sur la pièce.';
     if (!telephone.trim()) manquants.tel = 'Ton numéro, pour te montrer tes correspondances.';
     else if (!telephoneValide(telephone)) manquants.tel = MESSAGE_TELEPHONE;
@@ -77,7 +93,27 @@ export function Perdu() {
         ...(commune && coords ? { commune, lat: coords[0], lng: coords[1] } : {}),
         ...(quartier.trim() ? { quartier: quartier.trim() } : {}),
       });
-      setResultats(await getCorrespondances(numero));
+      let liste = await getCorrespondances(numero);
+
+      const aVerifier = pieceFiche
+        ? liste.find((c) => c.pieceTrouvee.id === pieceFiche && c.defiRequis)
+        : undefined;
+      if (aVerifier) {
+        try {
+          const verifiee = await repondreDefi(aVerifier.id, numero, prenom);
+          liste = liste.map((c) => (c.id === verifiee.id ? verifiee : c));
+        } catch (err) {
+          // La question reste affichée sous la correspondance : la personne
+          // corrige ses prénoms là, sans refaire son alerte.
+          afficherToast(
+            err instanceof ApiError
+              ? `${err.message} Vérifie tes prénoms dans la question ci-dessous.`
+              : 'Une erreur est survenue, réessaie.',
+          );
+        }
+      }
+
+      setResultats(liste);
       setTelephoneRecherche(numero);
     } catch (err) {
       afficherToast(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
@@ -142,7 +178,7 @@ export function Perdu() {
 
           <div className="duo">
             <div className="champ">
-              <label htmlFor="prenom">Prénom sur la pièce</label>
+              <label htmlFor="prenom">Prénoms sur la pièce (tous)</label>
               <input
                 id="prenom"
                 value={prenom}

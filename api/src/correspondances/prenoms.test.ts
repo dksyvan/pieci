@@ -19,6 +19,10 @@ describe('le propriétaire passe', () => {
     ['Marieange', 'Marie Ange', 'espace oublié'],
     ['Adjuoa', 'Adjoua', 'une faute sur un prénom long'],
     ['Serge Yvn', 'Serge-Yvan', 'une faute sur deux prénoms'],
+    ['Serge Yvan', 'Serge', 'le trouveur n’a tapé qu’un des prénoms'],
+    ['Amenan Marie', 'Amenan', 'un prénom de plus, dans l’autre ordre'],
+    ['Aya', 'Aya.', 'ponctuation saisie par le trouveur'],
+    ['Adjoua Aya', 'Aya', 'un prénom de plus, même court'],
   ])('« %s » pour « %s » (%s)', (saisis, attendus) => {
     expect(prenomsConcordent(saisis, attendus)).toBe(true);
   });
@@ -44,6 +48,15 @@ describe('les initiales publiques ne suffisent pas', () => {
 
   it('refuse un seul des deux prénoms', () => {
     expect(prenomsConcordent('Serge', 'Serge-Yvan')).toBe(false);
+  });
+
+  it('refuse plus d’un prénom en trop — une liste de prénoms courants n’est pas une réponse', () => {
+    expect(prenomsConcordent('Kouassi Amenan Marie', 'Amenan')).toBe(false);
+    expect(prenomsConcordent('Adjoua Aya Akissi', 'Aya')).toBe(false);
+  });
+
+  it('ne tolère pas de faute sur le prénom attendu quand un prénom saisi est une initiale', () => {
+    expect(prenomsConcordent('Serge Y', 'Serge Ya')).toBe(false);
   });
 
   it('refuse deux fautes', () => {

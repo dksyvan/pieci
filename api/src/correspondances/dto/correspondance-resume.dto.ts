@@ -9,8 +9,14 @@ import { NiveauConfiance, StatutCorrespondance, TypePiece } from '../../common/e
  */
 export interface CorrespondanceResumeDto {
   id: string;
-  score: number;
-  niveauConfiance: NiveauConfiance;
+  /**
+   * Score et niveau : pour le trouveur seulement, null pour le demandeur. Ils
+   * mesurent aussi la ressemblance des prénoms et la distance au lieu exact :
+   * les montrer au demandeur donnait la réponse du défi et la position du
+   * trouveur (voir CorrespondancesService.versResume).
+   */
+  score: number | null;
+  niveauConfiance: NiveauConfiance | null;
   statut: StatutCorrespondance;
   dateCalcul: Date;
   pieceTrouvee: {

@@ -20,7 +20,7 @@ const GARANTIES = [
   {
     cote: '01',
     texte:
-      'En public, on n’affiche que le prénom et l’initiale du nom. Le nom complet, c’est seulement le propriétaire qui le voit, après confirmation.',
+      'En public, on n’affiche que le nom de famille et les initiales du prénom. Pour réclamer la pièce, il faut écrire les prénoms en entier : c’est ce qui prouve qu’elle est à soi.',
   },
   {
     cote: '02',
@@ -119,7 +119,7 @@ export function Declarer() {
     // Dans l'ordre du formulaire : le premier manquant est amené à l'écran.
     const manquants: ErreursChamps = {};
     if (!typePiece) manquants.type = 'Choisis le type de pièce trouvée.';
-    if (!prenom.trim()) manquants.prenom = 'Écris le prénom inscrit sur la pièce.';
+    if (!prenom.trim()) manquants.prenom = 'Écris les prénoms inscrits sur la pièce.';
     if (!nom.trim()) manquants.nom = 'Écris le nom inscrit sur la pièce.';
     if (!quartier.trim()) manquants.lieu = 'Écris où tu as trouvé la pièce — le quartier suffit.';
     else if (!commune) manquants.lieu = 'Choisis la commune dans la liste, juste en dessous.';
@@ -267,7 +267,7 @@ export function Declarer() {
 
           <div className="duo">
             <div className="champ">
-              <label htmlFor="prenom">Prénom (qui est sur la pièce)</label>
+              <label htmlFor="prenom">Prénoms (tous, comme sur la pièce)</label>
               <input
                 id="prenom"
                 value={prenom}
