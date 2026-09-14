@@ -48,6 +48,26 @@ export class DefisService {
 
   private readonly parDemandeur = new Map<string, Compteur>();
   private readonly parPiece = new Map<string, Compteur>();
+  /**
+   * Correspondances dont les prénoms d'alerte ont déjà été essayés au clic.
+   * Leur question est désormais affichée, et un nouveau clic ne recompte pas
+   * les mêmes prénoms. En mémoire : après un redémarrage, un clic de plus est
+   * compté, ce qui ne profite à personne.
+   */
+  private readonly questionsPosees = new Set<string>();
+  private static readonly QUESTIONS_MAX = 20_000;
+
+  questionPosee(correspondanceId: string): boolean {
+    return this.questionsPosees.has(correspondanceId);
+  }
+
+  poserQuestion(correspondanceId: string): void {
+    this.questionsPosees.add(correspondanceId);
+    if (this.questionsPosees.size > DefisService.QUESTIONS_MAX) {
+      const plusAncienne = this.questionsPosees.values().next().value;
+      if (plusAncienne !== undefined) this.questionsPosees.delete(plusAncienne);
+    }
+  }
 
   /**
    * Le défi est-il bloqué pour ce demandeur sur cette pièce, et pourquoi ?

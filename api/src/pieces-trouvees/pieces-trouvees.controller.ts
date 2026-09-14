@@ -28,13 +28,14 @@ export class PiecesTrouveesController {
    * retrouvé par un numéro que rien ne vérifie (voir AlertesPerteController).
    */
   /*
-   * Quarante déclarations par visiteur sur dix minutes : la saisie en série
-   * d'un tiroir de mairie en envoie une trentaine d'affilée, une boucle de
-   * fausses déclarations au même nom bien davantage.
+   * Soixante déclarations par visiteur sur dix minutes : la saisie en série
+   * d'un tiroir de mairie en envoie une trentaine d'affilée, parfois à deux
+   * agents derrière la même connexion ; une boucle de fausses déclarations au
+   * même nom bien davantage.
    */
   @Post()
   @UseGuards(LimiteVisiteurGuard)
-  @LimiteVisiteur('declarations', 40, 10 * 60_000)
+  @LimiteVisiteur('declarations', 60, 10 * 60_000)
   async create(@Body() dto: CreatePieceTrouveeDto): Promise<{ id: string }> {
     const { id } = await this.piecesTrouvees.create(dto);
     return { id };
@@ -42,7 +43,7 @@ export class PiecesTrouveesController {
 
   @Post('photo')
   @UseGuards(LimiteVisiteurGuard)
-  @LimiteVisiteur('photos', 40, 10 * 60_000)
+  @LimiteVisiteur('photos', 60, 10 * 60_000)
   @UseInterceptors(
     FileInterceptor('photo', {
       storage: memoryStorage(),

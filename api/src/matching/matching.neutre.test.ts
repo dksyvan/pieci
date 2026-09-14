@@ -37,6 +37,8 @@ describe('trouverMatches — retenue sur le nom seul', () => {
     ['Kouasi', 'Kouassi', 'une faute'],
     ['Kouasi', "N'Guessan Kouassi", 'nom partiel avec une faute'],
     ['Wattara', 'Ouattara', 'variante d’écriture'],
+    ['Yaho', 'Yao', 'une faute sur un nom court'],
+    ['Kouassiyao', 'Kouassi Yao', 'espace oublié entre deux noms'],
     ['Kouassi Adjoua', 'Kouassi', 'prénom écrit dans le champ du nom'],
   ])('retient « %s » pour « %s » (%s)', (alerte, piece) => {
     expect(retenu(alerte, piece)).toBe(true);
@@ -48,6 +50,14 @@ describe('trouverMatches — retenue sur le nom seul', () => {
     ['Yao', 'Koffi'],
   ])('écarte « %s » pour « %s »', (alerte, piece) => {
     expect(retenu(alerte, piece)).toBe(false);
+  });
+
+  it('reste rapide sur des noms longs faits de mots courts, candidat après candidat', () => {
+    const nomPiege = Array(33).fill('ab').join(' ');
+    const base = Array.from({ length: 2000 }, (_, i) => ({ id: `p${i}`, ...personne(nomPiege, 'Aya') }));
+    const debut = performance.now();
+    trouverMatches(personne(Array(33).fill('ba').join(' '), 'Aya'), base, { nomSeul: true });
+    expect(performance.now() - debut).toBeLessThan(600);
   });
 
   it('garde le score complet, prénom compris', () => {

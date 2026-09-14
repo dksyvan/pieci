@@ -194,7 +194,10 @@ export class CorrespondancesService {
    * sont vérifiés, et comptés, au clic (verifierDefiALaConfirmation).
    */
   private questionAffichee(correspondance: Correspondance): boolean {
-    return this.defiNecessaire(correspondance) && !this.alerteAnterieure(correspondance);
+    return (
+      this.defiNecessaire(correspondance) &&
+      (!this.alerteAnterieure(correspondance) || this.defis.questionPosee(correspondance.id))
+    );
   }
 
   /**
@@ -215,13 +218,21 @@ export class CorrespondancesService {
         code: 'DEFI_REQUIS',
         message: 'Réponds d’abord à la question sur les prénoms inscrits sur la pièce.',
       });
-    if (!this.alerteAnterieure(correspondance)) throw refus();
+    // Alerte postérieure, ou prénoms d'alerte déjà essayés : la question.
+    if (!this.alerteAnterieure(correspondance) || this.defis.questionPosee(correspondance.id)) {
+      throw refus();
+    }
 
     const { pieceTrouvee: piece, alertePerte: alerte } = correspondance;
     this.assurerNonBloque(piece.id, utilisateur.telephone);
 
+    // Un seul essai, de poids 1 : les prénoms de l'alerte n'ont pas été tapés
+    // pour deviner, et le propriétaire qui les avait écrits en entier (« Adjoua
+    // Marie Laure » pour une pièce « Adjoua ») ne doit pas se retrouver bloqué
+    // à force de cliquer sur son propre bouton.
     if (!prenomsConcordent(alerte.prenom, piece.prenom)) {
-      this.defis.echec(piece.id, utilisateur.telephone, poidsReponse(alerte.prenom, piece.prenom));
+      this.defis.echec(piece.id, utilisateur.telephone);
+      this.defis.poserQuestion(correspondance.id);
       throw refus();
     }
 

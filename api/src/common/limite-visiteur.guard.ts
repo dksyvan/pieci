@@ -19,6 +19,15 @@ interface Limite {
 
 const CLE_LIMITE = 'pieci:limite-visiteur';
 
+/** Forme exacte de l'empreinte posée par le Worker : 12 octets en hexadécimal. */
+const FORME_EMPREINTE = /^[0-9a-f]{24}$/;
+
+/**
+ * Nombre de visiteurs suivis à la fois. Au-delà, les plus anciens sont
+ * oubliés : la mémoire reste bornée même sous un flot d'empreintes inventées.
+ */
+const VISITEURS_MAX = 10_000;
+
 /** Plafond de requêtes par visiteur sur une fenêtre glissante. */
 export const LimiteVisiteur = (nom: string, plafond: number, dureeMs: number) =>
   SetMetadata(CLE_LIMITE, { nom, plafond, dureeMs } satisfies Limite);
@@ -35,8 +44,11 @@ export const LimiteVisiteur = (nom: string, plafond: number, dureeMs: number) =>
  *
  * Le visiteur est l'empreinte posée par le Worker de bord (jamais une adresse
  * gardée) ; à défaut, l'adresse vue par le serveur, qui n'est ni écrite ni
- * journalisée. Appelée en direct, l'API reçoit l'en-tête que l'appelant veut
- * bien envoyer : ce limiteur freine, il ne protège pas seul.
+ * journalisée. Un en-tête qui n'a pas la forme exacte de l'empreinte est
+ * ignoré : sans cela, chacun pouvait créer autant de compteurs qu'il
+ * inventait de valeurs, et de seize kilo-octets chacune. Appelée en direct,
+ * l'API reçoit l'en-tête que l'appelant veut bien envoyer : ce limiteur
+ * freine, il ne protège pas seul.
  */
 @Injectable()
 export class LimiteVisiteurGuard implements CanActivate {
@@ -55,7 +67,9 @@ export class LimiteVisiteurGuard implements CanActivate {
 
     const requete = contexte.switchToHttp().getRequest<Request>();
     const transmise = requete.headers?.[ENTETE_VISITEUR];
-    const visiteur = (Array.isArray(transmise) ? transmise[0] : transmise) || requete.ip || 'inconnu';
+    const empreinte = Array.isArray(transmise) ? transmise[0] : transmise;
+    const visiteur =
+      empreinte && FORME_EMPREINTE.test(empreinte) ? empreinte : requete.ip || 'inconnu';
 
     const maintenant = Date.now();
     const cle = `${limite.nom}|${visiteur}`;
@@ -72,16 +86,27 @@ export class LimiteVisiteurGuard implements CanActivate {
     }
 
     instants.push(maintenant);
+    // Supprimer puis réinsérer place la clé en fin de Map : l'ordre
+    // d'insertion devient l'ordre du dernier passage, et l'éviction ci-dessous
+    // retire bien les visiteurs les moins récents.
+    LimiteVisiteurGuard.passages.delete(cle);
     LimiteVisiteurGuard.passages.set(cle, { dureeMs: limite.dureeMs, instants });
-    this.purger(maintenant);
+    LimiteVisiteurGuard.borner();
     return true;
   }
 
-  /** Oublie les visiteurs dont la fenêtre est échue, pour borner la mémoire. */
-  private purger(maintenant: number): void {
-    if (LimiteVisiteurGuard.passages.size < 5000) return;
-    for (const [cle, { dureeMs, instants }] of LimiteVisiteurGuard.passages) {
-      if (instants.every((t) => maintenant - t >= dureeMs)) LimiteVisiteurGuard.passages.delete(cle);
+  /** Oublie les visiteurs les moins récents au-delà de VISITEURS_MAX — en temps constant. */
+  private static borner(): void {
+    const passages = LimiteVisiteurGuard.passages;
+    while (passages.size > VISITEURS_MAX) {
+      const plusAncien = passages.keys().next().value;
+      if (plusAncien === undefined) return;
+      passages.delete(plusAncien);
     }
+  }
+
+  /** Pour les tests. */
+  static taille(): number {
+    return LimiteVisiteurGuard.passages.size;
   }
 }

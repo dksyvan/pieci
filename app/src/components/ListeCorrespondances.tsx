@@ -212,7 +212,14 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
             <FormulaireDefi
               correspondance={r}
               telephone={telephone}
-              onReussi={onChange}
+              onReussi={(maj) => {
+                setQuestions((prev) => {
+                  const reste = new Set(prev);
+                  reste.delete(maj.id);
+                  return reste;
+                });
+                onChange(maj);
+              }}
               onRejeter={() => executer(r.id, rejeterCorrespondance)}
               occupe={occupe}
             />

@@ -484,13 +484,25 @@ describe('défi des prénoms', () => {
    * Des alertes semées d'avance au même nom, chacune avec un prénom différent :
    * à la publication, chaque clic sur « C'est ma pièce » est un essai compté.
    */
-  it('compte comme un essai la confirmation d’une alerte antérieure aux prénoms faux', async () => {
-    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), demandeur);
-    for (let i = 0; i < 3; i++) {
+  it('compte un seul essai pour la confirmation d’une alerte antérieure aux prénoms faux, puis pose la question', async () => {
+    const defis = new DefisService();
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), demandeur, defis);
+
+    const [avant] = await service.findByTelephone(demandeur.telephone);
+    expect(avant.defiRequis).toBe(false);
+
+    for (let i = 0; i < 5; i++) {
       await expect(service.confirmer('corr-1', demandeur.telephone)).rejects.toThrow(ForbiddenException);
     }
-    const erreur = await service.confirmer('corr-1', demandeur.telephone).catch((e) => e);
-    expect((erreur as HttpException).getStatus()).toBe(429);
+    const [apres] = await service.findByTelephone(demandeur.telephone);
+    expect(apres.defiRequis).toBe(true);
+
+    // Un seul échec compté : il reste deux essais pour la question.
+    await expect(service.repondreDefi('corr-1', demandeur.telephone, 'Ibrahim')).rejects.toThrow(
+      BadRequestException,
+    );
+    const reussi = await service.repondreDefi('corr-1', demandeur.telephone, 'Issa');
+    expect(reussi.defiRequis).toBe(false);
   });
 
   it('ne montre au trouveur que le nom et les initiales de l’alerte, sans quartier, avant la confirmation', async () => {

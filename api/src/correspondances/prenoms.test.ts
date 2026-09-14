@@ -59,6 +59,16 @@ describe('les initiales publiques ne suffisent pas', () => {
     expect(prenomsConcordent('Serge Y', 'Serge Ya')).toBe(false);
   });
 
+  it('reconnaît chaque sorte de faute unique, et pas davantage', () => {
+    expect(prenomsConcordent('Adjoxa', 'Adjoua')).toBe(true); // remplacée
+    expect(prenomsConcordent('Adjouaa', 'Adjoua')).toBe(true); // ajoutée
+    expect(prenomsConcordent('Adjua', 'Adjoua')).toBe(true); // oubliée
+    expect(prenomsConcordent('Dajoua', 'Adjoua')).toBe(true); // inversée au début
+    expect(prenomsConcordent('Adjoau', 'Adjoua')).toBe(true); // inversée à la fin
+    expect(prenomsConcordent('Adouja', 'Adjoua')).toBe(false); // deux lettres déplacées
+    expect(prenomsConcordent('Djoua', 'Adjouaa')).toBe(false); // une oubliée, une ajoutée
+  });
+
   it('refuse deux fautes', () => {
     expect(prenomsConcordent('Adjuaa', 'Adjoua')).toBe(false);
   });

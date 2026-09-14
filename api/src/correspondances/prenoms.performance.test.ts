@@ -16,10 +16,15 @@ describe('prenomsConcordent reste instantané, quelle que soit la saisie', () =>
     ['50 lettres isolées contre 49', lettres(50), lettres(49)],
     ['6 prénoms longs, une faute chacun', 'adjuoa akisis amenna aminaat affoeu ahuo z', 'adjoua akissi amenan aminata affoue ahou'],
     ['7 saisis contre 6 attendus, tous faux', 'aaaaaa bbbbbb cccccc dddddd eeeeee ffffff gggggg', 'hhhhhh iiiiii jjjjjj kkkkkk llllll mmmmmm'],
+    // Cas de la vérification finale : cinq appariements gratuits, puis deux mots très longs.
+    ['cinq « ab » puis 182 lettres', `ab ab ab ab ab ab ${'d'.repeat(182)}`, `ab ab ab ab ab ${'c'.repeat(85)}`],
+    ['100 caractères de chaque côté', `ab ab ab ab ab ${'e'.repeat(85)}`, `ab ab ab ab ab ${'c'.repeat(85)}`],
+    // Des prénoms répétés n'élaguent rien : l'exploration doit rester faite d'additions.
+    ['prénoms répétés', Array(7).fill('abcdefghijklmno').join(' '), `${Array(5).fill('abcdefghijklmno').join(' ')} zz`],
   ])('%s', (_cas, saisis, attendus) => {
     const debut = performance.now();
     prenomsConcordent(saisis, attendus);
-    expect(performance.now() - debut).toBeLessThan(50);
+    expect(performance.now() - debut).toBeLessThan(15);
   });
 
   it('refuse au-delà de six prénoms attendus, sauf égalité exacte', () => {

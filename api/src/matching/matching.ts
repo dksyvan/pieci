@@ -46,9 +46,11 @@ export function normaliser(valeur: string | null | undefined): string {
  * Tolère les fautes de frappe et petites variantes orthographiques.
  */
 export function levenshtein(a: string, b: string): number {
-  const na = normaliser(a);
-  const nb = normaliser(b);
+  return ratioLevenshtein(normaliser(a), normaliser(b));
+}
 
+/** Même ratio, sur deux chaînes déjà normalisées : le rapprochement évite ainsi de renormaliser à chaque paire. */
+function ratioLevenshtein(na: string, nb: string): number {
   if (!na.length || !nb.length) {
     return na.length === nb.length ? 1 : 0;
   }
@@ -222,6 +224,15 @@ const MOTS_ETAT_CIVIL = new Set(['ep', 'epse', 'epouse', 'nee', 'vve', 'veuve'])
 const RESSEMBLANCE_MOT = 0.8;
 
 /**
+ * Bornes du calcul de contenance, qui tourne sur chaque candidat : sans elles,
+ * un nom de cent caractères fait de mots de deux lettres demandait un millier
+ * de distances par candidat, et quelques milliers de fausses déclarations
+ * suffisaient à figer l'API à chaque alerte.
+ */
+const MOTS_NOM_MAX = 6;
+const LETTRES_MOT_MAX = 30;
+
+/**
  * Ressemblance de deux noms qui accepte qu'un nom soit contenu dans l'autre.
  *
  * « KOUASSI » pour « N'GUESSAN KOUASSI », « KONAN » pour « KOUAME EPSE
@@ -230,17 +241,49 @@ const RESSEMBLANCE_MOT = 0.8;
  * retrouver son semblable dans l'autre, à une faute près.
  */
 export function simNomContenu(a: string, b: string): number {
-  const mots = (s: string) =>
-    normaliser(s)
-      .split(' ')
-      .filter((mot) => mot.length > 1 && !MOTS_ETAT_CIVIL.has(mot));
-  const [court, long] = [mots(a), mots(b)].sort((x, y) => x.length - y.length);
+  return ressemblanceNoms(preparerNom(a), preparerNom(b));
+}
+
+/** Lettres du nom entier prises pour la ressemblance globale ; aucun nom réel n'en a davantage. */
+const LETTRES_NOM_MAX = 40;
+
+/** Un nom prêt à comparer : normalisé une fois, ses mots dédoublonnés et bornés. */
+interface NomPrepare {
+  normalise: string;
+  mots: string[];
+}
+
+function preparerNom(nom: string): NomPrepare {
+  const normalise = normaliser(nom);
+  const mots = normalise
+    .split(' ')
+    .filter((mot) => mot.length > 1 && !MOTS_ETAT_CIVIL.has(mot))
+    .map((mot) => mot.slice(0, LETTRES_MOT_MAX));
+  return { normalise: normalise.slice(0, LETTRES_NOM_MAX), mots: [...new Set(mots)].slice(0, MOTS_NOM_MAX) };
+}
+
+function motSemblable(mot: string, autre: string): boolean {
+  if (mot === autre) return true;
+  const plusLong = Math.max(mot.length, autre.length);
+  // Sous cinq lettres, une seule faute fait déjà tomber sous 0,8 ; au-delà, un
+  // écart de longueur trop grand l'interdit aussi. Inutile de calculer.
+  if (plusLong < 5 || Math.abs(mot.length - autre.length) > (1 - RESSEMBLANCE_MOT) * plusLong) return false;
+  return ratioLevenshtein(mot, autre) >= RESSEMBLANCE_MOT;
+}
+
+function ressemblanceNoms(a: NomPrepare, b: NomPrepare): number {
+  const [court, long] = a.mots.length <= b.mots.length ? [a.mots, b.mots] : [b.mots, a.mots];
   const contenance =
-    court.length === 0
-      ? 0
-      : court.filter((mot) => long.some((autre) => levenshtein(mot, autre) >= RESSEMBLANCE_MOT)).length /
-        court.length;
-  return Math.max(simNom(a, b), contenance);
+    court.length === 0 ? 0 : court.filter((mot) => long.some((autre) => motSemblable(mot, autre))).length / court.length;
+  if (contenance >= SEUIL_NOM_SEUL) return contenance;
+
+  // Ressemblance du nom entier (« KOUASSI YAO » pour « KOUASSIYAO »), seulement
+  // si l'écart de longueur la laisse atteindre le seuil.
+  const plusLong = Math.max(a.normalise.length, b.normalise.length);
+  if (plusLong === 0 || Math.abs(a.normalise.length - b.normalise.length) > (1 - SEUIL_NOM_SEUL) * plusLong) {
+    return contenance;
+  }
+  return Math.max(contenance, ratioLevenshtein(a.normalise, b.normalise));
 }
 
 /**
@@ -272,13 +315,15 @@ export function trouverMatches<T extends PersonnePiece>(
   base: readonly T[],
   options: { nomSeul?: boolean } = {},
 ): Array<Match<T>> {
-  return base
+  // Le filtre sur le nom passe avant le score : seuls les candidats retenus
+  // paient le calcul complet.
+  const nomPerte = options.nomSeul ? preparerNom(perte.nom) : null;
+  const candidats = nomPerte
+    ? base.filter((trouvaille) => ressemblanceNoms(nomPerte, preparerNom(trouvaille.nom)) >= SEUIL_NOM_SEUL)
+    : base;
+  return candidats
     .map((trouvaille) => ({ ...trouvaille, ...scoreMatch(perte, trouvaille) }))
-    .filter((candidat) =>
-      options.nomSeul
-        ? simNomContenu(perte.nom, candidat.nom) >= SEUIL_NOM_SEUL
-        : candidat.score >= SEUIL_AFFICHAGE,
-    )
+    .filter((candidat) => options.nomSeul || candidat.score >= SEUIL_AFFICHAGE)
     .sort((a, b) => b.score - a.score);
 }
 
