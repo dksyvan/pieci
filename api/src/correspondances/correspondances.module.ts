@@ -4,6 +4,7 @@ import { Correspondance } from './entities/correspondance.entity';
 import { JournalAccesContact } from '../journal-acces-contact/entities/journal-acces-contact.entity';
 import { CorrespondancesService } from './correspondances.service';
 import { CorrespondancesController } from './correspondances.controller';
+import { DefisService } from './defis.service';
 import { UtilisateursModule } from '../utilisateurs/utilisateurs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -13,7 +14,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     UtilisateursModule,
     NotificationsModule,
   ],
-  providers: [CorrespondancesService],
+  providers: [CorrespondancesService, DefisService],
   controllers: [CorrespondancesController],
 })
 export class CorrespondancesModule {}

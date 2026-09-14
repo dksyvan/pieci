@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import type { LatLng } from '@partage/communes';
 import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
@@ -12,9 +13,20 @@ import { montrerPremierChamp, type ErreursChamps } from '../lib/formulaire';
 export function Perdu() {
   const { afficherToast } = useApp();
 
-  const [typePiece, setTypePiece] = useState<TypePiece | ''>('');
+  /**
+   * Arrivée depuis la fiche d'une pièce (« C'est ma pièce ») : le type et le
+   * nom sont déjà connus, affichés publiquement. Il ne reste que les prénoms
+   * — que l'annonce ne montre pas, et qui prouvent que c'est bien la sienne.
+   * Le type n'est repris que s'il fait partie de la liste, l'état de
+   * navigation pouvant venir de n'importe où.
+   */
+  const depuisFiche = useLocation().state as { typePiece?: unknown; nom?: unknown } | null;
+  const typeFiche = TYPES_PIECE.find((t) => t === depuisFiche?.typePiece) ?? '';
+  const nomFiche = typeof depuisFiche?.nom === 'string' ? depuisFiche.nom : '';
+
+  const [typePiece, setTypePiece] = useState<TypePiece | ''>(typeFiche);
   const [prenom, setPrenom] = useState('');
-  const [nom, setNom] = useState('');
+  const [nom, setNom] = useState(nomFiche);
   const [telephone, setTelephone] = useState('');
   const [commune, setCommune] = useState('');
   const [quartier, setQuartier] = useState('');
@@ -95,6 +107,14 @@ export function Perdu() {
             <span className="label">Renseignements</span>
             <span className="cote">4 champs requis</span>
           </div>
+
+          {nomFiche && (
+            <p className="aide" style={{ marginBottom: 'var(--s-3)' }}>
+              Le type et le nom viennent de la fiche. Écris tes prénoms <b>en entier</b>, comme sur
+              la pièce : l’annonce n’en montre que les initiales, c’est ce qui prouve qu’elle est à
+              toi.
+            </p>
+          )}
 
           <div className="champ">
             <label htmlFor="type">Type de pièce perdue</label>

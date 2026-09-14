@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { TYPES_PIECE } from './types';
+import { depuisPieceBrute } from './api-types';
 import {
   ORIGINE,
   descriptionDePartage,
+  initialesPrenom,
   lienFacebook,
   lienWhatsApp,
   lieuDe,
   messageComplet,
+  nomAffiche,
   nomPublic,
   titreDePartage,
   urlPiece,
@@ -22,24 +25,82 @@ import {
 const PIECE = {
   id: 'e3b0c442-1234-4a1b-9f2c-000000000001',
   typePiece: 'CNI' as const,
-  prenom: 'Adjoua',
-  nomInitiale: 'N.',
+  nom: "N'GUESSAN",
+  prenomInitiales: 'A.',
   commune: 'Yopougon',
   quartier: 'Niangon Sud',
 };
 
-describe('identité publiée', () => {
-  it('ne donne que le prénom et l’initiale', () => {
-    // Le point vient de la vue SQL (`left(nom, 1) || '.'`) : le redoubler ici
-    // donnerait « Adjoua N.. », ce que quatre écrans faisaient autrefois.
-    expect(nomPublic(PIECE)).toBe('Adjoua N.');
-    expect(nomPublic({ prenom: 'Adjoua', nomInitiale: 'N.' })).not.toContain('..');
+describe('identité publiée — table du brief', () => {
+  /**
+   * Même table que api/src/common/affichage.test.ts, et que la vue SQL
+   * vérifiée sur la base de production. Si l'une diverge, un nom
+   * s'affiche différemment selon l'endroit où on le lit.
+   */
+  it.each([
+    ["N'Guessan", 'Adjoua', "N'GUESSAN A."],
+    ['Diby', 'Serge-Yvan', 'DIBY S-Y.'],
+    ['Koffi-Brou', 'Marie Ange', 'KOFFI-BROU M.A.'],
+    ['Tié Bi', 'Kouamé', 'TIÉ BI K.'],
+    ['Zamble Lou', '', 'ZAMBLE LOU'],
+  ])('%s + %s → %s', (nom, prenom, attendu) => {
+    expect(nomAffiche(nom, prenom)).toBe(attendu);
   });
 
-  it('n’écrit jamais le nom entier, même dans le message complet', () => {
+  it('traite l’apostrophe comme une lettre du prénom, droite ou typographique', () => {
+    expect(initialesPrenom("N'Da")).toBe('N.');
+    expect(initialesPrenom('N’Da')).toBe('N.');
+  });
+
+  it('réduit les espaces multiples, et met en capitale une initiale accentuée', () => {
+    expect(initialesPrenom('  Jean   Marc  ')).toBe('J.M.');
+    expect(initialesPrenom('élodie')).toBe('É.');
+  });
+
+  it('rend null pour un prénom vide', () => {
+    expect(initialesPrenom('')).toBeNull();
+    expect(initialesPrenom('   ')).toBeNull();
+  });
+
+  it('assemble l’identité telle que la renvoie la vue', () => {
+    expect(nomPublic(PIECE)).toBe("N'GUESSAN A.");
+    expect(nomPublic({ nom: 'ZAMBLE LOU', prenomInitiales: null })).toBe('ZAMBLE LOU');
+  });
+
+  it('n’écrit jamais le prénom entier, même dans le message complet', () => {
     const message = messageComplet(PIECE);
-    expect(message).not.toContain('N’Guessan');
-    expect(message).toContain('Adjoua N.');
+    expect(message).not.toContain('Adjoua');
+    expect(message).toContain("N'GUESSAN A.");
+  });
+});
+
+describe('transition de la vue publique', () => {
+  /**
+   * Le site part en production avant la migration qui change la vue, pour
+   * que le défi des prénoms soit en place avant que le nom de famille ne
+   * s'affiche. Pendant cet intervalle, l'ancienne forme doit reproduire
+   * exactement l'ancien affichage — ni « undefined », ni nom entier.
+   */
+  const commun = {
+    id: 'x',
+    type_piece: 'CNI' as const,
+    commune: 'Yopougon',
+    quartier: null,
+    date_trouvaille: '2026-09-14',
+    photo_floutee_url: null,
+    depot_nom: null,
+    lat: 5.35,
+    lng: -4.07,
+  };
+
+  it('lit la nouvelle forme', () => {
+    const p = depuisPieceBrute({ ...commun, nom: "N'GUESSAN", prenom_initiales: 'A.' });
+    expect(nomPublic(p)).toBe("N'GUESSAN A.");
+  });
+
+  it('lit encore l’ancienne forme, à l’identique de l’ancien affichage', () => {
+    const p = depuisPieceBrute({ ...commun, prenom: 'Adjoua', nom_initiale: 'N.' });
+    expect(nomPublic(p)).toBe('Adjoua N.');
   });
 });
 
@@ -81,10 +142,8 @@ describe('formulation', () => {
     expect(lieuDe({ commune: 'Cocody', quartier: 'Cocody Angré 8e tranche' })).toBe(
       'Cocody Angré 8e tranche',
     );
-    // Accents et casse ne doivent pas faire echouer la comparaison.
     expect(lieuDe({ commune: 'Adjamé', quartier: 'marché d’ADJAME' })).toBe('marché d’ADJAME');
     expect(lieuDe({ commune: 'Port-Bouët', quartier: 'vers port bouet' })).toBe('vers port bouet');
-    // Et une commune reellement absente reste ajoutee.
     expect(lieuDe({ commune: 'Yopougon', quartier: 'carrefour Gesco' })).toBe(
       'carrefour Gesco, Yopougon',
     );
@@ -96,7 +155,7 @@ describe('message envoyé', () => {
 
   it('se comprend seul, sans le site autour', () => {
     expect(message).toContain('CNI trouvée à Niangon Sud, Yopougon');
-    expect(message).toContain('Adjoua N.');
+    expect(message).toContain("N'GUESSAN A.");
     expect(message).toContain(urlPiece(PIECE.id));
   });
 
@@ -109,18 +168,24 @@ describe('message envoyé', () => {
   });
 
   /**
-   * L'initiale porte deja son point : ponctuer la phrase sans regarder donnait
-   * « au nom de Adjoua N.. », dans un texte destine a circuler tel quel. Le
-   * cas s'est produit en production ; il est fige ici pour toutes les phrases
-   * du module, pas seulement celle qui l'a revele.
+   * Les initiales portent déjà leur point : ponctuer la phrase sans regarder
+   * donnait « au nom de Serge Alan D.. ». Figé pour toutes les phrases, avec
+   * et sans prénom.
    */
-  it('ne double jamais le point final', () => {
+  it('ne double jamais le point final, et en met un quand il manque', () => {
     for (const type of TYPES_PIECE) {
-      const piece = { ...PIECE, typePiece: type };
-      expect(messageComplet(piece), type).not.toContain('..');
-      expect(titreDePartage(piece), type).not.toContain('..');
-      expect(descriptionDePartage(piece), type).not.toContain('..');
+      for (const piece of [
+        { ...PIECE, typePiece: type },
+        { ...PIECE, typePiece: type, nom: 'ZAMBLE LOU', prenomInitiales: null },
+      ]) {
+        expect(messageComplet(piece), type).not.toContain('..');
+        expect(titreDePartage(piece), type).not.toContain('..');
+        expect(descriptionDePartage(piece), type).not.toContain('..');
+      }
     }
+    expect(descriptionDePartage({ ...PIECE, nom: 'ZAMBLE LOU', prenomInitiales: null })).toContain(
+      'ZAMBLE LOU. Si',
+    );
   });
 });
 
@@ -135,7 +200,7 @@ describe('description d’aperçu', () => {
   it('dit où, au nom de qui, et ce que ça coûte', () => {
     const d = descriptionDePartage(PIECE);
     expect(d).toContain('Niangon Sud, Yopougon');
-    expect(d).toContain('Adjoua N.');
+    expect(d).toContain("N'GUESSAN A.");
     expect(d).toContain('gratuite');
   });
 });
@@ -146,7 +211,7 @@ describe('liens de partage', () => {
     expect(lien.startsWith('https://wa.me/?text=')).toBe(true);
     // Un saut de ligne non encodé casse le lien dès le premier retour.
     expect(lien).not.toContain('\n');
-    expect(decodeURIComponent(lien.slice('https://wa.me/?text='.length))).toContain('Adjoua N.');
+    expect(decodeURIComponent(lien.slice('https://wa.me/?text='.length))).toContain("N'GUESSAN A.");
   });
 
   it('passe à Facebook l’URL de la pièce, encodée', () => {

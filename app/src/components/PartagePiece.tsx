@@ -13,7 +13,7 @@ import { IconeCopier, IconeFacebook, IconePartage, IconeValide, IconeWhatsApp } 
 interface PartagePieceProps {
   piece: Pick<
     PieceTrouveePublique,
-    'id' | 'typePiece' | 'prenom' | 'nomInitiale' | 'commune' | 'quartier'
+    'id' | 'typePiece' | 'nom' | 'prenomInitiales' | 'commune' | 'quartier'
   >;
   /** Texte d'accroche : il change selon qu'on vient de déclarer ou qu'on relaie. */
   titre: string;

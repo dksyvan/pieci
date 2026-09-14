@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { bandeConfiance } from '@partage/matching';
 import { relDate } from '../lib/format';
 import {
@@ -6,12 +6,82 @@ import {
   confirmerCorrespondance,
   obtenirContact,
   rejeterCorrespondance,
+  repondreDefi,
   type ContactInfo,
   type Correspondance,
 } from '../lib/api';
 import { useApp } from '../context/useApp';
 import { PanneauDon } from './PanneauDon';
 import { IconeFleche } from './Icones';
+
+/**
+ * La question posée au demandeur avant qu'il puisse confirmer.
+ *
+ * N'apparaît que si les prénoms saisis à la création de l'alerte ne
+ * correspondent pas à ceux de la pièce : le vrai propriétaire, qui les a
+ * écrits sans y penser, ne la voit jamais. Le message d'erreur vient tel quel
+ * de l'API, volontairement neutre — il ne dit ni ce qui est faux, ni combien
+ * de prénoms sont attendus.
+ */
+function FormulaireDefi({
+  correspondance,
+  telephone,
+  onReussi,
+  onRejeter,
+}: {
+  correspondance: Correspondance;
+  telephone: string;
+  onReussi: (maj: Correspondance) => void;
+  onRejeter: () => void;
+}) {
+  const [prenoms, setPrenoms] = useState('');
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const id = `defi-${correspondance.id}`;
+
+  const envoyer = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (envoi || !prenoms.trim()) return;
+    setEnvoi(true);
+    setErreur(null);
+    try {
+      onReussi(await repondreDefi(correspondance.id, telephone, prenoms));
+    } catch (err) {
+      setErreur(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
+    } finally {
+      setEnvoi(false);
+    }
+  };
+
+  return (
+    <form className="defi" onSubmit={envoyer} noValidate>
+      <label htmlFor={id}>Quels sont les prénoms inscrits sur la pièce, en entier&nbsp;?</label>
+      <p className="aide">L’annonce n’affiche que les initiales.</p>
+      <input
+        id={id}
+        value={prenoms}
+        autoComplete="off"
+        aria-invalid={erreur ? true : undefined}
+        aria-describedby={erreur ? `${id}-erreur` : undefined}
+        onChange={(e) => {
+          setPrenoms(e.target.value);
+          setErreur(null);
+        }}
+      />
+      {erreur && (
+        <p className="erreur" id={`${id}-erreur`} role="alert">
+          {erreur}
+        </p>
+      )}
+      <button className="btn btn-plein" disabled={envoi || !prenoms.trim()}>
+        {envoi ? 'Vérification…' : 'Vérifier'}
+      </button>
+      <button type="button" className="lien" onClick={onRejeter} disabled={envoi}>
+        Pas la mienne
+      </button>
+    </form>
+  );
+}
 
 interface Props {
   resultats: Correspondance[];
@@ -124,6 +194,15 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
           );
         } else if (r.confirmeParMoi) {
           action = <span className="pastille p-ambre">En attente de l’autre partie</span>;
+        } else if (r.defiRequis) {
+          action = (
+            <FormulaireDefi
+              correspondance={r}
+              telephone={telephone}
+              onReussi={onChange}
+              onRejeter={() => executer(r.id, rejeterCorrespondance)}
+            />
+          );
         } else {
           action = (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7, alignItems: 'flex-end' }}>
@@ -159,7 +238,7 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
 
             <div>
               <div className="ligne-nom">
-                {r.pieceTrouvee.prenom} {r.pieceTrouvee.nom}
+                {r.pieceTrouvee.nom} {r.pieceTrouvee.prenom}
               </div>
               <div
                 className="ligne-meta donnee"

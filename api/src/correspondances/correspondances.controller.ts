@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { CorrespondancesService } from './correspondances.service';
 import { TelephoneDto } from '../common/dto/telephone.dto';
+import { RepondreDefiDto } from './dto/repondre-defi.dto';
 
 @Controller('correspondances')
 export class CorrespondancesController {
@@ -14,6 +15,12 @@ export class CorrespondancesController {
   @Post(':id/confirmer')
   confirmer(@Param('id') id: string, @Body() dto: TelephoneDto) {
     return this.correspondances.confirmer(id, dto.telephone);
+  }
+
+  /** Défi des prénoms, avant que le demandeur puisse confirmer. */
+  @Post(':id/defi')
+  repondreDefi(@Param('id') id: string, @Body() dto: RepondreDefiDto) {
+    return this.correspondances.repondreDefi(id, dto.telephone, dto.prenoms);
   }
 
   @Post(':id/rejeter')

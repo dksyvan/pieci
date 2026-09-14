@@ -191,13 +191,23 @@ export function Piece() {
           </dl>
 
           <p className="aide" style={{ marginTop: 'var(--s-4)' }}>
-            <IconeSceau taille={14} /> Le nom entier, la photo nette et le contact du trouveur ne
-            sont montrés qu’au propriétaire, après vérification. C’est pour ça qu’on n’affiche ici
-            que l’initiale.
+            <IconeSceau taille={14} /> Les prénoms en entier, la photo nette et le contact du
+            trouveur ne sont montrés qu’au propriétaire, après vérification. C’est pour ça qu’on
+            n’affiche ici que leurs initiales.
           </p>
 
           <div style={{ marginTop: 'var(--s-5)' }}>
-            <Link to="/perdu" className="btn btn-plein btn-large">
+            {/*
+              Le type et le nom partent dans l'état de navigation, pas dans
+              l'adresse : une URL « /perdu?nom=… » finirait dans l'historique,
+              les journaux et les en-têtes Referer. Il ne reste à la personne
+              qu'à écrire ses prénoms — ceux qui prouvent que c'est la sienne.
+            */}
+            <Link
+              to="/perdu"
+              state={{ typePiece: piece.typePiece, nom: piece.nom }}
+              className="btn btn-plein btn-large"
+            >
               C’est ma pièce — la récupérer
             </Link>
           </div>

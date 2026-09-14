@@ -36,7 +36,7 @@ export function Trouvees() {
         const okRecherche =
           !recherche ||
           normaliser(
-            `${p.prenom} ${p.nomInitiale} ${p.commune} ${p.quartier ?? ''} ${p.typePiece}`,
+            `${p.nom} ${p.prenomInitiales ?? ''} ${p.commune} ${p.quartier ?? ''} ${p.typePiece}`,
           ).includes(normaliser(recherche));
         return okType && okCommune && okRecherche;
       }),

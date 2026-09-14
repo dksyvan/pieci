@@ -74,6 +74,10 @@ export class Correspondance {
   @Column({ name: 'confirmation_demandeur', type: 'timestamptz', nullable: true })
   confirmationDemandeur: Date | null;
 
+  /** Moment où le demandeur a répondu juste au défi des prénoms (voir DefisService). */
+  @Column({ name: 'defi_reussi_le', type: 'timestamptz', nullable: true })
+  defiReussiLe: Date | null;
+
   @OneToMany(() => Notification, (notification) => notification.correspondance)
   notifications: Notification[];
 

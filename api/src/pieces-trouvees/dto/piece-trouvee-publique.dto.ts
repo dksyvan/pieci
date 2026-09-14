@@ -8,8 +8,10 @@ import { TypePiece } from '../../common/enums';
 export interface PieceTrouveePubliqueDto {
   id: string;
   type_piece: TypePiece;
-  prenom: string;
-  nom_initiale: string;
+  /** Nom de famille en capitales. */
+  nom: string;
+  /** Initiales du prénom avec leur point (« A. », « S-Y. »), ou null. Jamais le prénom entier. */
+  prenom_initiales: string | null;
   commune: string;
   quartier: string | null;
   date_trouvaille: Date;

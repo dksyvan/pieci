@@ -41,12 +41,19 @@ const GENRE: Record<TypePiece, 'f' | 'm'> = {
   'Carte consulaire': 'f',
 };
 
+/** Ce qu'il faut d'une pièce pour la nommer publiquement. */
+type IdentitePublique = Pick<PieceTrouveePublique, 'nom' | 'prenomInitiales'>;
+
+/** Ce qu'il faut d'une pièce pour composer ses messages. */
+type PiecePartagee = Pick<PieceTrouveePublique, 'typePiece' | 'nom' | 'prenomInitiales' | 'commune' | 'quartier'>;
+
 /**
  * Termine une phrase sans doubler le point.
  *
- * Toutes ces phrases finissent par l'identité, qui finit elle-même par
- * l'initiale et son point. Ajouter la ponctuation sans regarder donnait
- * « au nom de Serge Alan D.. » — dans un message destiné à circuler tel quel.
+ * Presque toutes ces phrases finissent par des initiales, qui portent déjà
+ * leur point. Ajouter la ponctuation sans regarder donnait « au nom de
+ * Serge Alan D.. » — dans un message destiné à circuler tel quel. Un nom sans
+ * prénom (« ZAMBLE LOU ») reçoit en revanche le sien.
  */
 function ponctuer(phrase: string): string {
   return phrase.endsWith('.') ? phrase : `${phrase}.`;
@@ -58,17 +65,51 @@ export function urlPiece(id: string, origine: string = ORIGINE): string {
 }
 
 /**
- * Identité publique : prénom et initiale, jamais le nom entier.
+ * Initiales d'un prénom, séparateurs conservés.
  *
- * Le point est déjà dans la donnée — la vue `v_pieces_trouvees_publiques`
- * renvoie `left(nom, 1) || '.'`. L'ajouter ici en écrirait un second, ce que
- * quatre endroits de l'interface faisaient chacun de leur côté : le registre
- * affichait « Serge Alan D.. ». D'où cette fonction, qui n'existe pas pour
- * factoriser deux mots mais pour qu'il n'y ait plus qu'un seul endroit où se
- * tromper.
+ * « Serge-Yvan » → « S-Y. », « Marie Ange » → « M.A. », « N'Da » → « N. » :
+ * le tiret reste un tiret, les espaces deviennent un point, l'apostrophe
+ * n'est pas un séparateur. Même règle que la vue SQL
+ * `v_pieces_trouvees_publiques` et que `api/src/common/affichage.ts` — les
+ * trois portent la même table de cas dans leurs tests.
+ *
+ * Ne sert qu'aux écrans qui détiennent déjà le prénom complet, parce que la
+ * personne vient de le saisir (la fin d'une déclaration). Tout ce qui vient
+ * de l'API arrive déjà réduit : le prénom entier ne quitte pas la base.
  */
-export function nomPublic(piece: Pick<PieceTrouveePublique, 'prenom' | 'nomInitiale'>): string {
-  return `${piece.prenom} ${piece.nomInitiale}`;
+export function initialesPrenom(prenom: string | null | undefined): string | null {
+  const propre = (prenom ?? '').trim();
+  if (!propre) return null;
+
+  const initiales = propre
+    .replace(/([^\s-])[^\s-]*/gu, '$1')
+    .replace(/\s+/g, '.')
+    .replace(/\.+$/, '')
+    .toUpperCase();
+
+  return initiales ? `${initiales}.` : null;
+}
+
+/** « N'Guessan », « Adjoua » → « N'GUESSAN A. ». Jamais les deux en entier. */
+export function nomAffiche(nom: string | null | undefined, prenom: string | null | undefined): string {
+  return nomPublic({ nom: (nom ?? '').trim().toUpperCase(), prenomInitiales: initialesPrenom(prenom) });
+}
+
+/**
+ * Identité publique : NOM en capitales, puis les initiales du prénom.
+ *
+ * Le patronyme d'abord, parce que c'est lui qui fait qu'on se reconnaît. En
+ * Côte d'Ivoire, les prénoms usuels — Adjoua, Kouassi, Aya, Konan — sont
+ * portés par des milliers de personnes et ne désignent presque personne ; un
+ * nom de famille lu dans un groupe de quartier fait dire « c'est pas le petit
+ * N'Guessan ? ». Jamais les deux en entier.
+ *
+ * Le nom est affiché tel que la vue le renvoie, sans découpage : les noms
+ * composés — « N'GUESSAN KOUASSI », « TIÉ BI », « ZAMBLE LOU » — se
+ * casseraient.
+ */
+export function nomPublic(piece: IdentitePublique): string {
+  return piece.prenomInitiales ? `${piece.nom} ${piece.prenomInitiales}` : piece.nom;
 }
 
 /**
@@ -90,9 +131,7 @@ export function lieuDe(piece: Pick<PieceTrouveePublique, 'commune' | 'quartier'>
 }
 
 /** Une ligne qui suffit à comprendre : sert de titre de page et d'objet de partage. */
-export function titreDePartage(
-  piece: Pick<PieceTrouveePublique, 'typePiece' | 'prenom' | 'nomInitiale' | 'commune' | 'quartier'>,
-): string {
+export function titreDePartage(piece: PiecePartagee): string {
   const trouvee = GENRE[piece.typePiece] === 'f' ? 'trouvée' : 'trouvé';
   return `${piece.typePiece} ${trouvee} à ${lieuDe(piece)}, au nom de ${nomPublic(piece)}`;
 }
@@ -105,9 +144,7 @@ export function titreDePartage(
  * explicitement parce que la question se pose vraiment — une pièce trouvée
  * est parfois monnayée, et le propriétaire s'attend à devoir payer.
  */
-export function texteDePartage(
-  piece: Pick<PieceTrouveePublique, 'typePiece' | 'prenom' | 'nomInitiale' | 'commune' | 'quartier'>,
-): string {
+export function texteDePartage(piece: PiecePartagee): string {
   return [
     `🪪 ${ponctuer(titreDePartage(piece))}`,
     '',
@@ -117,7 +154,7 @@ export function texteDePartage(
 
 /** Message complet, lien compris — pour le presse-papiers et les partages bruts. */
 export function messageComplet(
-  piece: Pick<PieceTrouveePublique, 'id' | 'typePiece' | 'prenom' | 'nomInitiale' | 'commune' | 'quartier'>,
+  piece: PiecePartagee & Pick<PieceTrouveePublique, 'id'>,
   origine: string = ORIGINE,
 ): string {
   return `${texteDePartage(piece)}\n\n${urlPiece(piece.id, origine)}\n\nFais tourner, ça peut sauver quelqu’un 🙏`;
@@ -130,14 +167,10 @@ export function messageComplet(
  * phrase recopiée au bord aurait fini par ne plus dire la même chose que le
  * site, et par perdre l'accord au passage.
  */
-export function descriptionDePartage(
-  piece: Pick<PieceTrouveePublique, 'typePiece' | 'prenom' | 'nomInitiale' | 'commune' | 'quartier'>,
-): string {
+export function descriptionDePartage(piece: PiecePartagee): string {
   const declaree = GENRE[piece.typePiece] === 'f' ? 'déclarée' : 'déclaré';
   return (
-    ponctuer(
-      `${piece.typePiece} ${declaree} à ${lieuDe(piece)} au nom de ${nomPublic(piece)}`,
-    ) +
+    ponctuer(`${piece.typePiece} ${declaree} à ${lieuDe(piece)} au nom de ${nomPublic(piece)}`) +
     ' Si c’est ta pièce, ou celle de quelqu’un que tu connais, la récupération est gratuite et sans intermédiaire.'
   );
 }

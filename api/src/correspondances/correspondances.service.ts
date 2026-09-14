@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,6 +16,9 @@ import { Utilisateur } from '../utilisateurs/entities/utilisateur.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CorrespondanceResumeDto } from './dto/correspondance-resume.dto';
 import { ContactDto } from './dto/contact.dto';
+import { DefisService } from './defis.service';
+import { prenomsConcordent } from './prenoms';
+import { initialesPrenom } from '../common/affichage';
 
 type Role = 'trouveur' | 'demandeur';
 
@@ -31,6 +36,7 @@ export class CorrespondancesService {
     private readonly journal: Repository<JournalAccesContact>,
     private readonly utilisateurs: UtilisateursService,
     private readonly notifications: NotificationsService,
+    private readonly defis: DefisService,
   ) {}
 
   /** Liste les correspondances où l'utilisateur est l'une des deux parties. */
@@ -59,6 +65,25 @@ export class CorrespondancesService {
   async confirmer(id: string, telephone: string): Promise<CorrespondanceResumeDto> {
     const { correspondance, utilisateur, role } = await this.chargerEtAutoriser(id, telephone);
     this.assurerNonFinalisee(correspondance);
+
+    /*
+     * Le demandeur ne confirme qu'après avoir montré qu'il connaît les
+     * prénoms inscrits sur la pièce.
+     *
+     * Le défi est ici, et pas seulement derrière le bouton « C'est ma pièce »
+     * de la fiche, parce que ce bouton se contourne. Le nom de famille est
+     * public et pèse 0,45 dans le rapprochement : quiconque le lit sur le
+     * registre, puis crée une alerte avec ce nom et un prénom inventé,
+     * obtient 0,70 — une correspondance « probable ». Seul un contrôle au
+     * moment de confirmer ferme ce chemin.
+     */
+    if (role === 'demandeur' && this.defiRequis(correspondance)) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'DEFI_REQUIS',
+        message: 'Réponds d’abord à la question sur les prénoms inscrits sur la pièce.',
+      });
+    }
 
     const maintenant = new Date();
     if (role === 'trouveur') {
@@ -106,6 +131,57 @@ export class CorrespondancesService {
     }
 
     return this.versResume(sauvegardee, utilisateur);
+  }
+
+  /**
+   * Défi des prénoms : le demandeur écrit les prénoms inscrits sur la pièce.
+   *
+   * Message d'échec neutre — « Ça ne correspond pas. » — sans jamais dire
+   * ce qui est faux ni combien de prénoms sont attendus. Trois essais par
+   * demandeur, dix par pièce, puis trente minutes de blocage (DefisService).
+   */
+  async repondreDefi(
+    id: string,
+    telephone: string,
+    prenoms: string,
+  ): Promise<CorrespondanceResumeDto> {
+    const { correspondance, utilisateur, role } = await this.chargerEtAutoriser(id, telephone);
+    if (role !== 'demandeur') {
+      throw new ForbiddenException('Seule la personne qui cherche sa pièce répond à cette question.');
+    }
+    this.assurerNonFinalisee(correspondance);
+
+    if (!this.defiRequis(correspondance)) return this.versResume(correspondance, utilisateur);
+
+    const pieceId = correspondance.pieceTrouvee.id;
+    if (this.defis.estBloque(pieceId, utilisateur.telephone)) {
+      throw new HttpException('Trop d’essais. Réessaie dans trente minutes.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    if (!prenomsConcordent(prenoms, correspondance.pieceTrouvee.prenom)) {
+      this.defis.echec(pieceId, utilisateur.telephone);
+      throw new BadRequestException('Ça ne correspond pas.');
+    }
+
+    this.defis.succes(pieceId, utilisateur.telephone);
+    correspondance.defiReussiLe = new Date();
+    const sauvegardee = await this.correspondances.save(correspondance);
+    return this.versResume(sauvegardee, utilisateur);
+  }
+
+  /**
+   * Le demandeur doit-il encore répondre au défi ?
+   *
+   * Non s'il l'a réussi. Non s'il a saisi les bons prénoms en créant son
+   * alerte : le vrai propriétaire, qui écrit ses prénoms sans y penser, ne
+   * voit jamais la question. Non enfin si la pièce n'a pas de prénom
+   * renseigné — il n'y a rien à demander, et la confirmation du trouveur
+   * reste la seule validation.
+   */
+  private defiRequis(correspondance: Correspondance): boolean {
+    if (correspondance.defiReussiLe) return false;
+    if (!correspondance.pieceTrouvee.prenom?.trim()) return false;
+    return !prenomsConcordent(correspondance.alertePerte.prenom, correspondance.pieceTrouvee.prenom);
   }
 
   /** Rejette la correspondance. Un seul rejet suffit à la clôturer. */
@@ -193,6 +269,7 @@ export class CorrespondancesService {
     utilisateur: Utilisateur,
   ): CorrespondanceResumeDto {
     const estTrouveur = correspondance.pieceTrouvee.declarant.id === utilisateur.id;
+    const piece = correspondance.pieceTrouvee;
 
     return {
       id: correspondance.id,
@@ -201,10 +278,16 @@ export class CorrespondancesService {
       statut: correspondance.statut,
       dateCalcul: correspondance.dateCalcul,
       pieceTrouvee: {
-        id: correspondance.pieceTrouvee.id,
-        typePiece: correspondance.pieceTrouvee.typePiece,
-        prenom: correspondance.pieceTrouvee.prenom,
-        nom: correspondance.pieceTrouvee.nom,
+        id: piece.id,
+        typePiece: piece.typePiece,
+        /*
+         * Le demandeur ne reçoit jamais le prénom complet de la pièce : ce
+         * serait lui donner la réponse du défi. Il voit ce que voit le public,
+         * le nom en capitales et les initiales. Le trouveur, qui a déclaré la
+         * pièce, voit ce qu'il a lui-même écrit.
+         */
+        prenom: estTrouveur ? piece.prenom : (initialesPrenom(piece.prenom) ?? ''),
+        nom: estTrouveur ? piece.nom : piece.nom.trim().toUpperCase(),
         commune: correspondance.pieceTrouvee.commune,
         quartier: correspondance.pieceTrouvee.quartier,
         dateTrouvaille: correspondance.pieceTrouvee.dateTrouvaille,
@@ -224,6 +307,10 @@ export class CorrespondancesService {
       confirmeParAutre: estTrouveur
         ? !!correspondance.confirmationDemandeur
         : !!correspondance.confirmationTrouveur,
+      defiRequis:
+        !estTrouveur &&
+        correspondance.statut === StatutCorrespondance.SUGGEREE &&
+        this.defiRequis(correspondance),
     };
   }
 }

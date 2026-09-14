@@ -133,6 +133,18 @@ export function rejeterCorrespondance(id: string, telephone: string): Promise<Co
   });
 }
 
+/**
+ * Défi des prénoms : le demandeur écrit les prénoms inscrits sur la pièce avant
+ * de pouvoir confirmer. Rend la correspondance à jour, ou lève une ApiError au
+ * message neutre (« Ça ne correspond pas. », ou le blocage après trop d'essais).
+ */
+export function repondreDefi(id: string, telephone: string, prenoms: string): Promise<Correspondance> {
+  return requete(`/correspondances/${id}/defi`, {
+    method: 'POST',
+    body: JSON.stringify({ telephone, prenoms }),
+  });
+}
+
 export function obtenirContact(id: string, telephone: string): Promise<ContactInfo> {
   return requete(`/correspondances/${id}/contact`, {
     method: 'POST',

@@ -30,12 +30,21 @@ export interface PointDepotApi {
   lng: number;
 }
 
-/** Pièce trouvée telle qu'exposée publiquement : identité partiellement masquée. */
+/**
+ * Pièce trouvée telle qu'exposée publiquement.
+ *
+ * Le nom de famille en capitales et les seules initiales du prénom : c'est le
+ * patronyme qui déclenche la reconnaissance chez un tiers, et jamais les deux
+ * en entier. Le prénom complet ne quitte pas la base — la vue SQL ne le
+ * sélectionne pas. Les coordonnées sont arrondies à l'échelle du quartier.
+ */
 export interface PieceTrouveePublique {
   id: string;
   typePiece: TypePiece;
-  prenom: string;
-  nomInitiale: string;
+  /** Nom de famille, en capitales : « N'GUESSAN », « TIÉ BI ». */
+  nom: string;
+  /** Initiales du prénom avec leur point : « A. », « S-Y. », « M.A. » — ou null. */
+  prenomInitiales: string | null;
   commune: string;
   quartier: string | null;
   dateTrouvaille: string;
@@ -49,8 +58,14 @@ export interface PieceTrouveePublique {
 export interface PieceTrouveePubliqueBrute {
   id: string;
   type_piece: TypePiece;
-  prenom: string;
-  nom_initiale: string;
+  nom?: string;
+  prenom_initiales?: string | null;
+  /**
+   * Ancienne forme de la vue, avant la migration 1750300000000. Gardée le
+   * temps du déploiement seulement : voir depuisPieceBrute.
+   */
+  prenom?: string;
+  nom_initiale?: string;
   commune: string;
   quartier: string | null;
   date_trouvaille: string;
@@ -98,6 +113,11 @@ export type StatutCorrespondance = 'suggeree' | 'confirmee' | 'rejetee';
 export interface CorrespondancePiece {
   id: string;
   typePiece: TypePiece;
+  /**
+   * Prénom tel que le voit la partie qui consulte : en entier pour le
+   * trouveur, qui l'a lui-même déclaré ; réduit aux initiales pour le
+   * demandeur, qui doit le connaître sans qu'on le lui montre.
+   */
   prenom: string;
   nom: string;
   commune: string;
@@ -129,6 +149,11 @@ export interface Correspondance {
   alertePerte: CorrespondanceAlerte;
   confirmeParMoi: boolean;
   confirmeParAutre: boolean;
+  /**
+   * Vrai quand le demandeur doit d'abord répondre au défi des prénoms avant
+   * de pouvoir confirmer. Toujours faux pour le trouveur.
+   */
+  defiRequis?: boolean;
 }
 
 /** Coordonnées de l'autre partie, révélées une fois la correspondance confirmée. */
@@ -139,13 +164,22 @@ export interface ContactInfo {
   email: string | null;
 }
 
-/** Convertit la forme snake_case du serveur vers celle utilisée par les apps. */
+/**
+ * Convertit la forme snake_case du serveur vers celle utilisée par les apps.
+ *
+ * Accepte encore l'ancienne forme de la vue le temps du déploiement : le site
+ * part en production avant que la migration ne change la vue, pour que le
+ * défi des prénoms soit en place avant que le nom de famille ne s'affiche.
+ * Pendant cet intervalle, l'ancienne forme reproduit exactement l'ancien
+ * affichage (« Adjoua N. »). À retirer dès la migration appliquée.
+ */
 export function depuisPieceBrute(p: PieceTrouveePubliqueBrute): PieceTrouveePublique {
+  const ancienneForme = p.nom === undefined;
   return {
     id: p.id,
     typePiece: p.type_piece,
-    prenom: p.prenom,
-    nomInitiale: p.nom_initiale,
+    nom: ancienneForme ? (p.prenom ?? '') : (p.nom ?? ''),
+    prenomInitiales: ancienneForme ? (p.nom_initiale ?? null) : (p.prenom_initiales ?? null),
     commune: p.commune,
     quartier: p.quartier,
     dateTrouvaille: p.date_trouvaille,

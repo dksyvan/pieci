@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import { COMMUNES, type LatLng } from '@partage/communes';
 import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
+import { initialesPrenom, nomAffiche } from '@partage/partage';
 import { LieuField } from '../components/LieuField';
 import { BandeauPush } from '../components/BandeauPush';
 import { CartePiece } from '../components/CartePiece';
@@ -173,7 +174,7 @@ export function Declarer() {
               Entrée enregistrée
             </span>
             <h2 style={{ fontSize: 'var(--t-title)', letterSpacing: '-0.038em', marginTop: 'var(--s-3)', lineHeight: 'var(--lh-title)' }}>
-              C’est fait, la pièce de {prenom} {nom.charAt(0).toUpperCase()}. est au registre.
+              C’est fait, la pièce de {nomAffiche(nom, prenom)} est au registre.
             </h2>
             <p style={{ color: 'var(--color-sourdine)', maxWidth: '52ch', marginTop: 'var(--s-2)', lineHeight: 'var(--lh-lead)' }}>
               Merci pour ton geste. L’algorithme compare déjà avec les alertes en cours — si quelqu’un
@@ -190,9 +191,11 @@ export function Declarer() {
                   piece={{
                     id: fiche,
                     typePiece: typePiece as TypePiece,
-                    prenom,
-                    // Même forme que la vue publique, point compris (voir nomPublic).
-                    nomInitiale: `${nom.charAt(0).toUpperCase()}.`,
+                    // Même forme que la vue publique : NOM en capitales et
+                    // initiales du prénom. Le prénom entier ne part jamais
+                    // dans un message partagé.
+                    nom: nom.trim().toUpperCase(),
+                    prenomInitiales: initialesPrenom(prenom),
                     commune,
                     quartier: quartier.trim() || null,
                   }}
@@ -209,7 +212,7 @@ export function Declarer() {
 
           <div className="col-b" style={{ alignSelf: 'center' }}>
             <CartePiece
-              nom={`${prenom} ${nom.charAt(0).toUpperCase()}.`}
+              nom={nomAffiche(nom, prenom)}
               type={typePiece || 'Pièce d’identité'}
               cachet="DÉCLARÉE"
               inclinaison={1.8}

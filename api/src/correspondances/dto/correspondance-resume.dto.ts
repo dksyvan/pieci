@@ -35,4 +35,9 @@ export interface CorrespondanceResumeDto {
   confirmeParMoi: boolean;
   /** true si l'autre partie a déjà confirmé cette correspondance. */
   confirmeParAutre: boolean;
+  /**
+   * true si le demandeur doit répondre au défi des prénoms avant de pouvoir
+   * confirmer. Toujours false pour le trouveur.
+   */
+  defiRequis: boolean;
 }

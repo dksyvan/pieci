@@ -405,7 +405,10 @@ async function chargerPiece(env, id) {
     if (!reponse.ok) return null;
 
     const piece = await reponse.json();
-    return typeof piece?.id === 'string' && typeof piece.prenom === 'string' ? piece : null;
+    // Nouvelle forme de la vue (nom) ou ancienne (prenom) : la migration suit
+    // le déploiement du Worker de quelques minutes.
+    const nommee = typeof piece?.nom === 'string' || typeof piece?.prenom === 'string';
+    return typeof piece?.id === 'string' && nommee ? piece : null;
   } catch {
     return null;
   }

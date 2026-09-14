@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import type { Repository } from 'typeorm';
 import { Correspondance } from './entities/correspondance.entity';
@@ -10,6 +10,7 @@ import { AlertePerte } from '../alertes-perte/entities/alerte-perte.entity';
 import type { UtilisateursService } from '../utilisateurs/utilisateurs.service';
 import type { NotificationsService } from '../notifications/notifications.service';
 import { CorrespondancesService } from './correspondances.service';
+import { DefisService } from './defis.service';
 import { NiveauConfiance, StatutCorrespondance, TypePiece } from '../common/enums';
 
 const RELATIONS = {
@@ -73,6 +74,7 @@ function creerCorrespondance(overrides: Partial<Correspondance> = {}): Correspon
     dateConfirmation: null,
     confirmationTrouveur: null,
     confirmationDemandeur: null,
+    defiReussiLe: null,
     ...overrides,
   } as Correspondance;
 }
@@ -124,7 +126,7 @@ describe('CorrespondancesService.confirmer', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [trouveur.telephone]: trouveur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     const resultat = await service.confirmer('corr-1', trouveur.telephone);
 
@@ -159,7 +161,7 @@ describe('CorrespondancesService.confirmer', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [demandeur.telephone]: demandeur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     const resultat = await service.confirmer('corr-1', demandeur.telephone);
 
@@ -187,7 +189,7 @@ describe('CorrespondancesService.confirmer', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({});
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     await expect(service.confirmer('corr-1', '+2250700009999')).rejects.toThrow(NotFoundException);
     expect(correspondances.save).not.toHaveBeenCalled();
@@ -199,7 +201,7 @@ describe('CorrespondancesService.confirmer', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [trouveur.telephone]: trouveur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     await expect(service.confirmer('corr-x', trouveur.telephone)).rejects.toThrow(NotFoundException);
     expect(correspondances.save).not.toHaveBeenCalled();
@@ -211,7 +213,7 @@ describe('CorrespondancesService.confirmer', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [tiers.telephone]: tiers });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     await expect(service.confirmer('corr-1', tiers.telephone)).rejects.toThrow(ForbiddenException);
     expect(correspondances.save).not.toHaveBeenCalled();
@@ -224,7 +226,7 @@ describe('CorrespondancesService.confirmer', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [trouveur.telephone]: trouveur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     await expect(service.confirmer('corr-1', trouveur.telephone)).rejects.toThrow(BadRequestException);
     expect(correspondances.save).not.toHaveBeenCalled();
@@ -239,7 +241,7 @@ describe('CorrespondancesService.rejeter', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [demandeur.telephone]: demandeur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     const resultat = await service.rejeter('corr-1', demandeur.telephone);
 
@@ -257,7 +259,7 @@ describe('CorrespondancesService.rejeter', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [tiers.telephone]: tiers });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     await expect(service.rejeter('corr-1', tiers.telephone)).rejects.toThrow(ForbiddenException);
     expect(correspondances.save).not.toHaveBeenCalled();
@@ -270,7 +272,7 @@ describe('CorrespondancesService.rejeter', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [trouveur.telephone]: trouveur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     await expect(service.rejeter('corr-1', trouveur.telephone)).rejects.toThrow(BadRequestException);
     expect(correspondances.save).not.toHaveBeenCalled();
@@ -285,7 +287,7 @@ describe('CorrespondancesService.obtenirContact', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [trouveur.telephone]: trouveur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     const contact = await service.obtenirContact('corr-1', trouveur.telephone);
 
@@ -305,7 +307,7 @@ describe('CorrespondancesService.obtenirContact', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [demandeur.telephone]: demandeur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     const contact = await service.obtenirContact('corr-1', demandeur.telephone);
 
@@ -323,7 +325,7 @@ describe('CorrespondancesService.obtenirContact', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [trouveur.telephone]: trouveur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     await expect(service.obtenirContact('corr-1', trouveur.telephone)).rejects.toThrow(
       ForbiddenException,
@@ -337,7 +339,7 @@ describe('CorrespondancesService.obtenirContact', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [tiers.telephone]: tiers });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     await expect(service.obtenirContact('corr-1', tiers.telephone)).rejects.toThrow(ForbiddenException);
     expect(journal.save).not.toHaveBeenCalled();
@@ -350,7 +352,7 @@ describe('CorrespondancesService.findByTelephone', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({});
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     const resultat = await service.findByTelephone('+2250700009999');
 
@@ -367,7 +369,7 @@ describe('CorrespondancesService.findByTelephone', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [trouveur.telephone]: trouveur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     const resultat = await service.findByTelephone(trouveur.telephone);
 
@@ -390,11 +392,139 @@ describe('CorrespondancesService.findByTelephone', () => {
     const journal = creerJournalRepoMock();
     const utilisateurs = creerUtilisateursServiceMock({ [demandeur.telephone]: demandeur });
     const notifications = creerNotificationsMock();
-    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications);
+    const service = new CorrespondancesService(correspondances, journal, utilisateurs, notifications, new DefisService());
 
     const resultat = await service.findByTelephone(demandeur.telephone);
 
     expect(resultat[0].confirmeParMoi).toBe(false);
     expect(resultat[0].confirmeParAutre).toBe(true);
+  });
+});
+
+describe('défi des prénoms', () => {
+  /**
+   * Le nom de famille devient public et pèse 0,45 dans le rapprochement : un
+   * inconnu qui le lit, puis crée une alerte avec un prénom inventé, obtient
+   * une correspondance. Ces cas figent le fait qu'il ne peut pas aller plus
+   * loin sans connaître les prénoms — et que le vrai propriétaire, lui, ne
+   * voit jamais la question.
+   */
+  const alerteInventee = { ...alertePerte, prenom: 'Moussa' } as AlertePerte;
+
+  function monter(correspondance: Correspondance, qui: Utilisateur, defis = new DefisService()) {
+    const correspondances = creerCorrespondancesRepoMock({
+      correspondance,
+      listeResultats: [correspondance],
+    });
+    const utilisateurs = creerUtilisateursServiceMock({ [qui.telephone]: qui });
+    const notifications = creerNotificationsMock();
+    const service = new CorrespondancesService(
+      correspondances,
+      creerJournalRepoMock(),
+      utilisateurs,
+      notifications,
+      defis,
+    );
+    return { service, correspondances, notifications };
+  }
+
+  it('empêche un demandeur au prénom inventé de confirmer, sans rien écrire', async () => {
+    const { service, correspondances, notifications } = monter(
+      creerCorrespondance({ alertePerte: alerteInventee }),
+      demandeur,
+    );
+
+    await expect(service.confirmer('corr-1', demandeur.telephone)).rejects.toThrow(ForbiddenException);
+    expect(correspondances.save).not.toHaveBeenCalled();
+    expect(notifications.creer).not.toHaveBeenCalled();
+  });
+
+  it('laisse confirmer sans question le demandeur qui a saisi les bons prénoms', async () => {
+    const { service } = monter(creerCorrespondance(), demandeur);
+    const resultat = await service.confirmer('corr-1', demandeur.telephone);
+    expect(resultat.confirmeParMoi).toBe(true);
+  });
+
+  it('ne pose jamais la question au trouveur', async () => {
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), trouveur);
+    const resultat = await service.confirmer('corr-1', trouveur.telephone);
+    expect(resultat.confirmeParMoi).toBe(true);
+    expect(resultat.defiRequis).toBe(false);
+  });
+
+  it('répond « Ça ne correspond pas. » à une réponse fausse, sans rien écrire', async () => {
+    const { service, correspondances } = monter(
+      creerCorrespondance({ alertePerte: alerteInventee }),
+      demandeur,
+    );
+
+    await expect(service.repondreDefi('corr-1', demandeur.telephone, 'Ibrahim')).rejects.toThrow(
+      'Ça ne correspond pas.',
+    );
+    expect(correspondances.save).not.toHaveBeenCalled();
+  });
+
+  it('bloque après trois réponses fausses, même avec la bonne ensuite', async () => {
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), demandeur);
+
+    for (const essai of ['Ibrahim', 'Idrissa', 'Ismaël']) {
+      await expect(service.repondreDefi('corr-1', demandeur.telephone, essai)).rejects.toThrow(
+        BadRequestException,
+      );
+    }
+    const erreur = await service.repondreDefi('corr-1', demandeur.telephone, 'Issa').catch((e) => e);
+    expect(erreur).toBeInstanceOf(HttpException);
+    expect((erreur as HttpException).getStatus()).toBe(429);
+  });
+
+  it('retient une bonne réponse, puis laisse confirmer', async () => {
+    const correspondance = creerCorrespondance({ alertePerte: alerteInventee });
+    const { service, correspondances } = monter(correspondance, demandeur);
+
+    const apres = await service.repondreDefi('corr-1', demandeur.telephone, 'issa');
+    expect(apres.defiRequis).toBe(false);
+    expect(correspondances.save).toHaveBeenCalledWith(
+      expect.objectContaining({ defiReussiLe: expect.any(Date) }),
+    );
+
+    const confirme = await service.confirmer('corr-1', demandeur.telephone);
+    expect(confirme.confirmeParMoi).toBe(true);
+  });
+
+  it('refuse que le trouveur réponde à la place du demandeur', async () => {
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), trouveur);
+    await expect(service.repondreDefi('corr-1', trouveur.telephone, 'Issa')).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  /**
+   * Sans ce masque, la liste des correspondances donnait au demandeur le
+   * prénom complet de la pièce — la réponse du défi, avant la question.
+   */
+  it('ne montre au demandeur que les initiales du prénom de la pièce', async () => {
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), demandeur);
+    const [vue] = await service.findByTelephone(demandeur.telephone);
+
+    expect(vue.pieceTrouvee.prenom).toBe('I.');
+    expect(vue.pieceTrouvee.nom).toBe('BAMBA');
+    expect(JSON.stringify(vue.pieceTrouvee)).not.toContain('Issa');
+    expect(vue.defiRequis).toBe(true);
+  });
+
+  it('montre au trouveur ce qu’il a lui-même déclaré', async () => {
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), trouveur);
+    const [vue] = await service.findByTelephone(trouveur.telephone);
+    expect(vue.pieceTrouvee.prenom).toBe('Issa');
+  });
+
+  it('ne pose pas la question quand la pièce n’a pas de prénom renseigné', async () => {
+    const sansPrenom = { ...pieceTrouvee, prenom: '  ' } as PieceTrouvee;
+    const { service } = monter(
+      creerCorrespondance({ pieceTrouvee: sansPrenom, alertePerte: alerteInventee }),
+      demandeur,
+    );
+    const resultat = await service.confirmer('corr-1', demandeur.telephone);
+    expect(resultat.confirmeParMoi).toBe(true);
   });
 });

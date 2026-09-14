@@ -147,7 +147,7 @@ describe('PiecesTrouveesService.findOnePublic', () => {
   }
 
   it('lit la vue publique, jamais la table', async () => {
-    const ligne = { id: 'piece-1', prenom: 'Adjoua', nom_initiale: 'N', commune: 'Yopougon' };
+    const ligne = { id: 'piece-1', nom: "N'GUESSAN", prenom_initiales: 'A.', commune: 'Yopougon' };
     const { service, query } = creerService([ligne]);
 
     await expect(service.findOnePublic('piece-1')).resolves.toBe(ligne);
