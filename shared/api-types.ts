@@ -58,14 +58,8 @@ export interface PieceTrouveePublique {
 export interface PieceTrouveePubliqueBrute {
   id: string;
   type_piece: TypePiece;
-  nom?: string;
-  prenom_initiales?: string | null;
-  /**
-   * Ancienne forme de la vue, avant la migration 1750300000000. Gardée le
-   * temps du déploiement seulement : voir depuisPieceBrute.
-   */
-  prenom?: string;
-  nom_initiale?: string;
+  nom: string;
+  prenom_initiales: string | null;
   commune: string;
   quartier: string | null;
   date_trouvaille: string;
@@ -164,22 +158,13 @@ export interface ContactInfo {
   email: string | null;
 }
 
-/**
- * Convertit la forme snake_case du serveur vers celle utilisée par les apps.
- *
- * Accepte encore l'ancienne forme de la vue le temps du déploiement : le site
- * part en production avant que la migration ne change la vue, pour que le
- * défi des prénoms soit en place avant que le nom de famille ne s'affiche.
- * Pendant cet intervalle, l'ancienne forme reproduit exactement l'ancien
- * affichage (« Adjoua N. »). À retirer dès la migration appliquée.
- */
+/** Convertit la forme snake_case du serveur vers celle utilisée par les apps. */
 export function depuisPieceBrute(p: PieceTrouveePubliqueBrute): PieceTrouveePublique {
-  const ancienneForme = p.nom === undefined;
   return {
     id: p.id,
     typePiece: p.type_piece,
-    nom: ancienneForme ? (p.prenom ?? '') : (p.nom ?? ''),
-    prenomInitiales: ancienneForme ? (p.nom_initiale ?? null) : (p.prenom_initiales ?? null),
+    nom: p.nom,
+    prenomInitiales: p.prenom_initiales,
     commune: p.commune,
     quartier: p.quartier,
     dateTrouvaille: p.date_trouvaille,

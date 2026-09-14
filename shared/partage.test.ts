@@ -74,33 +74,22 @@ describe('identité publiée — table du brief', () => {
   });
 });
 
-describe('transition de la vue publique', () => {
-  /**
-   * Le site part en production avant la migration qui change la vue, pour
-   * que le défi des prénoms soit en place avant que le nom de famille ne
-   * s'affiche. Pendant cet intervalle, l'ancienne forme doit reproduire
-   * exactement l'ancien affichage — ni « undefined », ni nom entier.
-   */
-  const commun = {
-    id: 'x',
-    type_piece: 'CNI' as const,
-    commune: 'Yopougon',
-    quartier: null,
-    date_trouvaille: '2026-09-14',
-    photo_floutee_url: null,
-    depot_nom: null,
-    lat: 5.35,
-    lng: -4.07,
-  };
-
-  it('lit la nouvelle forme', () => {
-    const p = depuisPieceBrute({ ...commun, nom: "N'GUESSAN", prenom_initiales: 'A.' });
+describe('forme renvoyée par la vue publique', () => {
+  it('se lit telle quelle, sans rien recomposer', () => {
+    const p = depuisPieceBrute({
+      id: 'x',
+      type_piece: 'CNI',
+      nom: "N'GUESSAN",
+      prenom_initiales: 'A.',
+      commune: 'Yopougon',
+      quartier: null,
+      date_trouvaille: '2026-09-14',
+      photo_floutee_url: null,
+      depot_nom: null,
+      lat: 5.35,
+      lng: -4.07,
+    });
     expect(nomPublic(p)).toBe("N'GUESSAN A.");
-  });
-
-  it('lit encore l’ancienne forme, à l’identique de l’ancien affichage', () => {
-    const p = depuisPieceBrute({ ...commun, prenom: 'Adjoua', nom_initiale: 'N.' });
-    expect(nomPublic(p)).toBe('Adjoua N.');
   });
 });
 
