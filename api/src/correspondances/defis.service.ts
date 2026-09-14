@@ -68,11 +68,11 @@ export class DefisService {
     return null;
   }
 
-  /** Enregistre une réponse fausse. */
-  echec(pieceId: string, demandeur: string): void {
+  /** Enregistre une réponse fausse, qui peut valoir plusieurs essais (voir poidsReponse). */
+  echec(pieceId: string, demandeur: string, poids = 1): void {
     const maintenant = Date.now();
-    this.compter(this.parDemandeur, this.cle(pieceId, demandeur), DefisService.PAR_DEMANDEUR, maintenant);
-    this.compter(this.parPiece, pieceId, DefisService.PAR_PIECE, maintenant);
+    this.compter(this.parDemandeur, this.cle(pieceId, demandeur), DefisService.PAR_DEMANDEUR, maintenant, poids);
+    this.compter(this.parPiece, pieceId, DefisService.PAR_PIECE, maintenant, poids);
   }
 
   /**
@@ -88,14 +88,20 @@ export class DefisService {
     return `${pieceId}|${demandeur}`;
   }
 
-  private compter(table: Map<string, Compteur>, cle: string, regle: Regle, maintenant: number): void {
+  private compter(
+    table: Map<string, Compteur>,
+    cle: string,
+    regle: Regle,
+    maintenant: number,
+    poids: number,
+  ): void {
     const courant = table.get(cle);
     const fenetreEchue = !courant || maintenant - courant.depuis > regle.dureeMs;
     const compteur: Compteur = fenetreEchue
       ? { echecs: 0, depuis: maintenant, bloqueJusqua: 0 }
       : courant;
 
-    compteur.echecs += 1;
+    compteur.echecs += poids;
     if (compteur.echecs >= regle.plafond) compteur.bloqueJusqua = maintenant + regle.dureeMs;
     table.set(cle, compteur);
   }

@@ -3,40 +3,57 @@ import { TypePiece } from '../common/enums';
 import { trouverMatches, type PersonnePiece } from './matching';
 
 /**
- * Une alerte créée après la publication d'une pièce ne doit rien apprendre
- * du prénom par la seule existence de la correspondance. Le nom ci-dessous
- * est choisi pour que le prénom fasse basculer le seuil : c'est exactement
- * la position qu'un curieux chercherait à atteindre.
+ * Retenue sur le nom seul : l'existence d'une correspondance ne doit rien
+ * apprendre du prénom à qui crée des alertes ou déclare des pièces, sans que
+ * le vrai propriétaire au nom imparfaitement écrit ne perde la sienne.
  */
-const piece = {
-  id: 'piece-1',
-  nom: 'Kouassi',
-  prenom: 'Adjoua',
-  typePiece: TypePiece.CNI,
-  lat: null,
-  lng: null,
-  date: '2026-09-01T00:00:00Z',
-};
-
-function perte(prenom: string): PersonnePiece {
-  return { nom: 'Kouame', prenom, typePiece: TypePiece.CNI, lat: null, lng: null, date: '2026-09-01T00:00:00Z' };
+function personne(nom: string, prenom: string): PersonnePiece {
+  return { nom, prenom, typePiece: TypePiece.CNI, lat: null, lng: null, date: '2026-09-01T00:00:00Z' };
 }
 
-describe('trouverMatches — prénom neutre', () => {
-  it('sans l’option, le prénom décide bien de la rétention (le cas est pertinent)', () => {
-    expect(trouverMatches(perte('Adjoua'), [piece])).toHaveLength(1);
-    expect(trouverMatches(perte('Zzz'), [piece])).toHaveLength(0);
+function retenu(nomAlerte: string, nomPiece: string, prenomAlerte = 'Aya', prenomPiece = 'Aya'): boolean {
+  const piece = { id: 'piece-1', ...personne(nomPiece, prenomPiece) };
+  return trouverMatches(personne(nomAlerte, prenomAlerte), [piece], { nomSeul: true }).length === 1;
+}
+
+describe('trouverMatches — retenue sur le nom seul', () => {
+  it('ne dépend jamais du prénom saisi', () => {
+    const couples: [string, string][] = [
+      ['Kouassi', 'Kouassi'],
+      ['Kouame', 'Kouassi'],
+      ['Kouasi', "N'Guessan Kouassi"],
+    ];
+    for (const [alerte, piece] of couples) {
+      const decisions = ['Adjoua', 'Adj', 'A', 'Zzz', ''].map((p) => retenu(alerte, piece, p, 'Adjoua'));
+      expect(new Set(decisions).size, `${alerte} / ${piece}`).toBe(1);
+    }
   });
 
-  it('avec l’option, la rétention ne dépend plus du prénom saisi', () => {
-    const essais = ['Adjoua', 'Adj', 'A', 'Aya', 'Zzz', ''];
-    const retenus = essais.map((p) => trouverMatches(perte(p), [piece], { prenomNeutre: true }).length);
-    expect(new Set(retenus).size).toBe(1);
+  it.each([
+    ['Kouassi', "N'Guessan Kouassi", 'nom composé partiel'],
+    ["N'Guessan", "N'Guessan Kouassi", 'premier nom seulement'],
+    ['Yao', "N'Guessan Yao", 'dernier nom seulement'],
+    ['Konan', 'Kouame epse Konan', 'nom d’épouse'],
+    ['Kouasi', 'Kouassi', 'une faute'],
+    ['Kouasi', "N'Guessan Kouassi", 'nom partiel avec une faute'],
+    ['Wattara', 'Ouattara', 'variante d’écriture'],
+    ['Kouassi Adjoua', 'Kouassi', 'prénom écrit dans le champ du nom'],
+  ])('retient « %s » pour « %s » (%s)', (alerte, piece) => {
+    expect(retenu(alerte, piece)).toBe(true);
   });
 
-  it('garde le vrai score, pour le trouveur', () => {
-    const [exact] = trouverMatches(perte('Adjoua'), [piece], { prenomNeutre: true });
-    const [autre] = trouverMatches(perte('Zzz'), [piece], { prenomNeutre: true });
+  it.each([
+    ['Kouame', 'Kouassi'],
+    ['Konan', 'Kone'],
+    ['Yao', 'Koffi'],
+  ])('écarte « %s » pour « %s »', (alerte, piece) => {
+    expect(retenu(alerte, piece)).toBe(false);
+  });
+
+  it('garde le score complet, prénom compris', () => {
+    const piece = { id: 'piece-1', ...personne('Kouassi', 'Adjoua') };
+    const [exact] = trouverMatches(personne('Kouassi', 'Adjoua'), [piece], { nomSeul: true });
+    const [autre] = trouverMatches(personne('Kouassi', 'Zzz'), [piece], { nomSeul: true });
     expect(exact.score).toBeGreaterThan(autre.score);
   });
 });

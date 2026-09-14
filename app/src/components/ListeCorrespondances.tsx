@@ -97,6 +97,12 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
   const { afficherToast } = useApp();
   const [contacts, setContacts] = useState<Record<string, ContactInfo>>({});
   const [actionEnCours, setActionEnCours] = useState<string | null>(null);
+  /**
+   * Correspondances dont la confirmation a été refusée faute de défi : une
+   * alerte antérieure à la pièce garde le bouton, ses prénoms sont vérifiés
+   * au clic, et s'ils ne concordent pas, la question prend la place du bouton.
+   */
+  const [questions, setQuestions] = useState<ReadonlySet<string>>(new Set());
 
   const erreur = (err: unknown) =>
     afficherToast(err instanceof ApiError ? err.message : 'Une erreur est survenue, réessaie.');
@@ -109,6 +115,9 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
     try {
       onChange(await action(id, telephone));
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'DEFI_REQUIS') {
+        setQuestions((prev) => new Set(prev).add(id));
+      }
       erreur(err);
     } finally {
       setActionEnCours(null);
@@ -198,7 +207,7 @@ export function ListeCorrespondances({ resultats, telephone, onChange, messageVi
           );
         } else if (r.confirmeParMoi) {
           action = <span className="pastille p-ambre">En attente de l’autre partie</span>;
-        } else if (r.defiRequis) {
+        } else if (r.defiRequis || questions.has(r.id)) {
           action = (
             <FormulaireDefi
               correspondance={r}

@@ -473,11 +473,46 @@ describe('défi des prénoms', () => {
     expect(vue.niveauConfiance).toBeNull();
   });
 
-  it('garde score et niveau pour le trouveur', async () => {
+  it('ne donne pas davantage le score au trouveur, que rien ne vérifie', async () => {
     const { service } = monter(creerCorrespondance(), trouveur);
     const [vue] = await service.findByTelephone(trouveur.telephone);
-    expect(vue.score).toBe(0.9);
-    expect(vue.niveauConfiance).toBe(NiveauConfiance.FORTE);
+    expect(vue.score).toBeNull();
+    expect(vue.niveauConfiance).toBeNull();
+  });
+
+  /**
+   * Des alertes semées d'avance au même nom, chacune avec un prénom différent :
+   * à la publication, chaque clic sur « C'est ma pièce » est un essai compté.
+   */
+  it('compte comme un essai la confirmation d’une alerte antérieure aux prénoms faux', async () => {
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), demandeur);
+    for (let i = 0; i < 3; i++) {
+      await expect(service.confirmer('corr-1', demandeur.telephone)).rejects.toThrow(ForbiddenException);
+    }
+    const erreur = await service.confirmer('corr-1', demandeur.telephone).catch((e) => e);
+    expect((erreur as HttpException).getStatus()).toBe(429);
+  });
+
+  it('ne montre au trouveur que le nom et les initiales de l’alerte, sans quartier, avant la confirmation', async () => {
+    const alerte = { ...alertePerte, quartier: 'Riviera 2' } as AlertePerte;
+    const { service } = monter(creerCorrespondance({ alertePerte: alerte }), trouveur);
+    const [vue] = await service.findByTelephone(trouveur.telephone);
+    expect(vue.alertePerte.prenom).toBe('I.');
+    expect(vue.alertePerte.nom).toBe('BAMBA');
+    expect(vue.alertePerte.quartier).toBeNull();
+  });
+
+  it('compte double une réponse fausse qui propose un prénom de plus', async () => {
+    const { service } = monter(creerCorrespondance({ alertePerte: alerteInventee }), demandeur);
+    // Pièce « Issa » : « Ibrahim Idrissa » teste deux prénoms à la fois.
+    await expect(
+      service.repondreDefi('corr-1', demandeur.telephone, 'Ibrahim Idrissa'),
+    ).rejects.toThrow(BadRequestException);
+    await expect(service.repondreDefi('corr-1', demandeur.telephone, 'Ismaël Moussa')).rejects.toThrow(
+      BadRequestException,
+    );
+    const erreur = await service.repondreDefi('corr-1', demandeur.telephone, 'Issa').catch((e) => e);
+    expect((erreur as HttpException).getStatus()).toBe(429);
   });
 
   it('annonce « demain » quand c’est la pièce qui est fermée', async () => {
@@ -554,7 +589,9 @@ describe('défi des prénoms', () => {
     expect(vue.pieceTrouvee.prenom).toBe('I.');
     expect(vue.pieceTrouvee.nom).toBe('BAMBA');
     expect(JSON.stringify(vue.pieceTrouvee)).not.toContain('Issa');
-    expect(vue.defiRequis).toBe(true);
+    // Alerte antérieure : pas de question affichée d'avance, qui dirait si ses
+    // prénoms sont les bons ; ils sont vérifiés, et comptés, au clic.
+    expect(vue.defiRequis).toBe(false);
   });
 
   it('montre au trouveur ce qu’il a lui-même déclaré', async () => {

@@ -17,7 +17,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CorrespondanceResumeDto } from './dto/correspondance-resume.dto';
 import { ContactDto } from './dto/contact.dto';
 import { DefisService } from './defis.service';
-import { prenomsConcordent } from './prenoms';
+import { poidsReponse, prenomsConcordent } from './prenoms';
 import { initialesPrenom } from '../common/affichage';
 
 type Role = 'trouveur' | 'demandeur';
@@ -77,13 +77,7 @@ export class CorrespondancesService {
      * obtient 0,70 — une correspondance « probable ». Seul un contrôle au
      * moment de confirmer ferme ce chemin.
      */
-    if (role === 'demandeur' && this.defiRequis(correspondance)) {
-      throw new ForbiddenException({
-        statusCode: 403,
-        code: 'DEFI_REQUIS',
-        message: 'Réponds d’abord à la question sur les prénoms inscrits sur la pièce.',
-      });
-    }
+    if (role === 'demandeur') this.verifierDefiALaConfirmation(correspondance, utilisateur);
 
     const maintenant = new Date();
     if (role === 'trouveur') {
@@ -153,59 +147,98 @@ export class CorrespondancesService {
     }
     this.assurerNonFinalisee(correspondance);
 
-    if (!this.defiRequis(correspondance)) return this.versResume(correspondance, utilisateur);
+    if (!this.defiNecessaire(correspondance)) return this.versResume(correspondance, utilisateur);
 
-    const pieceId = correspondance.pieceTrouvee.id;
-    const blocage = this.defis.estBloque(pieceId, utilisateur.telephone);
-    if (blocage) {
-      throw new HttpException(
-        blocage === 'piece'
-          ? 'Trop d’essais sur cette pièce. Réessaie demain.'
-          : 'Trop d’essais. Réessaie dans trente minutes.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    const piece = correspondance.pieceTrouvee;
+    this.assurerNonBloque(piece.id, utilisateur.telephone);
 
-    if (!prenomsConcordent(prenoms, correspondance.pieceTrouvee.prenom)) {
-      this.defis.echec(pieceId, utilisateur.telephone);
+    if (!prenomsConcordent(prenoms, piece.prenom)) {
+      this.defis.echec(piece.id, utilisateur.telephone, poidsReponse(prenoms, piece.prenom));
       throw new BadRequestException('Ça ne correspond pas.');
     }
 
-    this.defis.succes(pieceId, utilisateur.telephone);
+    this.defis.succes(piece.id, utilisateur.telephone);
     correspondance.defiReussiLe = new Date();
     const sauvegardee = await this.correspondances.save(correspondance);
     return this.versResume(sauvegardee, utilisateur);
   }
 
   /**
-   * Le demandeur doit-il encore répondre au défi ?
-   *
-   * Non s'il l'a réussi. Non si la pièce n'a pas de prénom renseigné — il
-   * n'y a rien à demander, et la confirmation du trouveur reste la seule
-   * validation.
-   *
-   * Non, enfin, s'il avait écrit les bons prénoms dans une alerte créée
-   * AVANT la déclaration de la pièce : c'est le cas de Koné, qui déclare sa
-   * perte le 30 et dont la pièce est trouvée le 1er. Ces prénoms ne pouvaient
-   * venir que de lui, la pièce n'était encore affichée nulle part.
-   *
-   * Une alerte créée après, en revanche, a pu être fabriquée d'après le
-   * registre public. La dispenser sur ses prénoms faisait de chaque alerte un
-   * essai gratuit, que DefisService ne voyait jamais : il suffisait de créer
-   * « N'GUESSAN Adjoua », « N'GUESSAN Aya », « N'GUESSAN Akissi »… et de
-   * lire `defiRequis` pour savoir lequel était le bon. Pour elle, seul
-   * POST /:id/defi, compté, lève la question.
+   * Le défi reste-t-il à passer ? Non s'il est réussi, ni si la pièce n'a pas
+   * de prénom renseigné — il n'y a rien à demander, et la confirmation du
+   * trouveur reste la seule validation.
    */
-  private defiRequis(correspondance: Correspondance): boolean {
-    const { pieceTrouvee: piece, alertePerte: alerte } = correspondance;
-    if (correspondance.defiReussiLe) return false;
-    if (!piece.prenom?.trim()) return false;
+  private defiNecessaire(correspondance: Correspondance): boolean {
+    return !correspondance.defiReussiLe && !!correspondance.pieceTrouvee.prenom?.trim();
+  }
 
-    const alerteAnterieure =
+  /** L'alerte existait-elle avant la déclaration de la pièce ? */
+  private alerteAnterieure(correspondance: Correspondance): boolean {
+    const { pieceTrouvee: piece, alertePerte: alerte } = correspondance;
+    return (
       !!alerte.createdAt &&
       !!piece.createdAt &&
-      new Date(alerte.createdAt).getTime() < new Date(piece.createdAt).getTime();
-    return !(alerteAnterieure && prenomsConcordent(alerte.prenom, piece.prenom));
+      new Date(alerte.createdAt).getTime() < new Date(piece.createdAt).getTime()
+    );
+  }
+
+  /**
+   * Faut-il afficher la question au demandeur ?
+   *
+   * Jamais en fonction des prénoms de son alerte : ce booléen se lit avant
+   * tout essai, et dirait lesquels sont les bons. Deux versions l'ont fait —
+   * la première pour toute alerte, la seconde pour les alertes antérieures à
+   * la pièce, que l'on pouvait semer d'avance au même nom avec des prénoms
+   * différents. La question est donc affichée pour toute alerte postérieure ;
+   * une alerte antérieure garde le bouton « C'est ma pièce », et ses prénoms
+   * sont vérifiés, et comptés, au clic (verifierDefiALaConfirmation).
+   */
+  private questionAffichee(correspondance: Correspondance): boolean {
+    return this.defiNecessaire(correspondance) && !this.alerteAnterieure(correspondance);
+  }
+
+  /**
+   * Contrôle du défi quand le demandeur confirme.
+   *
+   * Pour une alerte créée avant la pièce, ses prénoms valent réponse : Koné,
+   * qui a déclaré sa perte le 30 et dont la pièce est trouvée le 1er, confirme
+   * d'un geste. Mais c'est une réponse comptée comme les autres. Pour une
+   * alerte postérieure, qui a pu être fabriquée d'après le registre, seule la
+   * réponse à la question lève le défi.
+   */
+  private verifierDefiALaConfirmation(correspondance: Correspondance, utilisateur: Utilisateur): void {
+    if (!this.defiNecessaire(correspondance)) return;
+
+    const refus = () =>
+      new ForbiddenException({
+        statusCode: 403,
+        code: 'DEFI_REQUIS',
+        message: 'Réponds d’abord à la question sur les prénoms inscrits sur la pièce.',
+      });
+    if (!this.alerteAnterieure(correspondance)) throw refus();
+
+    const { pieceTrouvee: piece, alertePerte: alerte } = correspondance;
+    this.assurerNonBloque(piece.id, utilisateur.telephone);
+
+    if (!prenomsConcordent(alerte.prenom, piece.prenom)) {
+      this.defis.echec(piece.id, utilisateur.telephone, poidsReponse(alerte.prenom, piece.prenom));
+      throw refus();
+    }
+
+    this.defis.succes(piece.id, utilisateur.telephone);
+    correspondance.defiReussiLe = new Date();
+  }
+
+  /** Refuse, avec la vraie durée, un défi fermé pour ce demandeur ou pour la pièce. */
+  private assurerNonBloque(pieceId: string, telephone: string): void {
+    const blocage = this.defis.estBloque(pieceId, telephone);
+    if (!blocage) return;
+    throw new HttpException(
+      blocage === 'piece'
+        ? 'Trop d’essais sur cette pièce. Réessaie demain.'
+        : 'Trop d’essais. Réessaie dans trente minutes.',
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   /** Rejette la correspondance. Un seul rejet suffit à la clôturer. */
@@ -294,20 +327,29 @@ export class CorrespondancesService {
   ): CorrespondanceResumeDto {
     const estTrouveur = correspondance.pieceTrouvee.declarant.id === utilisateur.id;
     const piece = correspondance.pieceTrouvee;
+    const alerte = correspondance.alertePerte;
+    /*
+     * L'alerte, vue par le trouveur, reste réduite jusqu'à la double
+     * confirmation, comme la pièce l'est pour le demandeur. Rien ne vérifie
+     * qu'un trouveur a la pièce en main : une fausse déclaration au nom de
+     * KOUASSI livrait sinon les prénoms et le quartier de toutes les alertes
+     * KOUASSI — la réponse du défi, et davantage.
+     */
+    const alerteReduite = estTrouveur && correspondance.statut !== StatutCorrespondance.CONFIRMEE;
 
     return {
       id: correspondance.id,
       /*
-       * Ni score ni niveau pour le demandeur. Le score mesure aussi la
-       * ressemblance des prénoms et la distance au lieu exact de la
-       * trouvaille, à quatre décimales : en créant des alertes au nom public
-       * et en lisant le score, on retrouvait le prénom lettre par lettre
-       * (« Adj » 0,79, « Adjo » 0,83, « Adjoua » 0,89) et la position du
-       * trouveur par trilatération. Le niveau, plus grossier, dit la même
-       * chose en trois paliers. Le trouveur, qui a la pièce en main, les garde.
+       * Ni score ni niveau, pour personne. Ils mesurent aussi la ressemblance
+       * des prénoms et la distance au lieu exact, à quatre décimales : en
+       * créant des alertes au nom public et en lisant le score, on retrouvait
+       * le prénom de la pièce lettre par lettre (« Adj » 0,79, « Adjo » 0,83,
+       * « Adjoua » 0,89) et la position du trouveur. Le trouveur n'est pas une
+       * exception : rien ne prouve qu'il a la pièce, et une fausse déclaration
+       * lisait de la même façon les prénoms des alertes.
        */
-      score: estTrouveur ? correspondance.score : null,
-      niveauConfiance: estTrouveur ? correspondance.niveauConfiance : null,
+      score: null,
+      niveauConfiance: null,
       statut: correspondance.statut,
       dateCalcul: correspondance.dateCalcul,
       pieceTrouvee: {
@@ -327,12 +369,12 @@ export class CorrespondancesService {
         photoFlouteeUrl: correspondance.pieceTrouvee.photoFlouteeUrl,
       },
       alertePerte: {
-        id: correspondance.alertePerte.id,
-        typePiece: correspondance.alertePerte.typePiece,
-        prenom: correspondance.alertePerte.prenom,
-        nom: correspondance.alertePerte.nom,
-        commune: correspondance.alertePerte.commune,
-        quartier: correspondance.alertePerte.quartier,
+        id: alerte.id,
+        typePiece: alerte.typePiece,
+        prenom: alerteReduite ? (initialesPrenom(alerte.prenom) ?? '') : alerte.prenom,
+        nom: alerteReduite ? alerte.nom.trim().toUpperCase() : alerte.nom,
+        commune: alerte.commune,
+        quartier: alerteReduite ? null : alerte.quartier,
       },
       confirmeParMoi: estTrouveur
         ? !!correspondance.confirmationTrouveur
@@ -343,7 +385,7 @@ export class CorrespondancesService {
       defiRequis:
         !estTrouveur &&
         correspondance.statut === StatutCorrespondance.SUGGEREE &&
-        this.defiRequis(correspondance),
+        this.questionAffichee(correspondance),
     };
   }
 }

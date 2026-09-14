@@ -23,7 +23,8 @@ describe('AlertesPerteService.create', () => {
 
     const create = vi.fn((p: Partial<AlertePerte>) => p as AlertePerte);
     const save = vi.fn(async (p: AlertePerte) => ({ id: 'alerte-1', ...p }) as AlertePerte);
-    const repo = { create, save } as unknown as Repository<AlertePerte>;
+    const find = vi.fn(async () => [] as AlertePerte[]);
+    const repo = { create, save, find } as unknown as Repository<AlertePerte>;
 
     const matching = creerMatchingMock();
     const service = new AlertesPerteService(repo, utilisateurs, matching);
@@ -62,7 +63,8 @@ describe('AlertesPerteService.create', () => {
 
     const create = vi.fn((p: Partial<AlertePerte>) => p as AlertePerte);
     const save = vi.fn(async (p: AlertePerte) => ({ id: 'alerte-1', ...p }) as AlertePerte);
-    const repo = { create, save } as unknown as Repository<AlertePerte>;
+    const find = vi.fn(async () => [] as AlertePerte[]);
+    const repo = { create, save, find } as unknown as Repository<AlertePerte>;
 
     const service = new AlertesPerteService(repo, utilisateurs, creerMatchingMock());
 
@@ -92,5 +94,30 @@ describe('AlertesPerteService.findByTelephone', () => {
       where: { utilisateur: { telephone: '+2250700000000' } },
       order: { createdAt: 'DESC' },
     });
+  });
+
+  it('met à jour l’alerte existante de la même personne, même nom et même type, sans relancer le rapprochement', async () => {
+    const utilisateur = { id: 'user-1', telephone: '+2250700000000' } as Utilisateur;
+    const utilisateurs = { findOrCreate: vi.fn(async () => utilisateur) } as unknown as UtilisateursService;
+
+    const existante = { id: 'alerte-1', nom: "N'Guessan", prenom: 'Adjoua', commune: null } as AlertePerte;
+    const find = vi.fn(async () => [existante]);
+    const create = vi.fn();
+    const save = vi.fn(async (p: AlertePerte) => p);
+    const repo = { create, save, find } as unknown as Repository<AlertePerte>;
+    const matching = creerMatchingMock();
+    const service = new AlertesPerteService(repo, utilisateurs, matching);
+
+    const resultat = await service.create({
+      utilisateur: { telephone: '+2250700000000', prenom: 'Adjoua', nom: 'N’GUESSAN' },
+      typePiece: TypePiece.CNI,
+      prenom: 'Adjoua Marie-Laure',
+      nom: 'N’GUESSAN',
+    });
+
+    expect(resultat.id).toBe('alerte-1');
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ prenom: 'Adjoua Marie-Laure' }));
+    expect(create).not.toHaveBeenCalled();
+    expect(matching.traiterNouvelleAlerte).not.toHaveBeenCalled();
   });
 });

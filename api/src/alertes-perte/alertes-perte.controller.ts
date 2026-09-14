@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
-import { ThrottleVisiteurGuard } from '../scans-qr/throttle-visiteur.guard';
+import { LimiteVisiteur, LimiteVisiteurGuard } from '../common/limite-visiteur.guard';
 import { AlertesPerteService } from './alertes-perte.service';
 import { CreateAlertePerteDto } from './dto/create-alerte-perte.dto';
 import { FindAlertesPerteQueryDto } from './dto/find-alertes-perte-query.dto';
@@ -24,14 +23,17 @@ export class AlertesPerteController {
    * compté par l'empreinte que pose le Worker, jamais par une adresse gardée.
    */
   @Post()
-  @UseGuards(ThrottleVisiteurGuard)
-  @Throttle({ default: { limit: 5, ttl: 10 * 60_000 } })
+  @UseGuards(LimiteVisiteurGuard)
+  @LimiteVisiteur('alertes', 5, 10 * 60_000)
   async create(@Body() dto: CreateAlertePerteDto): Promise<{ id: string }> {
     const { id } = await this.alertesPerte.create(dto);
     return { id };
   }
 
+  /** Lecture par numéro, que rien ne vérifie : bornée pour freiner l'énumération. */
   @Get()
+  @UseGuards(LimiteVisiteurGuard)
+  @LimiteVisiteur('alertes-lecture', 30, 10 * 60_000)
   findMine(@Query() query: FindAlertesPerteQueryDto) {
     return this.alertesPerte.findByTelephone(query.telephone);
   }

@@ -12,6 +12,9 @@ import { IconeCarte, IconeFleche, IconeRecherche } from '../components/Icones';
 
 const COMMUNES_LISTEES = Object.keys(COMMUNES);
 
+/** Mots des noms de commune : « Yopougon » cherché n'est jamais un prénom. */
+const MOTS_DE_LIEU = new Set(COMMUNES_LISTEES.flatMap((c) => normaliser(c).split(' ')));
+
 /**
  * La pièce répond-elle à la recherche libre ?
  *
@@ -33,7 +36,9 @@ function repondA(p: PieceTrouveePublique, recherche: string): boolean {
   const nomReconnu = mots.some((mot) => mot.length > 1 && nom.includes(mot));
 
   return mots.every(
-    (mot) => fiche.includes(mot) || (nomReconnu && mot.length > 1 && initiales.includes(mot[0])),
+    (mot) =>
+      fiche.includes(mot) ||
+      (nomReconnu && mot.length > 1 && initiales.includes(mot[0]) && !MOTS_DE_LIEU.has(mot)),
   );
 }
 

@@ -134,12 +134,10 @@ export class MatchingService {
       date: c.date_trouvaille,
     }));
 
-    // Prénom neutre : l'alerte cherche parmi des pièces déjà publiées, et
-    // l'existence de la correspondance ne doit rien dire du prénom (voir
-    // SIM_PRENOM_NEUTRE). L'autre sens — une pièce nouvelle face aux alertes
-    // existantes — n'offre pas cette prise : personne ne choisit ses essais.
+    // Retenue sur le nom seul (voir SEUIL_NOM_SEUL) : l'existence de la
+    // correspondance ne doit rien dire du prénom.
     await this.enregistrerCorrespondances(
-      trouverMatches(perte, base, { prenomNeutre: true }).map((m) => ({
+      trouverMatches(perte, base, { nomSeul: true }).map((m) => ({
         pieceTrouveeId: m.id,
         pieceDeclarantId: m.declarantId,
         alertePerteId: alerteId,
@@ -157,7 +155,7 @@ export class MatchingService {
   async traiterNouvellePiece(pieceId: string): Promise<void> {
     const [piece] = await this.dataSource.query<PieceAvecPosition[]>(
       `SELECT id, prenom, nom, type_piece, date_trouvaille, declarant_id,
-              ST_Y(position::geometry) AS lat, ST_X(position::geometry) AS lng
+              ${LAT_ARRONDIE} AS lat, ${LNG_ARRONDIE} AS lng
        FROM pieces_trouvees WHERE id = $1`,
       [pieceId],
     );
@@ -198,8 +196,12 @@ export class MatchingService {
       date: c.created_at,
     }));
 
+    // Nom seul ici aussi. Celui qui sème des alertes au même nom avant la
+    // publication choisit ses prénoms tout autant que celui qui les crée
+    // après, et une fausse déclaration au nom de KOUASSI lirait sinon, dans
+    // la liste de ses correspondances, lesquelles ressemblent à son essai.
     await this.enregistrerCorrespondances(
-      trouverMatches(trouvaille, base).map((m) => ({
+      trouverMatches(trouvaille, base, { nomSeul: true }).map((m) => ({
         pieceTrouveeId: pieceId,
         pieceDeclarantId: piece.declarant_id,
         alertePerteId: m.id,

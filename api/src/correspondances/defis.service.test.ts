@@ -97,4 +97,12 @@ describe('DefisService', () => {
     for (let i = 0; i < 10; i++) defis.echec('piece-2', `07000000${String(i).padStart(2, '0')}`);
     expect(defis.estBloque('piece-2', '0799999999')).toBe('piece');
   });
+
+  it('compte une réponse lourde pour son poids', () => {
+    const defis = new DefisService();
+    defis.echec('piece-1', '0700000001', 2);
+    expect(defis.estBloque('piece-1', '0700000001')).toBeNull();
+    defis.echec('piece-1', '0700000001', 2);
+    expect(defis.estBloque('piece-1', '0700000001')).toBe('demandeur');
+  });
 });

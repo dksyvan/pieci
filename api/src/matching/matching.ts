@@ -215,19 +215,50 @@ export const SEUIL_FORTE = 0.8;
 
 export type Match<T extends PersonnePiece> = T & ScoreMatch;
 
+/** Mots d'état civil qui accompagnent un patronyme sans en faire partie. */
+const MOTS_ETAT_CIVIL = new Set(['ep', 'epse', 'epouse', 'nee', 'vve', 'veuve']);
+
+/** Deux mots d'un nom sont tenus pour le même à partir de cette ressemblance. */
+const RESSEMBLANCE_MOT = 0.8;
+
 /**
- * Ressemblance de prénom supposée quand la décision de retenir un
- * rapprochement ne doit rien révéler du prénom (voir `prenomNeutre`).
+ * Ressemblance de deux noms qui accepte qu'un nom soit contenu dans l'autre.
  *
- * Une alerte créée après la publication d'une pièce peut avoir été fabriquée
- * d'après le registre : nom public exact, nom légèrement abîmé pour se
- * placer juste sous le seuil, puis un prénom d'essai. Si le prénom décidait
- * de la création de la correspondance, sa simple existence dirait « chaud »
- * ou « froid ». Avec une valeur fixe, elle ne dépend que du nom, du type, du
- * lieu et de la date — tous déjà publics. Le score enregistré, lui, reste le
- * vrai : seul le trouveur le voit.
+ * « KOUASSI » pour « N'GUESSAN KOUASSI », « KONAN » pour « KOUAME EPSE
+ * KONAN », « YAO » pour « N'GUESSAN YAO » : on n'écrit pas toujours son nom
+ * composé ou d'épouse en entier. Chaque mot du nom le plus court doit
+ * retrouver son semblable dans l'autre, à une faute près.
  */
-export const SIM_PRENOM_NEUTRE = 0.5;
+export function simNomContenu(a: string, b: string): number {
+  const mots = (s: string) =>
+    normaliser(s)
+      .split(' ')
+      .filter((mot) => mot.length > 1 && !MOTS_ETAT_CIVIL.has(mot));
+  const [court, long] = [mots(a), mots(b)].sort((x, y) => x.length - y.length);
+  const contenance =
+    court.length === 0
+      ? 0
+      : court.filter((mot) => long.some((autre) => levenshtein(mot, autre) >= RESSEMBLANCE_MOT)).length /
+        court.length;
+  return Math.max(simNom(a, b), contenance);
+}
+
+/**
+ * Seuil de rétention quand la décision ne doit dépendre que du nom
+ * (`nomSeul`).
+ *
+ * Sur Pièci, tout ce qui dépend du prénom est un oracle : celui qui crée une
+ * alerte, ou déclare une pièce, choisit ses essais, et l'existence même d'une
+ * correspondance lui disait « chaud » ou « froid ». Retenue sur le nom seul —
+ * le type et la zone sont déjà filtrés en amont —, elle ne dit plus rien du
+ * prénom, dans un sens comme dans l'autre.
+ *
+ * Mesuré : les fautes simples (KOUASI, WATTARA pour OUATTARA, KONNÉ) et les
+ * noms composés ou d'épouse partiels passent ; KOUAME face à KOUASSI, KONAN
+ * face à KONE, non. Le score complet reste enregistré, mais n'est montré à
+ * personne.
+ */
+export const SEUIL_NOM_SEUL = 0.65;
 
 /**
  * Recherche, parmi une base de trouvailles (déjà pré-filtrée par
@@ -239,16 +270,15 @@ export const SIM_PRENOM_NEUTRE = 0.5;
 export function trouverMatches<T extends PersonnePiece>(
   perte: PersonnePiece,
   base: readonly T[],
-  options: { prenomNeutre?: boolean } = {},
+  options: { nomSeul?: boolean } = {},
 ): Array<Match<T>> {
   return base
     .map((trouvaille) => ({ ...trouvaille, ...scoreMatch(perte, trouvaille) }))
-    .filter((candidat) => {
-      const retenu = options.prenomNeutre
-        ? candidat.score + POIDS.prenom * (SIM_PRENOM_NEUTRE - simNom(perte.prenom, candidat.prenom))
-        : candidat.score;
-      return retenu >= SEUIL_AFFICHAGE;
-    })
+    .filter((candidat) =>
+      options.nomSeul
+        ? simNomContenu(perte.nom, candidat.nom) >= SEUIL_NOM_SEUL
+        : candidat.score >= SEUIL_AFFICHAGE,
+    )
     .sort((a, b) => b.score - a.score);
 }
 

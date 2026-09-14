@@ -106,9 +106,11 @@ export function Perdu() {
           // La question reste affichée sous la correspondance : la personne
           // corrige ses prénoms là, sans refaire son alerte.
           afficherToast(
-            err instanceof ApiError
-              ? `${err.message} Vérifie tes prénoms dans la question ci-dessous.`
-              : 'Une erreur est survenue, réessaie.',
+            !(err instanceof ApiError)
+              ? 'Une erreur est survenue, réessaie.'
+              : err.status === 429
+                ? err.message
+                : `${err.message} Vérifie tes prénoms dans la question ci-dessous.`,
           );
         }
       }

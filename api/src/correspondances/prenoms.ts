@@ -71,6 +71,19 @@ function associationDansLeBudget(attendus: string[], saisis: string[], budget: n
   return explorer(0, 0);
 }
 
+/**
+ * Poids d'une réponse fausse pour le compteur d'essais.
+ *
+ * Un prénom saisi en plus de ceux attendus est une hypothèse de plus : pour
+ * une pièce « Aya », « Aya Adjoua » teste deux prénoms à la fois, et compte
+ * pour deux. Plafonné à deux — une réponse plus longue ne peut de toute façon
+ * pas concorder, et ne doit pas fermer la pièce d'un seul envoi.
+ */
+export function poidsReponse(saisis: string, attendus: string): number {
+  const compter = (s: string) => nettoyer(s).split(' ').filter(Boolean).length;
+  return Math.min(1 + PRENOMS_EN_PLUS_MAX, 1 + Math.max(0, compter(saisis) - compter(attendus)));
+}
+
 /** En dessous de cette longueur, une seule faute tolérée rend le prénom devinable. */
 const LETTRES_MIN_POUR_TOLERANCE = 5;
 

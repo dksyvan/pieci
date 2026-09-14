@@ -44,14 +44,26 @@ export type {
   PointDepotApi,
 };
 
-export class ApiError extends Error {}
+/** Erreur renvoyée par l'API, avec son statut HTTP et, s'il y en a un, son code métier. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string | undefined;
+
+  constructor(message: string, status = 0, code?: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
 
 async function verifierReponse(reponse: Response): Promise<void> {
   if (reponse.ok) return;
   const corps = await reponse.json().catch(() => null);
-  const message = (corps as { message?: string | string[] } | null)?.message;
+  const { message, code } = (corps ?? {}) as { message?: string | string[]; code?: string };
   throw new ApiError(
     Array.isArray(message) ? message.join(', ') : (message ?? `Erreur ${reponse.status}`),
+    reponse.status,
+    code,
   );
 }
 

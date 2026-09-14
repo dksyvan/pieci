@@ -8,8 +8,10 @@ import {
   ParseUUIDPipe,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { LimiteVisiteur, LimiteVisiteurGuard } from '../common/limite-visiteur.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { PiecesTrouveesService } from './pieces-trouvees.service';
@@ -25,13 +27,22 @@ export class PiecesTrouveesController {
    * Ne renvoie que l'identifiant : l'entité porte le compte du déclarant,
    * retrouvé par un numéro que rien ne vérifie (voir AlertesPerteController).
    */
+  /*
+   * Quarante déclarations par visiteur sur dix minutes : la saisie en série
+   * d'un tiroir de mairie en envoie une trentaine d'affilée, une boucle de
+   * fausses déclarations au même nom bien davantage.
+   */
   @Post()
+  @UseGuards(LimiteVisiteurGuard)
+  @LimiteVisiteur('declarations', 40, 10 * 60_000)
   async create(@Body() dto: CreatePieceTrouveeDto): Promise<{ id: string }> {
     const { id } = await this.piecesTrouvees.create(dto);
     return { id };
   }
 
   @Post('photo')
+  @UseGuards(LimiteVisiteurGuard)
+  @LimiteVisiteur('photos', 40, 10 * 60_000)
   @UseInterceptors(
     FileInterceptor('photo', {
       storage: memoryStorage(),
