@@ -33,24 +33,42 @@ function nettoyer(valeur: string | null | undefined): string {
 }
 
 /**
- * Plus petite somme de distances pour associer chaque prénom attendu à un
- * prénom saisi distinct. Les listes sont courtes (bornées par l'appelant) :
- * l'exploration complète reste instantanée.
+ * Nombre de prénoms au-delà duquel on ne cherche plus d'association.
+ *
+ * L'association essaie les appariements possibles : sans borne, son coût
+ * croît comme une factorielle. Un prénom de treize lettres isolées — le champ
+ * en accepte cent caractères — occupait la boucle d'événements pendant des
+ * heures et figeait toute l'API sur une seule requête. Six prénoms couvrent
+ * les pièces réelles ; au-delà, seule l'égalité exacte compte.
  */
-function coutAssociation(attendus: string[], saisis: string[]): number {
+const PRENOMS_MAX = 6;
+
+/**
+ * L'association des prénoms attendus aux prénoms saisis coûte-t-elle au plus
+ * `budget` fautes ?
+ *
+ * L'exploration s'arrête dès que le coût partiel dépasse le budget (0 ou 1) :
+ * avec au plus six prénoms attendus et sept saisis, elle reste sous le
+ * millier d'appariements, et presque toujours bien en dessous.
+ */
+function associationDansLeBudget(attendus: string[], saisis: string[], budget: number): boolean {
   const pris = new Array<boolean>(saisis.length).fill(false);
-  const explorer = (i: number): number => {
-    if (i === attendus.length) return 0;
-    let meilleur = Number.POSITIVE_INFINITY;
+  const explorer = (i: number, cout: number): boolean => {
+    if (cout > budget) return false;
+    if (i === attendus.length) return true;
     for (let j = 0; j < saisis.length; j++) {
       if (pris[j]) continue;
+      // Une distance ne peut qu'augmenter le coût : inutile de la calculer
+      // entière quand le budget restant est déjà nul et que les chaînes diffèrent.
+      const d = budget - cout === 0 ? (attendus[i] === saisis[j] ? 0 : 1) : distance(attendus[i], saisis[j]);
       pris[j] = true;
-      meilleur = Math.min(meilleur, distance(attendus[i], saisis[j]) + explorer(i + 1));
+      const trouve = explorer(i + 1, cout + d);
       pris[j] = false;
+      if (trouve) return true;
     }
-    return meilleur;
+    return false;
   };
-  return explorer(0);
+  return explorer(0, 0);
 }
 
 /** En dessous de cette longueur, une seule faute tolérée rend le prénom devinable. */
@@ -99,6 +117,7 @@ export function prenomsConcordent(saisis: string, attendus: string): boolean {
 
   const jetonsA = a.split(' ');
   const jetonsB = b.split(' ');
+  if (jetonsB.length > PRENOMS_MAX) return false;
   if (jetonsA.length < jetonsB.length) return false;
   if (jetonsA.length > jetonsB.length + PRENOMS_EN_PLUS_MAX) return false;
 
@@ -106,5 +125,5 @@ export function prenomsConcordent(saisis: string, attendus: string): boolean {
     jetonsA.every((jeton) => jeton.length >= 2) &&
     b.replace(/ /g, '').length >= LETTRES_MIN_POUR_TOLERANCE;
 
-  return coutAssociation(jetonsB, jetonsA) <= (tolerance ? 1 : 0);
+  return associationDansLeBudget(jetonsB, jetonsA, tolerance ? 1 : 0);
 }
