@@ -1,0 +1,4 @@
+# Fichiers du moteur de lecture, recopiés depuis node_modules et vendor/ocr/
+# par scripts/copier-ocr.mjs avant chaque build (empreintes vérifiées). Ils
+# pèsent près de 13 Mo : on ne les commite pas.
+tesseract-*/

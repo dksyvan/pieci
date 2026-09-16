@@ -1,0 +1,4 @@
+# Les empreintes SHA-256 vérifiées par scripts/copier-ocr.mjs portent sur les
+# octets exacts : aucune conversion de fin de ligne à l'extraction, sinon le
+# build échouerait sur un poste Windows réglé en core.autocrlf.
+* -text

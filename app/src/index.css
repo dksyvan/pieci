@@ -1539,6 +1539,355 @@
   }
   .fiche-faits dd { text-align: right; }
 
+  /* ---- Capture de la pièce ----------------------------------------------
+     Écran d'ouverture de la déclaration (components/CapturePiece.tsx). Sur
+     téléphone, il prend tout l'écran, par-dessus l'en-tête (z 60), la barre
+     du bas (z 70), les avis (z 90) et le grain (z 100) : la personne tient la
+     pièce d'une main et le téléphone de l'autre, il ne doit lui rester qu'une
+     chose à faire. Sur ordinateur, c'est un panneau dans la colonne du
+     formulaire, sans viseur : une webcam photographie mal une carte. */
+
+  .capture {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    background: var(--color-carte);
+    border: 1px solid var(--color-encre);
+    border-radius: var(--r-bloc);
+    padding: var(--s-4);
+  }
+  /* Plein écran : téléphone en portrait, ou couché (petite hauteur, doigt). */
+  @media (max-width: 720px), (pointer: coarse) and (max-height: 520px) {
+    .capture {
+      position: fixed;
+      inset: 0;
+      z-index: 101;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border: 0;
+      background: var(--color-papier);
+      padding: calc(var(--s-3) + env(safe-area-inset-top)) var(--marge)
+        calc(var(--s-3) + env(safe-area-inset-bottom));
+    }
+  }
+
+  /* « Retour » et la cote ne servent qu'en plein écran, où l'en-tête du site
+     est recouvert. Dans la page, la tête de section dit déjà où l'on est. */
+  .capture-tete { display: none; }
+  @media (max-width: 720px), (pointer: coarse) and (max-height: 520px) {
+    .capture-tete {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--s-2) var(--s-3);
+    }
+  }
+  /* Petit écran : chaque ligne gagnée va au viseur. */
+  @media (max-width: 720px) and (max-height: 640px) {
+    .capture-tete .cote { display: none; }
+  }
+
+  .capture-titre {
+    font-size: var(--t-sub);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+  }
+  /* Le titre reçoit le focus pour annoncer l'écran ; ce n'est pas un
+     contrôle, il ne porte donc pas d'anneau. */
+  .capture-titre:focus { outline: none; }
+  /* L'aide colle à son titre : l'écart général de l'écran l'en décollerait. */
+  .capture-aide { margin-top: calc(6px - var(--s-3)); }
+
+  /* Le viseur. Sa boîte est dessinée par la mise en page, jamais par la
+     vidéo, posée en absolu : la caméra peut changer de résolution sans que
+     rien ne saute. `container-type` laisse le cadre se régler sur les deux
+     côtés de la boîte à la fois. */
+  .viseur {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    max-height: 62vh;
+    overflow: hidden;
+    container-type: size;
+    background: var(--color-encre);
+    border: 1px solid var(--color-encre);
+  }
+  @media (max-width: 720px), (pointer: coarse) and (max-height: 520px) {
+    .viseur {
+      flex: 1 1 0;
+      aspect-ratio: auto;
+      min-height: 190px;
+      max-height: none;
+    }
+  }
+
+  .viseur-video {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* Couvre la boîte, centrée : c'est exactement la transformation que
+       zoneSource() (lib/lecture/camera.ts) inverse pour recadrer la photo.
+       Changer l'une sans l'autre décale le recadrage. */
+    object-fit: cover;
+  }
+
+  /* Cadre de visée au format d'une carte (85,6 × 54 mm), centré au-dessus de
+     la bande de consigne (34 px). Sa largeur suit le côté le plus contraint :
+     84 % de la largeur, ou la hauteur libre moins 14 px de chaque côté. Rien
+     d'autre ne se pose dans le viseur, pour que le cadre garde ses 84 % même
+     sur un écran de 568 px de haut. */
+  .cadre {
+    position: absolute;
+    left: 50%;
+    top: calc(50% - 17px);
+    width: 84%;
+    width: min(84cqw, (100cqh - 62px) * 1.5852);
+    aspect-ratio: 85.6 / 54;
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--color-papier);
+    /* Voile sur tout ce qui sort du cadre, rogné par la boîte du viseur. Un
+       masque, pas une ombre : la règle d'élévation tient. Papier sur voile
+       au-dessus d'une image blanche : 3,4:1. */
+    box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--color-encre) 55%, transparent);
+    pointer-events: none;
+  }
+
+  /* Consigne sur bande d'encre à 82 % : 8,3:1 même sur une image blanche. */
+  .viseur-consigne {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 7px var(--s-3);
+    font-family: var(--font-util);
+    font-weight: 600;
+    font-size: var(--t-micro);
+    line-height: 20px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-papier);
+    background: color-mix(in srgb, var(--color-encre) 82%, transparent);
+  }
+
+  /* Au repos (caméra pas encore ouverte, ou appareil photo du système) : une
+     silhouette de carte sur papier, qui montre où viser avant d'ouvrir quoi
+     que ce soit, et ouvre la caméra au toucher. */
+  .viseur-repos {
+    background: var(--color-papier-2);
+    border-style: dashed;
+    border-color: var(--color-filet-2);
+    cursor: pointer;
+  }
+  .viseur-repos .viseur-video { visibility: hidden; }
+  .viseur-repos .cadre {
+    border: 1px dashed var(--color-encre-2);
+    box-shadow: none;
+  }
+  .viseur-repos .viseur-consigne {
+    background: transparent;
+    color: var(--color-sourdine);
+  }
+  /* Ordinateur : rien à viser. */
+  @media (hover: hover) and (pointer: fine) {
+    .viseur-repos { display: none; }
+  }
+
+  .capture-actions {
+    display: grid;
+    gap: var(--s-2);
+  }
+  .capture-appareil,
+  .capture-galerie { position: relative; }
+  .capture-actions .btn { min-height: 48px; }
+  /* Déclencheur et lampe sur une rangée : le déclencheur prend la place. */
+  .capture-appareil { display: flex; gap: var(--s-2); }
+  .capture-appareil .btn-large { flex: 1 1 auto; width: auto; }
+  .capture-lampe { flex: none; }
+  /* Lampe allumée : même bascule que `.btn-installer` ouvert, au rouge du cachet. */
+  .capture-lampe[aria-pressed='true'] {
+    background: var(--color-cachet);
+    border-color: var(--color-cachet);
+    color: var(--color-papier);
+  }
+  /* Les inputs de fichier sont hors écran mais focalisables : c'est leur
+     libellé qui porte le dessin du bouton, et donc l'anneau de focus. */
+  .capture-fichier:focus-visible + .btn {
+    outline: 2px solid var(--color-cachet);
+    outline-offset: 2px;
+  }
+  /* Caméra en cours d'ouverture : le déclencheur est là, pas encore actif. */
+  .capture .btn[aria-disabled='true'] { opacity: 0.4; cursor: progress; }
+  .capture .btn-plein[aria-disabled='true']:hover {
+    background: var(--color-encre);
+    border-color: var(--color-encre);
+  }
+
+  .capture-glisser { display: none; }
+  /* Ordinateur : pas d'appareil photo, le choix d'image passe au premier plan
+     dans une zone de dépôt — le dessin de `.depot`. */
+  @media (hover: hover) and (pointer: fine) {
+    .capture-appareil { display: none; }
+    .capture-galerie {
+      display: grid;
+      gap: var(--s-2);
+      padding: var(--s-4);
+      border: 1px dashed var(--color-filet-2);
+      background: var(--color-papier);
+      transition: border-color 140ms var(--e-micro), background-color 140ms var(--e-micro);
+    }
+    .capture-galerie .btn {
+      background: var(--color-encre);
+      color: var(--color-papier);
+    }
+    .capture-galerie .btn:hover {
+      background: var(--color-cachet);
+      border-color: var(--color-cachet);
+    }
+    .capture-glisser {
+      display: block;
+      font-size: var(--t-fine);
+      color: var(--color-sourdine);
+    }
+    .capture[data-glisse] .capture-galerie {
+      border-color: var(--color-encre);
+      background: var(--color-papier-2);
+    }
+  }
+
+  .capture-sorties {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+  }
+
+  /* Lecture en cours : un gabarit de carte, jamais l'image. On ne sait pas
+     encore si c'est le dos d'une carte, et un dos ne s'affiche pas. */
+  .capture-lecture {
+    display: grid;
+    align-content: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 360px;
+    aspect-ratio: 85.6 / 54;
+    padding: var(--s-4);
+    border: 1px solid var(--color-filet-2);
+    background: var(--color-papier);
+  }
+  .capture-lecture .squelette { display: block; height: 9px; }
+  .capture-lecture .squelette:nth-child(1) { width: 72%; }
+  .capture-lecture .squelette:nth-child(2) { width: 54%; }
+  .capture-lecture .squelette:nth-child(3) { width: 38%; }
+  @media (prefers-reduced-motion: reduce) {
+    /* Un gabarit immobile dit la même chose sans balayer l'écran. */
+    .capture-lecture .squelette { animation: none; }
+  }
+
+  /* Photo précédente, à l'écran de reprise seulement. */
+  .capture-prise {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin: 0;
+  }
+  .capture-apercu {
+    display: block;
+    width: 120px;
+    height: 76px;
+    object-fit: cover;
+    border: 1px solid var(--color-filet-2);
+    background: var(--color-papier-2);
+    flex: none;
+  }
+  .capture-apercu:not([src]) { visibility: hidden; }
+
+  /* ---- Champs remplis par la lecture de la photo -------------------------
+     Un champ lu est « à relire », pas « vérifié » : ambre, comme « En
+     attente » (`.p-ambre`), et non le vert du constat. Même grammaire que
+     `.constat` et `.erreur` : filet gauche et fond léger. Marquage attendu :
+
+       <div class="champ lu">
+         <label for="nom">Nom (comme sur la pièce)</label>
+         <span class="lu-marque" id="nom-lu">Lu sur la photo</span>
+         <input id="nom" aria-describedby="nom-lu nom-invite" />
+         <p class="aide" id="nom-invite">Remets les accents, l’apostrophe…</p>
+       </div>
+
+     La marque est hors du libellé, pour ne pas s'ajouter au nom accessible
+     du champ, et le suit sur la même ligne tant qu'il y a la place. Retirer
+     la classe `lu` dès la première modification. */
+
+  .champ.lu {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--s-2);
+  }
+  .champ.lu > * { flex: 1 1 100%; }
+  .champ.lu > label,
+  .champ.lu > .lu-marque { flex: 0 1 auto; }
+
+  /* Ambre sur carte 5,50:1, sur papier 5,14:1. */
+  .lu-marque {
+    display: inline-block;
+    margin-bottom: 5px;
+    font-family: var(--font-util);
+    font-weight: 600;
+    font-size: var(--t-micro);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-ambre);
+  }
+  /* Pictogramme tracé à la grille des Icones (24, trait 1,4, angles carrés) :
+     coins de visée et deux lignes de texte. Posé en masque pour prendre la
+     couleur du texte ; décoratif, il n'existe pas pour les lecteurs d'écran. */
+  .lu-marque::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 5px;
+    vertical-align: -3px;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='square'%3E%3Cpath d='M4 8.5V4h4.5M15.5 4H20v4.5M20 15.5V20h-4.5M8.5 20H4v-4.5'/%3E%3Cpath d='M8 10h8M8 14h5'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='square'%3E%3Cpath d='M4 8.5V4h4.5M15.5 4H20v4.5M20 15.5V20h-4.5M8.5 20H4v-4.5'/%3E%3Cpath d='M8 10h8M8 14h5'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+
+  /* Teinte ambre plafonnée à 8 % : le texte indicatif y tient 4,51:1 (AA),
+     et tombe à 4,39:1 à 10 %. L'encre y fait 13,2:1. La teinte seule est
+     invisible (1,11:1 contre le papier) : le filet (4,6:1) et la marque
+     portent le signal, jamais la couleur seule. */
+  .champ.lu input,
+  .champ.lu select,
+  .champ.lu textarea {
+    background-color: color-mix(in srgb, var(--color-ambre) 8%, var(--color-papier));
+    border-left: 2px solid var(--color-ambre);
+    /* Le filet passe de 1 à 2 px : le texte ne bouge pas d'un pixel. */
+    padding-left: 10px;
+  }
+  .champ.lu input:focus-visible,
+  .champ.lu select:focus-visible,
+  .champ.lu textarea:focus-visible { background-color: var(--color-carte); }
+  /* Un champ lu mais signalé manquant reste d'abord un champ en erreur. */
+  .champ.lu input[aria-invalid='true'],
+  .champ.lu select[aria-invalid='true'] { border-left-color: var(--color-cachet); }
+
+  /* ---- Accessibilité ----------------------------------------------------- */
+
+  /* Hors de l'écran, mais lu par les lecteurs d'écran et focalisable. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
 }
 
 /* Le mouvement est un confort, jamais une condition d'usage */

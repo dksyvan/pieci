@@ -1,0 +1,33 @@
+Modèle de lecture des bandes à chevrons (MRZ) — provenance
+==========================================================
+
+Ce dossier est la seule copie, dans le dépôt, d'un fichier du moteur de
+lecture qui ne vient pas de npm. Tout le reste (tesseract.js, son cœur WASM,
+le modèle « fra ») est installé par npm à version exacte, puis copié au build
+par app/scripts/copier-ocr.mjs, qui vérifie les empreintes de TOUS les
+fichiers, celui-ci compris.
+
+mrz.traineddata
+  Source      : dépôt GitHub DoubangoTelecom/tesseractMRZ, branche master,
+                chemin tessdata_fast/mrz.traineddata (dépôt archivé, dernière
+                modification le 05/01/2020).
+  Licence     : BSD-3-Clause, texte complet dans LICENSE-tesseractMRZ.txt
+                (copie du fichier LICENSE du même dépôt). L'avis doit
+                accompagner toute redistribution du modèle : le script de copie
+                le recopie dans LICENCES.txt, servi à côté du modèle.
+  Taille      : 1 452 847 octets (1,28 Mo une fois recompressé en gzip).
+  SHA-256     : ece2a54f125a73792f9cec74e6f8e62f6e5e00c7f19153ba865af689be5b5f01
+  Blob git    : 114e152ba03c28bb8ced3227004119a0109ae29c — identique à
+                l'identifiant que l'API GitHub donne pour ce chemin : l'octet
+                près, c'est le fichier publié par l'auteur.
+  Relevé le   : 16/09/2026.
+
+Pourquoi ce modèle : c'est le seul modèle entier (« fast ») sous licence
+libre trouvé par l'enquête. Les modèles à virgule flottante font planter le
+cœur de tesseract.js 7 ; « ocrb_int » n'a aucune licence ; « eng » lit le
+chevron « K » ou « L » (41 à 66 % d'erreurs mesurées sur la bande).
+
+Mise à jour : remplacer le fichier, puis corriger son empreinte dans
+app/scripts/copier-ocr.mjs ET ajouter une révision au nom du dossier servi
+(constante REVISION du script), sans quoi les téléphones qui ont déjà le
+modèle en cache garderaient l'ancien.

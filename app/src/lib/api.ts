@@ -113,10 +113,31 @@ export function creerPieceTrouvee(donnees: NouvellePieceTrouvee): Promise<{ id: 
   return requete('/pieces-trouvees', { method: 'POST', body: JSON.stringify(donnees) });
 }
 
-/** Téléverse la photo d'une pièce trouvée ; le serveur génère aussi la version floutée. */
-export async function uploaderPhotoPiece(fichier: File): Promise<PhotoUploadee> {
+/**
+ * Nom de fichier neutre, tiré du seul type. Celui que donne le téléphone
+ * (« IMG_20260916_101422.jpg », un nom de galerie…) n'apprend rien d'utile au
+ * serveur, et la photo réduite par la lecture n'en a de toute façon aucun : un
+ * `Blob` sans nom part sous le nom « blob ». Le serveur, lui, ne se fie qu'au
+ * type et renomme le fichier à l'enregistrement.
+ */
+function nomPhoto(type: string): string {
+  if (type === 'image/png') return 'photo.png';
+  if (type === 'image/webp') return 'photo.webp';
+  return 'photo.jpg';
+}
+
+/**
+ * Téléverse la photo d'une pièce trouvée ; le serveur génère aussi la version floutée.
+ *
+ * `image` est normalement la photo réduite par la lecture dans le navigateur
+ * (JPEG, côté long ≤ 1600 px — voir `lib/lecture`) : 150 à 250 Ko au lieu des
+ * 2 à 4 Mo d'une photo de téléphone. Sans verdict de lecture, rien ne part :
+ * une image ne quitte le téléphone que si une lecture a dit que ce n'est pas le
+ * dos d'une carte (voir `decisionEnvoi`, lib/lecture/declaration.ts).
+ */
+export async function uploaderPhotoPiece(image: Blob): Promise<PhotoUploadee> {
   const formData = new FormData();
-  formData.append('photo', fichier);
+  formData.append('photo', image, nomPhoto(image.type));
 
   const reponse = await fetch(`${BASE_URL}/pieces-trouvees/photo`, { method: 'POST', body: formData });
   await verifierReponse(reponse);

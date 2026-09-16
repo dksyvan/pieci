@@ -53,6 +53,57 @@ registerRoute(
   }),
 );
 
+/**
+ * Fichiers du moteur de lecture de la pièce (worker, cœur WebAssembly,
+ * modèles), servis par notre origine sous /ocr/<dossier versionné>/ — voir
+ * scripts/copier-ocr.mjs et src/lib/lecture/moteur.ts.
+ *
+ * Exclus du précache (vite.config.ts) : ~6 Mo que seuls les déclarants
+ * utilisent. Mis en cache à la première lecture, puis servis sans réseau :
+ * une deuxième déclaration, ou une nouvelle tentative après une photo ratée,
+ * ne retélécharge pas 2 Mo sur un forfait mobile. CacheFirst convient parce
+ * que le contenu d'une URL ne change jamais : le nom du dossier porte la
+ * version, et le cache aussi. À la version suivante, l'ancien cache est
+ * supprimé à l'activation (voir plus bas).
+ *
+ * Ces fichiers ne contiennent rien de personnel : les photos ne passent jamais
+ * par ici (la lecture se fait en mémoire, et seules les requêtes GET sont
+ * interceptées).
+ */
+const DOSSIER_OCR = __OCR_DOSSIER__;
+const PREFIXE_CACHE_OCR = 'pieci-ocr-';
+const CACHE_OCR = `${PREFIXE_CACHE_OCR}${DOSSIER_OCR}`;
+
+/**
+ * Ne met en cache qu'une vraie réponse de fichier. Un fichier absent du
+ * déploiement n'est pas une 404 chez Cloudflare : le repli « single-page
+ * application » (wrangler.toml) répond index.html avec un statut 200. Mis en
+ * cache en CacheFirst, ce HTML prendrait la place du modèle jusqu'à la version
+ * suivante ; on le refuse, et la lecture échoue proprement (saisie à la main).
+ */
+const reponseDeFichier = {
+  cacheWillUpdate: async ({ response }) => {
+    if (!response || response.status !== 200 || response.type === 'opaqueredirect' || response.redirected) return null;
+    const type = response.headers.get('content-type') ?? '';
+    return type.includes('text/html') ? null : response;
+  },
+};
+
+registerRoute(
+  ({ url, request }) =>
+    url.origin === self.location.origin && url.pathname.startsWith(`/ocr/${DOSSIER_OCR}/`) && request.method === 'GET',
+  new CacheFirst({
+    cacheName: CACHE_OCR,
+    plugins: [
+      reponseDeFichier,
+      // Un appareil n'en garde que 4 par version (worker, la variante du cœur
+      // qu'il exécute, deux modèles) : la borne ne sert que de garde-fou
+      // contre une accumulation imprévue.
+      new ExpirationPlugin({ maxEntries: 12 }),
+    ],
+  }),
+);
+
 // Tuiles de carte OpenStreetMap : mise en cache longue durée.
 registerRoute(
   ({ url }) => url.hostname.endsWith('tile.openstreetmap.org'),
@@ -68,7 +119,16 @@ registerRoute(
 self.skipWaiting();
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    Promise.all(CACHES_PERIMES.map((nom) => caches.delete(nom))).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((noms) =>
+        Promise.all([
+          ...CACHES_PERIMES.map((nom) => caches.delete(nom)),
+          // Moteur de lecture d'une version précédente : plusieurs Mo inutiles.
+          ...noms.filter((nom) => nom.startsWith(PREFIXE_CACHE_OCR) && nom !== CACHE_OCR).map((nom) => caches.delete(nom)),
+        ]),
+      )
+      .then(() => self.clients.claim()),
   );
 });
 
