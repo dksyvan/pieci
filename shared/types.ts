@@ -16,6 +16,33 @@ export const TYPES_PIECE: TypePiece[] = [
   'Carte consulaire',
 ];
 
+/**
+ * Raisons pour lesquelles une déclaration part sans photo de la pièce.
+ *
+ * Liste fermée, sans texte libre : elle sert à mesurer combien de personnes
+ * empruntent la sortie « sans photo », et pourquoi, pour savoir si l'on peut
+ * rendre la photo obligatoire. `non_precisee` n'est jamais proposée à l'écran :
+ * le formulaire la pose lui-même quand on publie via « Saisir à la main » sans
+ * photo ni raison, au lieu de bloquer. Le sens de chaque valeur est détaillé
+ * dans le jumeau de l'API.
+ *
+ * Jumeau de `api/src/pieces-trouvees/raisons-photo.ts` : l'API se compile
+ * seule et ne peut pas importer ce fichier. Les deux listes sont comparées par
+ * `api/src/pieces-trouvees/pieces-trouvees.service.test.ts`, qui lit celle-ci
+ * en texte — garder la forme `[ 'a', 'b', … ] as const` sur une seule
+ * déclaration. Toute valeur hors liste est refusée par l'API (400).
+ */
+export const RAISONS_PHOTO_ABSENTE = [
+  'plus_en_main',
+  'appareil',
+  'photo_ratee',
+  'prefere_pas',
+  'autre',
+  'non_precisee',
+] as const;
+
+export type RaisonPhotoAbsente = (typeof RAISONS_PHOTO_ABSENTE)[number];
+
 /** Coordonnées géographiques (latitude / longitude). */
 export interface Coordonnees {
   lat: number;

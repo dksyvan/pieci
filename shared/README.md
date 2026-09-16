@@ -15,6 +15,9 @@ plateforme — ni `document`, ni `window`, ni `react-native`, ni
 | `format.ts` | Dates relatives, numéros, cadrage des compteurs |
 | `dons.ts` | Coordonnées mobile money et lien Wave |
 | `vitrine.ts` | Seuils d'affichage de la page d'accueil |
+| `mrz.ts` | Lecture de la bande MRZ (passeport, carte) : nom, prénoms, type — rien d'autre ne sort |
+| `recto.ts` | Lecture du texte d'un recto : nom, prénoms, type, repérés par leurs libellés |
+| `fusion-lecture.ts` | Réunit les deux lectures : découpage de la MRZ, orthographe du recto |
 
 ## Ce qui n'est délibérément pas ici
 

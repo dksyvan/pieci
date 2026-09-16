@@ -1,7 +1,9 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { installerGestionDesErreurs } from './common/filtre-exceptions';
 
 /**
  * Origines autorisées à appeler l'API.
@@ -26,8 +28,14 @@ function originesAutorisees(): string[] | true {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Analyseurs de corps posés par installerGestionDesErreurs, pas par Nest :
+  // c'est ce qui permet d'intercepter leurs erreurs avant qu'un JSON mal formé
+  // ne soit recopié dans la réponse. Voir common/filtre-exceptions.ts.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
   app.enableCors({ origin: originesAutorisees() });
+  // Avant tout déploiement : sans ce filtre, une erreur SQL écrit les valeurs
+  // de la requête (noms, prénoms, commune) dans les journaux de l'hébergeur.
+  installerGestionDesErreurs(app);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   await app.listen(process.env.PORT ?? 3000);
 }

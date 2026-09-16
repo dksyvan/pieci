@@ -21,6 +21,11 @@ interface RecuExpo {
 
 @Injectable()
 export class PushService {
+  /**
+   * Jamais de numéro de téléphone dans ces messages : c'est la clé du compte,
+   * et les journaux de l'hébergeur sont conservés et consultables hors de la
+   * base. On écrit l'identifiant de l'abonnement ou la taille du lot.
+   */
   private readonly logger = new Logger(PushService.name);
   private readonly webActif: boolean;
 
@@ -119,7 +124,7 @@ export class PushService {
             if (err.statusCode === 410) {
               await this.subscriptions.delete(sub.id);
             } else {
-              this.logger.warn(`Web Push échoué pour ${telephone}: ${err.message}`);
+              this.logger.warn(`Web Push échoué (abonnement ${sub.id}) : ${err.message}`);
             }
             return false;
           }),
@@ -157,7 +162,7 @@ export class PushService {
         });
 
         if (!reponse.ok) {
-          this.logger.warn(`Expo Push a répondu ${reponse.status} pour ${telephone}`);
+          this.logger.warn(`Expo Push a répondu ${reponse.status} (lot de ${lot.length} jeton(s))`);
           continue;
         }
 
@@ -165,7 +170,7 @@ export class PushService {
         recus = corps.data ?? [];
       } catch (err) {
         this.logger.warn(
-          `Expo Push injoignable pour ${telephone}: ${err instanceof Error ? err.message : err}`,
+          `Expo Push injoignable (lot de ${lot.length} jeton(s)) : ${err instanceof Error ? err.message : err}`,
         );
         continue;
       }
@@ -184,7 +189,11 @@ export class PushService {
         if (recu.status === 'ok') {
           acceptes += 1;
         } else if (recu.details?.error !== 'DeviceNotRegistered') {
-          this.logger.warn(`Expo Push refusé (${lot[index]?.jeton}): ${recu.message ?? '—'}`);
+          // Ni le jeton de l'appareil, ni le message d'Expo, qui le recopie :
+          // l'identifiant interne et le code d'erreur suffisent à enquêter.
+          this.logger.warn(
+            `Expo Push refusé (jeton ${lot[index]?.id ?? '?'}) : ${recu.details?.error ?? 'raison inconnue'}`,
+          );
         }
       });
     }

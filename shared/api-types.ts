@@ -1,4 +1,4 @@
-import type { TypePiece } from './types';
+import type { RaisonPhotoAbsente, TypePiece } from './types';
 
 /**
  * Formes échangées avec l'API NestJS.
@@ -82,6 +82,12 @@ export interface NouvellePieceTrouvee {
   pointDepotAutre?: string;
   photoOriginaleUrl?: string;
   photoFlouteeUrl?: string;
+  /**
+   * Pourquoi la déclaration part sans photo — une valeur de la liste fermée,
+   * jamais de texte libre. L'API l'efface dès qu'une photo floutée accompagne
+   * la déclaration, et ne la renvoie nulle part : elle ne sert qu'à la mesure.
+   */
+  photoAbsenteRaison?: RaisonPhotoAbsente;
 }
 
 /** URLs des deux versions d'une photo téléversée. */

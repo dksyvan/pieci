@@ -42,6 +42,15 @@ export class PiecesTrouveesService {
       pointDepotAutre: dto.pointDepotId ? null : (dto.pointDepotAutre ?? null),
       photoOriginaleUrl: dto.photoOriginaleUrl ?? null,
       photoFlouteeUrl: dto.photoFlouteeUrl ?? null,
+      /*
+       * Une raison d'absence de photo n'a de sens que sans photo. Le formulaire
+       * peut en envoyer une quand même — raison choisie, puis photo prise
+       * malgré tout, état resté en mémoire — et la mesure compterait alors
+       * une déclaration illustrée parmi les « sans photo ». C'est le serveur
+       * qui tranche, comme pour le point de dépôt juste au-dessus : la photo
+       * floutée, seule publiée, l'emporte.
+       */
+      photoAbsenteRaison: dto.photoFlouteeUrl ? null : (dto.photoAbsenteRaison ?? null),
     });
 
     const saved = await this.piecesTrouvees.save(piece);

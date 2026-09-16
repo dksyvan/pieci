@@ -33,7 +33,8 @@ export class MessagerieService {
     if (joint) return;
 
     if (payants.length === 0) {
-      this.logger.debug(`Aucun canal n'a pu joindre ${telephone}`);
+      // Sans le numéro : il identifie la personne et n'aide pas au diagnostic.
+      this.logger.debug("Aucun canal n'a pu joindre le destinataire");
       return;
     }
 

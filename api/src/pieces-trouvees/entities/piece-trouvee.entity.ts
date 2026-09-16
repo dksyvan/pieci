@@ -14,6 +14,7 @@ import { Utilisateur } from '../../utilisateurs/entities/utilisateur.entity';
 import { PointDepot } from '../../points-depot/entities/point-depot.entity';
 import { Correspondance } from '../../correspondances/entities/correspondance.entity';
 import { GeoJsonPoint } from '../../common/geo/geo.util';
+import { RaisonPhotoAbsente } from '../raisons-photo';
 
 @Entity('pieces_trouvees')
 @Index(['statut', 'typePiece'])
@@ -65,6 +66,18 @@ export class PieceTrouvee {
 
   @Column({ type: 'varchar', name: 'photo_floutee_url', length: 500, nullable: true })
   photoFlouteeUrl: string | null;
+
+  /**
+   * Pourquoi la déclaration est partie sans photo, dans une liste fermée
+   * (voir `raisons-photo.ts`). NULL quand la question n'a pas été posée —
+   * notamment dès qu'une photo floutée accompagne la déclaration : les deux
+   * s'excluent, comme `pointDepot` et `pointDepotAutre`.
+   *
+   * Sert à la mesure, jamais à l'affichage : la colonne est hors de
+   * `v_pieces_trouvees_publiques`, et aucune réponse de l'API ne la renvoie.
+   */
+  @Column({ type: 'varchar', name: 'photo_absente_raison', length: 30, nullable: true })
+  photoAbsenteRaison: RaisonPhotoAbsente | null;
 
   @Column({
     type: 'enum',

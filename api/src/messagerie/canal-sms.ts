@@ -55,9 +55,9 @@ export class CanalSms implements CanalNotification {
     try {
       return await this.appelerFournisseur(destinataire, texte);
     } catch (err) {
-      this.logger.warn(
-        `SMS échoué pour ${destinataire} : ${err instanceof Error ? err.message : err}`,
-      );
+      // Ni le numéro, ni le message de l'erreur, qui peut le recopier : le
+      // type d'erreur suffit à savoir qu'il faut regarder la passerelle.
+      this.logger.warn(`SMS échoué (${err instanceof Error ? err.name : 'erreur inconnue'})`);
       return false;
     }
   }
@@ -104,8 +104,10 @@ export class CanalSms implements CanalNotification {
     );
 
     if (!reponse.ok) {
-      const detail = await reponse.text().catch(() => '');
-      this.logger.warn(`Passerelle SMS a répondu ${reponse.status} : ${detail.slice(0, 200)}`);
+      // Le corps est lu pour libérer la connexion, jamais journalisé : les
+      // passerelles y recopient volontiers le numéro destinataire.
+      await reponse.text().catch(() => '');
+      this.logger.warn(`Passerelle SMS a répondu ${reponse.status}`);
       return false;
     }
 
