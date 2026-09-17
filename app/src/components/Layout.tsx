@@ -39,8 +39,10 @@ const SECONDAIRES: Onglet[] = [
   { chemin: '/trouvees', label: 'Registre', court: 'Registre', Icone: IconeRegistre, mobile: true },
   { chemin: '/carte', label: 'Carte', court: 'Carte', Icone: IconeCarte, mobile: false },
   { chemin: '/suivi', label: 'Suivi', court: 'Suivi', Icone: IconeSuivi, mobile: true },
-  // Hors barre mobile, deja pleine : les guides se lisent posement, depuis
-  // le pied de page ou depuis un resultat de recherche.
+  // Hors barre mobile, deja pleine — mais dans l'en-tete, a toutes les
+  // largeurs (voir la navigation principale plus bas) : quelqu'un qui arrive
+  // en cherchant « que faire » ne sait pas que ces pages existent, et le pied
+  // de page suppose qu'il a deja fait defiler toute la page pour s'en douter.
   { chemin: '/guides', label: 'Guides', court: 'Guides', Icone: IconeGuide, mobile: false },
 ];
 
@@ -77,6 +79,16 @@ export function Layout() {
                 {label}
               </NavLink>
             ))}
+            {/* Le seul onglet qui survit sous 980px : les deux actions sont
+                déjà dans la barre du bas, les guides n'y tiennent pas, et
+                sans lui ils ne seraient atteignables que par le pied de
+                page — c'est-à-dire par personne. */}
+            <NavLink
+              to="/guides"
+              className={({ isActive }) => 'onglet onglet-guides' + (isActive ? ' actif' : '')}
+            >
+              Guides
+            </NavLink>
           </nav>
           <BoutonInstaller />
         </div>

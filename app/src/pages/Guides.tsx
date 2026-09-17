@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { RUBRIQUES } from '../contenu';
+import { RUBRIQUES_PUBLIEES } from '../contenu';
 import { IconeFleche } from '../components/Icones';
 
 /**
@@ -21,7 +21,7 @@ export function Guides() {
         </p>
       </div>
 
-      {RUBRIQUES.map((rubrique) => (
+      {RUBRIQUES_PUBLIEES.map((rubrique) => (
         <div key={rubrique.titre} className="guides-rubrique">
           <h2>{rubrique.titre}</h2>
           <p className="guides-rubrique-intro">{rubrique.intro}</p>

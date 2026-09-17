@@ -59,6 +59,11 @@ async function main() {
     const { rendre } = await vite.ssrLoadModule('/src/entry-static.tsx');
     const { PAGES_FIXES, PAGES_NON_INDEXEES } = await vite.ssrLoadModule('/src/contenu/pages.ts');
     const { GUIDES } = await vite.ssrLoadModule('/src/contenu/index.ts');
+    // `texteBrut` réduit un texte enrichi à sa chaîne visible. Le balisage
+    // structuré passe obligatoirement par elle : c'est ce qui garantit qu'un
+    // `FAQPage` déclare exactement ce que le visiteur lit, condition posée par
+    // Google et impossible à tenir avec deux listes tenues séparément.
+    const { texteBrut } = await vite.ssrLoadModule('/src/contenu/types.ts');
     const { PAGES_REGISTRE } = await vite.ssrLoadModule('/src/contenu/registre.ts');
 
     const origine = (process.env.VITE_SITE_URL || 'https://pieci.ci').replace(/\/+$/, '');
@@ -79,7 +84,12 @@ async function main() {
         chemin: `/guides/${g.slug}`,
         titre: `${g.titre} | Pièci`,
         description: g.description,
-        priorite: '0.8',
+        // Un brouillon est écrit comme les autres — c'est ce qui permet de le
+        // relire en ligne, dans sa vraie mise en page. Mais sans priorité : il
+        // reçoit alors `noindex` et n'entre pas au sitemap, par le même
+        // mécanisme que /suivi. Publier revient à retirer le drapeau dans
+        // src/contenu/guides-brouillons.ts, et rien d'autre.
+        priorite: g.brouillon ? null : '0.8',
         guide: g,
       })),
       ...PAGES_REGISTRE.map((p) => ({
@@ -94,10 +104,31 @@ async function main() {
 
     const echecs = [];
 
+    /**
+     * Efface la pile d'appels que React laisse dans le HTML pré-rendu.
+     *
+     * Une page chargée en `lazy()` sous un `Suspense` ne se rend pas jusqu'au
+     * bout avec `renderToString` : React insère alors un `<template>` portant
+     * le message d'erreur (`data-msg`) et la pile d'appels de la machine qui a
+     * compilé (`data-cstck`) — soit `file:///C:/Users/…`. Invisible à l'écran,
+     * présent dans la source de la page publiée : le nom de compte et
+     * l'arborescence du poste de build se retrouvent en ligne.
+     *
+     * Seul `data-cstck` part. Le gabarit et son `data-msg` restent : c'est à
+     * eux que React reconnaît une zone qu'il doit rendre côté navigateur. Les
+     * supprimer transforme un repli prévu ("switched to client rendering") en
+     * vraie erreur d'hydratation, vérifié en comparant la console avec celle
+     * de la production.
+     */
+    function sansDiagnosticReact(html) {
+      return html.replace(/ data-cstck="[^"]*"/g, '');
+    }
+
     for (const page of pages) {
       let corps;
       try {
         corps = renderToString(rendre(page.chemin));
+        corps = sansDiagnosticReact(corps);
       } catch (err) {
         // Une page qui refuse de se rendre hors navigateur (Leaflet, par
         // exemple) ne doit pas faire tomber le build : elle reste servie par
@@ -117,6 +148,11 @@ async function main() {
       const descriptionPartage = page.descriptionPartage ?? page.description;
 
       html = remplacerMeta(html, 'description', page.description);
+      // Un guide est un article, pas le site. La distinction n'est pas
+      // cosmétique : elle est ce qui autorise Facebook et LinkedIn à afficher
+      // l'aperçu comme une publication datée plutôt que comme une page
+      // d'accueil, et elle accompagne le balisage `Article` plus bas.
+      html = remplacerMeta(html, 'og:type', page.guide ? 'article' : 'website', 'property');
       html = remplacerMeta(html, 'og:title', titrePartage, 'property');
       html = remplacerMeta(html, 'og:description', descriptionPartage, 'property');
       html = remplacerMeta(html, 'og:url', canonique, 'property');
@@ -135,7 +171,7 @@ async function main() {
       html = html.replace(
         '</head>',
         `  <link rel="canonical" href="${attr(canonique)}" />\n${noindex}${
-          page.guide ? donneesGuide(page.guide, canonique, origine) : ''
+          page.guide ? donneesGuide(page.guide, canonique, origine, texteBrut) : ''
         }  </head>`,
       );
 
@@ -148,8 +184,18 @@ async function main() {
 
     await ecrireSitemap(pages, origine);
     await ecrireRobots(origine);
+    const redirections = await ecrireRedirections(GUIDES, echecs);
+
+    const brouillons = GUIDES.filter((g) => g.brouillon).map((g) => g.slug);
 
     console.log(`Pré-rendu : ${pages.length - echecs.length}/${pages.length} pages écrites`);
+    console.log(`  sitemap : ${pages.filter((p) => p.priorite !== null).length} URL`);
+    if (redirections) console.log(`  redirections : ${redirections}`);
+    // Dit à voix haute, parce que c'est exactement ce qu'on oublie : une page
+    // laissée en brouillon des mois après que sa procédure a été confirmée.
+    for (const slug of brouillons) {
+      console.log(`  brouillon (noindex, hors sitemap, hors index) : /guides/${slug}`);
+    }
     for (const e of echecs) console.warn(`  non pré-rendue : ${e}`);
   } finally {
     await vite.close();
@@ -206,20 +252,33 @@ async function ecrireRobots(origine) {
   await writeFile(join(dist, 'robots.txt'), contenu, 'utf8');
 }
 
-/** Balisage structuré d'un guide : article + fil d'Ariane. */
-function donneesGuide(guide, canonique, origine) {
+/**
+ * Balisage structuré d'un guide : article, fil d'Ariane, et questions
+ * fréquentes quand le guide en porte.
+ *
+ * `texteBrut` est passé en paramètre plutôt qu'importé : ce script tourne dans
+ * Node, le modèle de contenu est du TypeScript chargé par Vite. Le faire
+ * transiter par la signature rend visible que le texte déclaré vient bien du
+ * même objet que le texte affiché.
+ */
+function donneesGuide(guide, canonique, origine, texteBrut) {
+  const organisation = { '@type': 'Organization', name: 'Pièci', url: `${origine}/` };
+
   const donnees = [
     {
       '@context': 'https://schema.org',
       '@type': 'Article',
       headline: guide.titre,
       description: guide.description,
-      inLanguage: 'fr',
+      // `fr-CI` et non `fr` : ces guides décrivent des démarches ivoiriennes —
+      // l'ONECI, le RNPP, le 1340 — et seraient trompeurs ailleurs. La
+      // précision du pays est une information, pas un détail de balisage.
+      inLanguage: 'fr-CI',
       datePublished: guide.miseAJour,
       dateModified: guide.miseAJour,
       mainEntityOfPage: { '@type': 'WebPage', '@id': canonique },
-      author: { '@type': 'Organization', name: 'Pièci', url: `${origine}/` },
-      publisher: { '@type': 'Organization', name: 'Pièci', url: `${origine}/` },
+      author: organisation,
+      publisher: organisation,
     },
     {
       '@context': 'https://schema.org',
@@ -232,9 +291,74 @@ function donneesGuide(guide, canonique, origine) {
     },
   ];
 
-  return donnees
-    .map((d) => `  <script type="application/ld+json">${JSON.stringify(d)}</script>\n`)
-    .join('');
+  // Les questions déclarées sont exactement celles de la page, réponses
+  // comprises : elles sortent du même tableau que le rendu (voir la section
+  // « Questions fréquentes » de src/pages/GuideDetail.tsx). Déclarer une
+  // question qui n'est pas visible fait sanctionner la page entière.
+  if (guide.faq?.length) {
+    donnees.push({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      inLanguage: 'fr-CI',
+      mainEntity: guide.faq.map((q) => ({
+        '@type': 'Question',
+        name: q.question,
+        acceptedAnswer: { '@type': 'Answer', text: texteBrut(q.reponse) },
+      })),
+    });
+  }
+
+  return donnees.map((d) => `  <script type="application/ld+json">${jsonDansScript(d)}</script>\n`).join('');
+}
+
+/**
+ * Sérialise une donnée destinée à un `<script>`.
+ *
+ * Un `</script>` présent dans un texte fermerait la balise et livrerait le
+ * reste au navigateur comme du HTML. Aucun guide n'en contient aujourd'hui, et
+ * c'est bien le problème : la faute n'apparaîtrait qu'au jour où quelqu'un
+ * citerait une balise dans un article. Échapper `<` coûte un remplacement et
+ * reste du JSON valide.
+ */
+function jsonDansScript(donnee) {
+  return JSON.stringify(donnee).replace(/</g, '\\u003c');
+}
+
+/**
+ * Redirections définitives des adresses alternatives vers le guide réel.
+ *
+ * Un sujet n'a qu'une page. Quand une seconde adresse a été annoncée ailleurs
+ * — un brief, une affiche, un ancien lien — elle redirige plutôt que de
+ * devenir une page jumelle : deux pages du même site sur la même requête se
+ * dévaluent l'une l'autre, et c'est Google qui choisit laquelle survit.
+ *
+ * Le fichier `_redirects` est lu par Cloudflare avant le service des fichiers
+ * statiques, et n'est pas publié lui-même. La redirection est donc un vrai 301
+ * côté serveur ; celle de GuideDetail.tsx ne couvre que la navigation interne.
+ */
+async function ecrireRedirections(guides, echecs) {
+  const lignes = guides.flatMap((g) =>
+    (g.alias ?? []).map((alias) => `/guides/${alias} /guides/${g.slug} 301`),
+  );
+  if (lignes.length === 0) return 0;
+
+  const cible = join(dist, '_redirects');
+  // Le dossier public/ n'en contient pas aujourd'hui. S'il venait à en porter
+  // un, Vite l'aurait recopié ici et l'écraser perdrait ses règles sans bruit.
+  let existant = '';
+  try {
+    existant = await readFile(cible, 'utf8');
+  } catch {
+    // Absent : c'est le cas normal.
+  }
+  if (existant.includes('/guides/')) {
+    echecs.push('_redirects contient déjà des règles /guides/ — règles d’alias non écrites');
+    return 0;
+  }
+
+  const contenu = (existant ? existant.replace(/\s*$/, SAUT) : '') + lignes.join(SAUT) + SAUT;
+  await writeFile(cible, contenu, 'utf8');
+  return lignes.length;
 }
 
 main().catch((err) => {

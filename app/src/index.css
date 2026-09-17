@@ -81,6 +81,15 @@
 
   --marge: 24px;
   --gouttiere: 14px;
+
+  /* Mesure de lecture des pages de guide.
+     L'unité `ch` vaut la chasse du zéro, sensiblement plus large que la
+     moyenne d'un caractère de texte français : 68ch rendait de l'ordre de 75
+     signes par ligne, au-dessus de la fourchette confortable. 64ch en rend
+     environ 70. Relative au corps, elle ne se dérègle pas quand le texte
+     grossit — et nommée ici une fois, elle ne se retouche pas en six
+     endroits. */
+  --mesure: 64ch;
 }
 
 @media (max-width: 720px) {
@@ -273,19 +282,38 @@
     border-color: var(--color-cachet);
     color: var(--color-papier);
   }
-  @media (max-width: 980px) { .onglets { display: none; } }
+  /* Sous 980px, les deux boutons d'action s'effacent : ils occupent déjà le
+     milieu de la barre du bas, et les répéter mangeait l'en-tête. L'onglet
+     « Guides » reste — la barre du bas est pleine à cinq entrées, et c'est
+     son seul point d'entrée hors du pied de page. */
+  @media (max-width: 980px) {
+    .onglets .onglet-action { display: none; }
+  }
+  /* Sous 620px, l'onglet partage la ligne avec le logo et « Installer
+     l'app » : on lui reprend ses flancs, et l'en-tête resserre sa gouttière,
+     pour que les trois tiennent dans les 343px utiles d'un écran de 375px.
+     `.entete-in` ne se replie pas — ce qui déborde sort de la page.
+     Le cas n'est pas théorique : le bouton d'installation s'affiche sur
+     Android-Chrome et sur Safari iOS (voir BoutonInstaller). */
+  @media (max-width: 620px) {
+    .entete-in { gap: var(--s-3); }
+    .onglet-guides { padding-inline: var(--s-2); }
+  }
 
   /* ---- Installer l'application ------------------------------------------ */
 
-  /* Collé aux onglets sur ordinateur ; sur téléphone, où les onglets passent
-     dans la barre du bas, il prend leur place à droite du logo. */
+  /* Collé aux onglets, à toutes les largeurs : c'est `.onglets` qui porte le
+     `margin-left: auto` et plaque le groupe à droite. Le bouton en avait un
+     lui aussi sous 980px, du temps où les onglets disparaissaient
+     entièrement et où plus rien ne le poussait. Depuis que « Guides » y
+     reste, deux marges automatiques sur la même ligne se partageraient
+     l'espace libre — et l'onglet flotterait au milieu de l'en-tête. */
   .installer {
     position: relative;
     display: flex;
     align-items: center;
     margin-left: var(--s-2);
   }
-  @media (max-width: 980px) { .installer { margin-left: auto; } }
 
   .btn-installer {
     display: inline-flex;
@@ -1179,8 +1207,8 @@
 
   /* ---- Guides ------------------------------------------------------------
      Pages de lecture longue. Tout est pré-rendu : c'est du texte lisible sans
-     JavaScript. La mesure est bridée à ~68ch, sous laquelle l'œil retrouve
-     seul le début de la ligne suivante. */
+     JavaScript. La mesure est bridée par `--mesure` (voir :root), sous
+     laquelle l'œil retrouve seul le début de la ligne suivante. */
 
   .guide { max-width: 46rem; }
 
@@ -1193,7 +1221,7 @@
   .guide-retour:hover { color: var(--color-cachet); }
 
   .guide-titre {
-    font-family: var(--f-display);
+    font-family: var(--font-display);
     font-size: var(--t-title);
     font-weight: 600;
     line-height: 1.06;
@@ -1216,7 +1244,7 @@
     margin-top: var(--s-3);
     padding-bottom: var(--s-4);
     border-bottom: 1px solid var(--color-encre);
-    font-family: var(--f-util);
+    font-family: var(--font-util);
     font-size: 0.8125rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -1226,7 +1254,7 @@
   .guide-section { padding-top: var(--s-5); }
 
   .guide-section h2 {
-    font-family: var(--f-display);
+    font-family: var(--font-display);
     font-size: var(--t-sub);
     font-weight: 600;
     line-height: 1.15;
@@ -1234,18 +1262,28 @@
     text-wrap: balance;
   }
 
+  /* Le corps de l'application (--t-body, 15px) vise la densité d'un
+     formulaire : on y saisit, on n'y lit pas. Ces pages-ci se lisent en
+     entier, souvent debout, sur un écran d'entrée de gamme — d'où 17px, 18px
+     dès qu'il y a la place, et l'interligne du corps plutôt que celui du
+     chapô. La mesure ne bouge pas : `ch` suit le corps, le nombre de signes
+     par ligne reste le même quand le texte grossit. */
   .guide-p {
     margin-top: var(--s-3);
-    max-width: 68ch;
-    line-height: var(--lh-lead);
+    max-width: var(--mesure);
+    font-size: 1.0625rem;
+    line-height: var(--lh-body);
     color: var(--color-sourdine);
+  }
+  @media (min-width: 768px) {
+    .guide-p { font-size: 1.125rem; }
   }
   .guide-section > .guide-p:first-of-type { margin-top: var(--s-3); }
 
   /* Listes : le filet vertical remplace la puce, qui fait « article de blog ». */
   .guide-liste {
     margin-top: var(--s-3);
-    max-width: 68ch;
+    max-width: var(--mesure);
     list-style: none;
     padding: 0;
   }
@@ -1253,14 +1291,20 @@
     position: relative;
     padding-left: var(--s-4);
     padding-block: 7px;
-    line-height: var(--lh-lead);
+    font-size: 1.0625rem;
+    line-height: var(--lh-body);
     color: var(--color-sourdine);
   }
+  @media (min-width: 768px) {
+    .guide-liste li { font-size: 1.125rem; }
+  }
+  /* Le filet se cale sur la hauteur d'x de la première ligne, pas sur son
+     centre : il a suivi le corps de texte quand celui-ci est passé à 17px. */
   .guide-liste li::before {
     content: "";
     position: absolute;
     left: 0;
-    top: 15px;
+    top: 18px;
     width: 14px;
     height: 1px;
     background: var(--color-filet-2);
@@ -1269,7 +1313,7 @@
   /* Étapes : numérotées à la main, dans la police de données, comme les cotes. */
   .guide-etapes {
     margin-top: var(--s-4);
-    max-width: 68ch;
+    max-width: var(--mesure);
     list-style: none;
     padding: 0;
     counter-reset: etape;
@@ -1288,7 +1332,7 @@
     content: counter(etape, decimal-leading-zero);
     grid-column: 1;
     grid-row: 1;
-    font-family: var(--f-data);
+    font-family: var(--font-mono);
     font-size: 0.75rem;
     letter-spacing: 0.06em;
     color: var(--color-cachet);
@@ -1308,13 +1352,13 @@
   /* Encadré : fond papier + filet épais à gauche, jamais d'ombre. */
   .guide-encadre {
     margin-top: var(--s-4);
-    max-width: 68ch;
+    max-width: var(--mesure);
     background: var(--color-papier-2);
     border-left: 3px solid var(--color-cachet);
     padding: var(--s-4);
   }
   .guide-encadre > b {
-    font-family: var(--f-util);
+    font-family: var(--font-util);
     font-size: 0.8125rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1344,7 +1388,7 @@
   }
   .guide-tableau th {
     text-align: left;
-    font-family: var(--f-util);
+    font-family: var(--font-util);
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1389,7 +1433,7 @@
   .guides-rubrique { margin-top: var(--s-6); }
   .guides-rubrique:first-of-type { margin-top: 0; }
   .guides-rubrique h2 {
-    font-family: var(--f-display);
+    font-family: var(--font-display);
     font-size: var(--t-sub);
     font-weight: 600;
     line-height: 1.15;
@@ -1405,6 +1449,138 @@
 
   .guide-connexes { margin-top: var(--s-6); }
   .guide-connexes .cote { display: block; margin-bottom: var(--s-3); }
+
+  /* Lien dans le fil du texte.
+     Souligné du rouge du cachet, et pas seulement coloré : un lien qui ne se
+     distingue que par sa teinte disparaît pour qui ne la perçoit pas. Le
+     soulignement est un filet, comme partout ailleurs dans ce registre. */
+  .guide-lien {
+    color: var(--color-encre);
+    text-decoration: none;
+    border-bottom: 1px solid var(--color-cachet);
+    /* Un lien coupé par une fin de ligne garde son filet des deux côtés, et
+       un libellé qui ressemble à une adresse se coupe plutôt que de pousser
+       la page en largeur — la mise en page tient à 320px. */
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    overflow-wrap: anywhere;
+  }
+  .guide-lien:hover { color: var(--color-cachet); }
+  .guide-lien:focus-visible {
+    outline: 2px solid var(--color-cachet);
+    outline-offset: 2px;
+  }
+
+  /* Sommaire des articles longs. Encadré de deux filets et non d'un fond : il
+     annonce la page, il ne la commence pas. Numéroté dans la police de
+     données, comme les cotes du registre. */
+  .guide-sommaire {
+    margin-top: var(--s-5);
+    max-width: var(--mesure);
+    border-top: 1px solid var(--color-filet);
+    border-bottom: 1px solid var(--color-filet);
+    padding-block: var(--s-3);
+  }
+  .guide-sommaire .cote { display: block; margin-bottom: var(--s-2); }
+  .guide-sommaire ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: entree;
+  }
+  .guide-sommaire li { counter-increment: entree; }
+  .guide-sommaire li::before {
+    content: counter(entree, decimal-leading-zero);
+    margin-right: var(--s-2);
+    font-family: var(--font-mono);
+    font-size: var(--t-mono);
+    color: var(--color-filet-2);
+  }
+  .guide-sommaire a {
+    display: inline-block;
+    /* Le rembourrage porte la cible à 24px : un sommaire se vise au pouce,
+       souvent en marchant. */
+    padding-block: 4px;
+    color: var(--color-encre-2);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .guide-sommaire a:hover {
+    color: var(--color-cachet);
+    border-bottom-color: var(--color-cachet);
+  }
+
+  /* L'en-tête est collant sur 58px : sans cette marge, chaque saut depuis le
+     sommaire déposerait le titre visé dessous, et le lecteur atterrirait au
+     milieu du paragraphe précédent. */
+  .guide-section h2,
+  .guide-faq h2 {
+    scroll-margin-top: 74px;
+  }
+
+  /* Avertissement : plus haut dans la page que l'encadré, et plus alarmant.
+     Réservé à ce qui doit être lu avant le reste — une procédure non encore
+     confirmée, par exemple. Le fond se mélange au rouge du cachet plutôt que
+     d'être figé : il suivra la charte si elle bouge. */
+  .guide-avertissement {
+    margin-top: var(--s-4);
+    max-width: var(--mesure);
+    border: 1px solid var(--color-cachet);
+    background: color-mix(in srgb, var(--color-cachet) 7%, var(--color-papier));
+    padding: var(--s-4);
+  }
+  .guide-avertissement > b {
+    display: block;
+    font-family: var(--font-util);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-cachet);
+  }
+  .guide-avertissement .guide-p { margin-top: var(--s-2); color: var(--color-encre); }
+
+  /* Bandeau de brouillon. Il ne s'adresse pas au public — il s'adresse à
+     celui qui relit, et doit le gêner tant qu'il est là. */
+  .guide-brouillon {
+    margin-bottom: var(--s-4);
+    border: 1px dashed var(--color-ambre);
+    background: color-mix(in srgb, var(--color-ambre) 8%, var(--color-papier));
+    padding: var(--s-3) var(--s-4);
+    font-family: var(--font-util);
+    font-size: var(--t-fine);
+    color: var(--color-ambre);
+  }
+  .guide-brouillon code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+  }
+
+  /* Questions fréquentes. Chaque question est un <h3> : c'est le texte que
+     reprend le FAQPage, et c'est ce qui permet d'y arriver depuis le
+     sommaire. Les questions se séparent par un filet, jamais par une carte —
+     ce ne sont pas des objets, c'est une conversation. */
+  .guide-faq-item {
+    margin-top: var(--s-4);
+    max-width: var(--mesure);
+  }
+  .guide-faq-item + .guide-faq-item {
+    border-top: 1px solid var(--color-filet);
+    padding-top: var(--s-4);
+  }
+  /* Un cran au-dessus du corps de texte, qui vient de passer à 17px : à
+     égalité, la question ne se distinguerait plus de sa réponse — et ces
+     questions-là doivent se repérer d'un coup d'œil, c'est ce qu'on vient y
+     chercher. */
+  .guide-faq-item h3 {
+    font-family: var(--font-display);
+    font-size: 1.1875rem;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    color: var(--color-encre);
+  }
+  .guide-faq-item .guide-p { margin-top: var(--s-2); }
 
   /* ---- Partage ---------------------------------------------------------- */
 

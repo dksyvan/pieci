@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 import type { LatLng } from '@partage/communes';
 import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
@@ -15,6 +15,7 @@ import {
   type Correspondance,
 } from '../lib/api';
 import { montrerPremierChamp, type ErreursChamps } from '../lib/formulaire';
+import { IconeFleche } from '../components/Icones';
 
 export function Perdu() {
   const { afficherToast } = useApp();
@@ -273,6 +274,19 @@ export function Perdu() {
                 Remplis les quatre champs à gauche et lance la recherche. Les correspondances
                 s’affichent ici, de la plus sûre à la moins sûre.
               </p>
+              {/* Formulé comme une suite, pas comme une alternative : le
+                  formulaire est à quatre champs d'être envoyé, et un lien qui
+                  dirait « pas sûr ? lis plutôt ceci » détournerait quelqu'un
+                  qui allait créer son alerte. Ce qui vient après l'alerte,
+                  en revanche, personne ne le sait en arrivant. */}
+              <Link
+                to="/guides/cni-perdue-que-faire"
+                className="lien"
+                style={{ marginTop: 'var(--s-3)' }}
+              >
+                Et après l’alerte ? La démarche de duplicata
+                <IconeFleche taille={15} />
+              </Link>
             </div>
           )}
 
@@ -294,6 +308,17 @@ export function Perdu() {
                       Ton alerte est bien enregistrée, ça va aller. Dès qu’une pièce à ce nom est
                       déclarée, tu la vois ici — et tu reçois une notification si tu les as activées.
                     </p>
+                    {/* Le moment exact où le guide sert : la recherche n'a
+                        rien donné, l'alerte tourne, et la question suivante
+                        est « et le duplicata, je commence par quoi ? ». */}
+                    <Link
+                      to="/guides/cni-perdue-que-faire"
+                      className="lien"
+                      style={{ marginTop: 'var(--s-3)' }}
+                    >
+                      En attendant : refaire sa pièce, la démarche complète
+                      <IconeFleche taille={15} />
+                    </Link>
                   </>
                 }
               />

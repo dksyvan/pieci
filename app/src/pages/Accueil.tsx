@@ -151,6 +151,16 @@ export function Accueil() {
                 </div>
               ))}
             </dl>
+
+            {/* Le pont vers les guides. « Comment ça marche » explique le
+                registre ; il ne dit rien du duplicata, du timbre ni du
+                commissariat — et c'est pourtant ce que cherche celui qui a
+                perdu sa pièce hier. Sans ce lien, il repart chercher ailleurs
+                ce qui est écrit ici. */}
+            <Link to="/guides" className="lien" style={{ marginTop: 'var(--s-4)' }}>
+              Les démarches expliquées, guide par guide
+              <IconeFleche taille={15} />
+            </Link>
           </div>
 
           {/* `sans-entrees` masque la colonne sur mobile quand le registre est
