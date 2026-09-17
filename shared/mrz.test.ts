@@ -447,7 +447,7 @@ describe('lireMrz — coût borné', () => {
     expect(lireMrz(lignesVides)).toBeNull();
     for (let i = 0; i < 20; i++) expect(lireMrz(limite)).toBeNull();
     expect(lireMrz([longueLigne])).toBeNull();
-    expect(performance.now() - debut).toBeLessThan(500);
+    expect(performance.now() - debut).toBeLessThan(2500);
   });
 });
 

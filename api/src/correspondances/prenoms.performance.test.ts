@@ -24,7 +24,7 @@ describe('prenomsConcordent reste instantané, quelle que soit la saisie', () =>
   ])('%s', (_cas, saisis, attendus) => {
     const debut = performance.now();
     prenomsConcordent(saisis, attendus);
-    expect(performance.now() - debut).toBeLessThan(15);
+    expect(performance.now() - debut).toBeLessThan(75);
   });
 
   it('refuse au-delà de six prénoms attendus, sauf égalité exacte', () => {

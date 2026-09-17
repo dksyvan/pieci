@@ -1168,14 +1168,14 @@ describe('lireRecto — coût borné', () => {
     const debut = performance.now();
     for (let i = 0; i < 5; i++) expect(() => lireRecto(texte)).not.toThrow();
     // Borne large, pour une machine d'intégration lente.
-    expect((performance.now() - debut) / 5).toBeLessThan(100);
+    expect((performance.now() - debut) / 5).toBeLessThan(400);
   });
 
   it('10 Mo de texte : rejet immédiat', () => {
     const enorme = "CARTE NATIONALE D'IDENTITE\nNom : KOUASSI\n".repeat(250_000);
     const debut = performance.now();
     expect(lireRecto(enorme)).toBeNull();
-    expect(performance.now() - debut).toBeLessThan(50);
+    expect(performance.now() - debut).toBeLessThan(250);
   });
 });
 

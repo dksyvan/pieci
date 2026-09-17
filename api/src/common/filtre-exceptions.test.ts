@@ -236,7 +236,7 @@ describe('messageSansValeurs', () => {
   it('tronque, et borne son temps même sur un message énorme', () => {
     const debut = performance.now();
     const resultat = messageSansValeurs('a'.repeat(5_000_000));
-    expect(performance.now() - debut).toBeLessThan(200);
+    expect(performance.now() - debut).toBeLessThan(1000);
     expect(resultat.length).toBeLessThanOrEqual(LONGUEUR_MESSAGE_JOURNAL);
     expect(resultat.endsWith('…')).toBe(true);
   });

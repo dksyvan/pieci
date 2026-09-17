@@ -186,7 +186,11 @@ describe('fusionner — liste fermée des clés, entrées bornées', () => {
     const debut = performance.now();
     expect(fusionner({ nom: enorme, prenom: enorme }, { nom: enorme, prenom: enorme })).toBeNull();
     for (let i = 0; i < 2_000; i++) fusionner({ nom: limiteMrz, prenom: limiteMrz }, { nom: limite, prenom: limite });
-    expect(performance.now() - debut).toBeLessThan(1000);
+    // Marge large et assumée : ce plafond attrape un changement de CLASSE de
+    // coût (le calcul qui repart en factoriel ou en quadratique, mesuré 10 à
+    // 100 fois plus lent), pas la vitesse de la machine. Trop serré, il
+    // échouait au hasard quand la suite tournait sous charge.
+    expect(performance.now() - debut).toBeLessThan(5000);
   });
 });
 

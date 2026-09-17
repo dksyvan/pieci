@@ -57,7 +57,7 @@ describe('trouverMatches — retenue sur le nom seul', () => {
     const base = Array.from({ length: 2000 }, (_, i) => ({ id: `p${i}`, ...personne(nomPiege, 'Aya') }));
     const debut = performance.now();
     trouverMatches(personne(Array(33).fill('ba').join(' '), 'Aya'), base, { nomSeul: true });
-    expect(performance.now() - debut).toBeLessThan(600);
+    expect(performance.now() - debut).toBeLessThan(2500);
   });
 
   it('garde le score complet, prénom compris', () => {

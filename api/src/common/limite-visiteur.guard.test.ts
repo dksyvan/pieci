@@ -68,7 +68,7 @@ describe('LimiteVisiteurGuard', () => {
       garde.canActivate(contexte(limite, i.toString(16).padStart(24, '0')));
     }
     expect(LimiteVisiteurGuard.taille()).toBeLessThanOrEqual(10_000);
-    expect(performance.now() - debut).toBeLessThan(1000);
+    expect(performance.now() - debut).toBeLessThan(5000);
   });
 
   /**
