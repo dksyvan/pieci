@@ -1467,3 +1467,69 @@ describe('recto.ts — ne journalise rien, ne lève rien', () => {
     expect(source).not.toMatch(/\bthrow\b/);
   });
 });
+
+/**
+ * Mise en page réelle de la carte nationale d'identité ivoirienne, relevée sur
+ * un spécimen public et sur le mode diagnostic d'une vraie carte (17/09/2026,
+ * iPhone et Android) : le numéro, puis « Prénom(s) » et sa valeur, puis
+ * « Nom » et la sienne EN DESSOUS. Deux garde-fous d'ordre de lecture, écrits
+ * pour des cartes où le nom vient en premier, jetaient alors tous les noms.
+ *
+ * Les valeurs sont inventées ; seule la structure vient de la carte.
+ */
+describe('lireRecto — CNI ivoirienne : les prénoms puis le nom en dessous', () => {
+  const CORPS = `n° IC000000913
+Prénom(s)
+KOFFI JEAN-MARC
+Nom
+TANO
+Date de Naissance Sexe — Taille
+Nationalité
+01/01/2000 M _ 1,70 IVOIRIENNE
+Lieu de Naissance :
+TREICHVILLE (CIV) .
+Signature du titulaire
+Date d'expiration
+07/02/2030`;
+
+  it('rend le nom ET les prénoms, sans le titre de la carte', () => {
+    expect(lireRecto(CORPS)).toEqual({ nom: 'TANO', prenom: 'KOFFI JEAN-MARC', decoupage: 'libelles' });
+  });
+
+  it('rend aussi le type quand le titre a été lu', () => {
+    expect(lireRecto(`RÉPUBLIQUE DE CÔTE D'IVOIRE\nCARTE NATIONALE D'IDENTITÉ\n${CORPS}`)).toEqual({
+      typePiece: 'CNI',
+      nom: 'TANO',
+      prenom: 'KOFFI JEAN-MARC',
+      decoupage: 'libelles',
+    });
+  });
+
+  it('ne tronque pas un nom composé, jusqu’à six mots', () => {
+    for (const long of [
+      "N'GUESSAN KOUADIO",
+      "N'GUESSAN KOUADIO KOUAKOU",
+      "N'GUESSAN KOUADIO KOUAKOU BROU",
+      "N'GUESSAN KOUADIO KOUAKOU BROU AKA",
+      "N'GUESSAN KOUADIO KOUAKOU BROU AKA ZAMBLE",
+    ]) {
+      expect(lireRecto(CORPS.replace('TANO', long))?.nom, long).toBe(long);
+    }
+  });
+
+  it('lit le nom même quand la photo a mangé le numéro et le bas de la carte', () => {
+    expect(lireRecto('Prénom(s)\nKOFFI JEAN-MARC\nNom\nTANO')).toEqual({
+      nom: 'TANO',
+      prenom: 'KOFFI JEAN-MARC',
+      decoupage: 'libelles',
+    });
+  });
+
+  it('garde le garde-fou dans l’autre sens : « Nom » d’abord, valeur au-delà des prénoms', () => {
+    // Lecture dans le désordre : la valeur sous « Nom » est tombée après le
+    // libellé des prénoms. Rien n'assure que c'est le nom — on s'abstient.
+    const desordre = "CARTE NATIONALE D'IDENTITÉ\nNom\nPrénom(s)\nKOFFI JEAN-MARC\nTREICHVILLE\nLieu de Naissance";
+    expect(lireRecto(desordre)?.nom).toBeUndefined();
+  });
+});
+

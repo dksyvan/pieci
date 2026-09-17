@@ -686,8 +686,8 @@ function nomCourt(mots: string[]): boolean {
 }
 
 /** Valeur d'un NOM : celle d'une valeur ordinaire, ou un patronyme court de deux lettres. */
-function valeurNom(mots: string[]): boolean {
-  return valeurAcceptable(mots, MAX_MOTS_NOM) || nomCourt(mots);
+function valeurNom(mots: string[], max = MAX_MOTS_NOM): boolean {
+  return valeurAcceptable(mots, max) || nomCourt(mots);
 }
 
 function valeurAcceptable(mots: string[], max: number): boolean {
@@ -763,7 +763,20 @@ function motDouteuxEnRepli(brut: string): boolean {
 // Extraction du nom et des prénoms
 // ---------------------------------------------------------------------------
 
+/**
+ * Mots d'un patronyme.
+ *
+ * Quatre sur la ligne du libellé : là, l'OCR mêle au nom des restes de
+ * libellés collés (« Nom et Prén0ms.DIABATÉ KOUAKOU AHOU MOUSSA », relevé sur
+ * le banc de bruit), et une valeur trop longue est le signe qu'on a ramassé
+ * autre chose.
+ *
+ * Six sur une ligne à elle : c'est la mise en page des cartes, et les noms
+ * composés ivoiriens s'allongent (« N'GUESSAN KOUADIO KOUAKOU BROU »). Aucun
+ * nom n'est jamais tronqué : au-delà, la valeur est refusée, pas coupée.
+ */
 const MAX_MOTS_NOM = 4;
+const MAX_MOTS_NOM_LIGNE = 6;
 const MAX_MOTS_PRENOM = 5;
 const MAX_MOTS_COMBINE = 7;
 
@@ -1121,7 +1134,7 @@ function extraireNomPrenom(texte: string, typePiece?: TypePiece): Omit<LectureRe
     }
     const mots = lireValeur(part, 0);
     if (!mots.length || mots.some((m) => m !== m.toLocaleUpperCase('fr-FR'))) return null;
-    if (!valeurAcceptable(mots, MAX_MOTS_NOM) || (prenom && formater(mots) === formater(prenom))) return null;
+    if (!valeurAcceptable(mots, MAX_MOTS_NOM_LIGNE) || (prenom && formater(mots) === formater(prenom))) return null;
     return mots;
   };
 
@@ -1273,7 +1286,7 @@ function extraireNomPrenom(texte: string, typePiece?: TypePiece): Omit<LectureRe
       !seulPrenom.apresUnNom && v1 && v2 && nomPur(v1.ligne) && valeurDeColonne(seulNom, v1) && valeurDeColonne(seulPrenom, v2) &&
       !ambigu(v2) && !suspecte(v1) && !suspecte(v2) &&
       nomsPursAuDessus(seulNom.ligne).length === 0 &&
-      valeurAcceptable(v1.mots, MAX_MOTS_NOM) && valeurAcceptable(v2.mots, MAX_MOTS_PRENOM)
+      valeurAcceptable(v1.mots, MAX_MOTS_NOM_LIGNE) && valeurAcceptable(v2.mots, MAX_MOTS_PRENOM)
     ) {
       return sortie(v1.mots, v2.mots, 'colonnes');
     }
@@ -1284,8 +1297,20 @@ function extraireNomPrenom(texte: string, typePiece?: TypePiece): Omit<LectureRe
   if (!enColonnes || seulPrenom?.apresUnNom) {
     const consommees = new Set<number>();
     const sansLibelleNom = !seulNom && !libelleNomVu;
-    for (const seul of [seulNom, seulPrenom]) {
-      if (!seul || (seul.genre === 'nom' ? nom : prenom)) continue;
+    /*
+     * Dans l'ordre des lignes, et non « le nom puis les prénoms » : la carte
+     * nationale d'identité ivoirienne imprime « Prénom(s) », sa valeur, puis
+     * « Nom » en dessous. Lire dans l'ordre de la page marque la valeur des
+     * prénoms comme consommée AVANT d'examiner « Nom » ; sinon cette valeur,
+     * qui se trouve juste au-dessus du libellé « Nom », passait pour un nom
+     * rendu avant son libellé et faisait tout abandonner (retour de terrain du
+     * 17/09, deux téléphones, aucun nom jamais lu sur une CNI).
+     */
+    const ordonnes = [seulNom, seulPrenom]
+      .filter((x): x is NonNullable<typeof x> => !!x)
+      .sort((a, b) => a.ligne - b.ligne);
+    for (const seul of ordonnes) {
+      if (seul.genre === 'nom' ? nom : prenom) continue;
       // Lignes de noms AU-DESSUS du libellé, valeur d'aucun autre libellé : l'OCR a rendu la valeur
       // AVANT son libellé (image penchée, lecture « éparse »). Ce qui suit le libellé peut alors être
       // le lieu de naissance → abstention. Seule exception : libellé « Nom » totalement absent et UNE
@@ -1303,11 +1328,23 @@ function extraireNomPrenom(texte: string, typePiece?: TypePiece): Omit<LectureRe
       // contredisent, l'ordre de lecture est brouillé, et ce qui suit le libellé des
       // prénoms n'est plus sûr (c'était, mesuré, un lieu de naissance).
       if (seul.genre === 'prenom' && seul.apresUnNom && nom) continue;
-      if (seul.genre === 'nom' && seulPrenom && v.ligne >= seulPrenom.ligne) continue;
+      /*
+       * Valeur de nom trouvée au-delà du libellé des prénoms alors que « Nom »
+       * venait AVANT « Prénom(s) » : les lignes ont été lues dans le désordre,
+       * et ce qu'on lit là n'est plus sûr.
+       *
+       * Seulement dans ce sens-là. La carte nationale d'identité ivoirienne
+       * imprime « Prénom(s) » PUIS « Nom » en dessous : la valeur du nom y est
+       * forcément sous le libellé des prénoms, et cette règle jetait le nom de
+       * toutes les CNI (retour de terrain du 17/09, sur deux téléphones).
+       */
+      if (seul.genre === 'nom' && seulPrenom && seul.ligne < seulPrenom.ligne && v.ligne >= seulPrenom.ligne) {
+        continue;
+      }
       // « NOM \n MAMADOU AWA Date de naissance \n KOFFI PRÉNOM(S) » : une valeur de nom lue
       // sur la ligne de la naissance ou après vient d'une lecture dans le désordre.
       if (seul.genre === 'nom' && !avantLaNaissance(v)) continue;
-      if (seul.genre === 'nom' && valeurNom(v.mots)) {
+      if (seul.genre === 'nom' && valeurNom(v.mots, MAX_MOTS_NOM_LIGNE)) {
         nom = v.mots;
         consommees.add(v.ligne);
       }
