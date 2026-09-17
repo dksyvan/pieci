@@ -2,8 +2,11 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ImageGrise, ImagePreparee } from './image';
 import { LectureImpossible } from './index';
+import { DELAI_ABANDON_MS } from './machine';
 import {
   assainirSortie,
+  basDuTitre,
+  BUDGET_LECTURE_MS,
   CHEMIN_OCR,
   combinerLectures,
   creerEnCaptant,
@@ -11,6 +14,9 @@ import {
   executerLecture,
   familleCarte,
   ligneBandeProbable,
+  mentionCarteNationale,
+  PASSES,
+  typeEnTete,
   zoneBande,
   type Dependances,
   type Moteur,
@@ -222,6 +228,24 @@ describe('combinerLectures', () => {
     expect(combinerLectures(null, { prenom: 'AFFOUÉ', decoupage: 'libelles' })).toEqual({ prenom: 'AFFOUÉ', decoupage: 'libelles' });
     expect(combinerLectures(null, null)).toBeNull();
   });
+
+  it('un nom deviné cède la place au nom lu sous son libellé', () => {
+    // Nom par sa position, prénoms sous leur libellé : seul le nom est remplacé.
+    expect(
+      combinerLectures(
+        { typePiece: 'CNI', nom: 'AKA', prenom: 'AYA-LAURE ESTHER', decoupage: 'position' },
+        { nom: 'TANO', prenom: 'AYA LAURE', decoupage: 'libelles' },
+      ),
+    ).toEqual({ typePiece: 'CNI', nom: 'TANO', prenom: 'AYA-LAURE ESTHER', decoupage: 'libelles' });
+    // Découpage deviné : nom et prénoms suivent la lecture plus sûre.
+    expect(combinerLectures({ nom: 'ZAMBLÉ', prenom: 'LOU IRÈNE', decoupage: 'devine' }, { nom: 'ZAMBLÉ LOU', prenom: 'IRÈNE', decoupage: 'libelles' })).toEqual({
+      nom: 'ZAMBLÉ LOU',
+      prenom: 'IRÈNE',
+      decoupage: 'libelles',
+    });
+    // Deux noms devinés : le premier reste.
+    expect(combinerLectures({ nom: 'AKA', decoupage: 'position' }, { nom: 'TANO', decoupage: 'position' })?.nom).toBe('AKA');
+  });
 });
 
 describe('assainirSortie', () => {
@@ -341,7 +365,9 @@ describe('executerLecture', () => {
     expect(lecture.estDosDeCarte).toBe(true);
     expect(lecture.imageAEnvoyer).toBeNull();
     expect(lecture.resultat).toEqual({ nom: 'ERIKSSON', prenom: 'ANNA MARIA', peutEtreCoupe: false });
-    expect(passes.map((p) => `${p.passe.modele}${p.passe.psm}`)).toEqual(['fra3', 'fra11', 'mrz6', 'mrz6']);
+    // Sans type lu, l'en-tête (qui porte ici de l'encre : la rangée marquée) est
+    // relu deux fois, texte clair puis sombre, avant la contre-vérification.
+    expect(passes.map((p) => `${p.passe.modele}${p.passe.psm}`)).toEqual(['fra3', 'fra3', 'fra3', 'fra11', 'mrz6', 'mrz6']);
     verifierContrat(lecture.resultat);
   });
 
@@ -434,6 +460,251 @@ describe('executerLecture', () => {
   });
 });
 
+describe('mentionCarteNationale et typeEnTete (passe d’en-tête)', () => {
+  it('reconnaît la mention même soudée, coupée ou mal lue', () => {
+    for (const t of [
+      "CARTE NATIONALE D'IDENTITÉ",
+      'CARTENATIONALE DIDENTITE',
+      "NATIONALE D'IDENTIT",
+      "CARTE NAT1ONALE D'lDENTlTÉ",
+      "RÉPUBLIQUE D'UTOPIE |\nCARTE NATIONALE\nD'IDENTITÉ",
+      'NATIONAL IDENTITY CARD',
+    ]) {
+      expect(mentionCarteNationale(t)).toBe(true);
+    }
+  });
+
+  it('écarte ce qui n’est pas la mention', () => {
+    for (const t of [
+      "RÉPUBLIQUE D'UTOPIE",
+      "CARTE D'IDENTITÉ CONSULAIRE",
+      "CARTE NATIONALE D'IDENTITÉ CONSULAIRE",
+      'Nationalité : UTOPIENNE',
+      'PERMIS DE CONDUIRE',
+      '',
+      'A'.repeat(9_000),
+    ]) {
+      expect(mentionCarteNationale(t)).toBe(false);
+    }
+    expect(mentionCarteNationale(42 as unknown as string)).toBe(false);
+  });
+
+  it('type : celui de shared/recto.ts d’abord, la mention élargie ensuite', () => {
+    expect(typeEnTete('PERMIS DE CONDUIRE')).toBe('Permis de conduire');
+    expect(typeEnTete('CARTENATIONALE DIDENTITE')).toBe('CNI');
+    expect(typeEnTete('ee Rae\nSa')).toBeUndefined();
+  });
+});
+
+describe('basDuTitre', () => {
+  it('bas de la ligne du titre, un peu élargi', () => {
+    const mise = tsv([
+      { texte: "CARTE NATIONALE D'IDENTITÉ", haut: 40, hauteur: 30 },
+      { texte: 'Nom', haut: 100, hauteur: 20 },
+    ]);
+    expect(basDuTitre(mise, 600)).toBe(73);
+  });
+
+  it('coordonnées d’une image agrandie et encadrée ramenées à l’image d’origine', () => {
+    const mise = tsv([{ texte: 'CARTENATIONALE DIDENTITE', haut: 40 * 2 + 20, hauteur: 60 }]);
+    expect(basDuTitre(mise, 600, 2, 20)).toBe(73);
+  });
+
+  it('null sans titre, ou titre dans la moitié basse', () => {
+    expect(basDuTitre(tsv([{ texte: 'Nom KOUAMÉ', haut: 40, hauteur: 30 }]), 600)).toBeNull();
+    expect(basDuTitre(tsv([{ texte: 'PERMIS DE CONDUIRE', haut: 400, hauteur: 30 }]), 600)).toBeNull();
+    expect(basDuTitre('', 600)).toBeNull();
+    expect(basDuTitre(tsv([{ texte: 'PERMIS DE CONDUIRE', haut: 40, hauteur: 30 }]), 0)).toBeNull();
+  });
+});
+
+describe('executerLecture : en-tête et sous le titre', () => {
+  /** Image claire parcourue de traits fins : de l'encre partout, pas de bandeau sombre. */
+  function imageAvecEncre(): ImagePreparee {
+    const largeur = 1000;
+    const hauteur = 600;
+    const pixels = new Uint8Array(largeur * hauteur).fill(250);
+    for (let y = 0; y < hauteur; y++) {
+      for (let x = 0; x < largeur; x += 40) {
+        pixels[y * largeur + x] = 20;
+        pixels[y * largeur + x + 1] = 20;
+      }
+    }
+    return { envoi: ENVOI, lecture: { largeur, hauteur, pixels }, angle: 0 };
+  }
+  /** Largeur de l'en-tête préparé : agrandi 1,5 fois, cadre blanc de 20 px de chaque côté. */
+  const LARGEUR_EN_TETE = 1000 * 1.5 + 2 * 20;
+  const nomPasse = (p: { passe: Passe }, largeurs: number[], i: number) =>
+    largeurs[i] === LARGEUR_EN_TETE ? 'en-tête' : `${p.passe.modele}${p.passe.psm}`;
+
+  it('symptôme du terrain — prénoms lus, nom et type non : type pris à l’en-tête, nom sous le titre', async () => {
+    const largeurs: number[] = [];
+    const titre = tsv([
+      { texte: "RÉPUBLIQUE D'UTOPIE", haut: 20 + 15 * 1.5, hauteur: 30 },
+      { texte: "CARTE NATIONALE D'IDENTITÉ", haut: 20 + 40 * 1.5, hauteur: 45 },
+    ]);
+    const { moteur, passes } = moteurFactice((passe, image) => {
+      largeurs.push(image.largeur);
+      if (image.largeur === LARGEUR_EN_TETE) return texte("RÉPUBLIQUE D'UTOPIE\nCARTE NATIONALE D'IDENTITÉ", titre);
+      if (passe.miseEnPage) return texte('Prénom(s)\nAYA-LAURE ESTHER\nDate de naissance\n01/01/1990');
+      return texte('Nom\nTANO\nPrénom(s)\nAYA-LAURE ESTHER\nDate de naissance\n01/01/1990');
+    });
+    const lecture = await executerLecture(ENVOI, undefined, dependances(moteur, imageAvecEncre()));
+    expect(lecture.resultat).toEqual({ typePiece: 'CNI', nom: 'TANO', prenom: 'AYA-LAURE ESTHER', decoupage: 'libelles' });
+    expect(passes.map((p, i) => nomPasse(p, largeurs, i))).toEqual(['fra3', 'en-tête', 'fra3']);
+    // L'image relue commence sous le titre : bas du titre à 40 + 30 px, élargi de 3.
+    expect(passes[2].hauteur).toBe(600 - 73);
+    expect(lecture.imageAEnvoyer).toBe(ENVOI);
+    verifierContrat(lecture.resultat);
+  });
+
+  it('en-tête inversé sans type : essai en texte sombre, deux lectures au plus', async () => {
+    const largeurs: number[] = [];
+    const { moteur, passes } = moteurFactice((_passe, image) => {
+      largeurs.push(image.largeur);
+      return texte('Nom : KOUAMÉ\nPrénoms : AFFOUÉ ESTELLE');
+    });
+    const lecture = await executerLecture(ENVOI, undefined, dependances(moteur, imageAvecEncre()));
+    expect(passes.map((p, i) => nomPasse(p, largeurs, i))).toEqual(['fra3', 'en-tête', 'en-tête']);
+    expect(lecture.resultat).toEqual({ nom: 'KOUAMÉ', prenom: 'AFFOUÉ ESTELLE', decoupage: 'libelles' });
+  });
+
+  it('type déjà lu et paire complète : ni en-tête ni relecture', async () => {
+    const { moteur, passes } = moteurFactice(() => texte(RECTO_CNI));
+    await executerLecture(ENVOI, undefined, dependances(moteur, imageAvecEncre()));
+    expect(passes).toHaveLength(1);
+  });
+
+  it('« Passeport » lu dans l’en-tête : la contre-vérification a lieu quand même', async () => {
+    const largeurs: number[] = [];
+    const { moteur, passes } = moteurFactice((passe, image) => {
+      largeurs.push(image.largeur);
+      if (image.largeur === LARGEUR_EN_TETE) return texte('PASSEPORT');
+      return texte(passe.modele === 'mrz' ? 'illisible' : '');
+    });
+    const lecture = await executerLecture(ENVOI, undefined, dependances(moteur, imageAvecEncre()));
+    expect(passes.map((p, i) => nomPasse(p, largeurs, i))).toEqual(['fra3', 'en-tête', 'fra11', 'mrz6', 'mrz6', 'fra3']);
+    expect(lecture.resultat).toEqual({ typePiece: 'Passeport' });
+    expect(lecture.estDosDeCarte).toBe(false);
+  });
+
+  it('dos de carte : pas d’en-tête, rien à envoyer', async () => {
+    const largeurs: number[] = [];
+    const { moteur } = moteurFactice((passe, image) => {
+      largeurs.push(image.largeur);
+      return texte(passe.modele === 'mrz' ? TD1.join('\n') : `CARTE NATIONALE D'IDENTITÉ\n${TD1.join('\n')}`);
+    });
+    const lecture = await executerLecture(ENVOI, undefined, dependances(moteur, imageAvecEncre()));
+    expect(largeurs).not.toContain(LARGEUR_EN_TETE);
+    expect(lecture.estDosDeCarte).toBe(true);
+    expect(lecture.imageAEnvoyer).toBeNull();
+  });
+
+  it('nom lu par sa position : les passes suivantes ont lieu, et un nom sous son libellé le remplace', async () => {
+    const { moteur, passes } = moteurFactice((passe) =>
+      passe.psm === '11'
+        ? texte("CARTE NATIONALE D'IDENTITÉ\nNom\nTANO\nPrénom(s)\nAYA-LAURE ESTHER")
+        : texte("CARTE NATIONALE D'IDENTITÉ\nAKA\nPrénom(s)\nAYA-LAURE ESTHER"),
+    );
+    const lecture = await executerLecture(ENVOI, undefined, dependances(moteur));
+    expect(passes.map((p) => `${p.passe.modele}${p.passe.psm}`)).toEqual(['fra3', 'fra11']);
+    expect(lecture.resultat).toEqual({ typePiece: 'CNI', nom: 'TANO', prenom: 'AYA-LAURE ESTHER', decoupage: 'libelles' });
+    verifierContrat(lecture.resultat);
+  });
+
+  it('annulation pendant la préparation de l’en-tête : aucune lecture lancée avec un signal levé', async () => {
+    const largeur = 1600;
+    const hauteur = 1200;
+    const pixels = new Uint8Array(largeur * hauteur);
+    for (let i = 0; i < pixels.length; i++) pixels[i] = (i * 2654435761) >>> 24;
+    const controleur = new AbortController();
+    const appels: { psm: string; annule: boolean }[] = [];
+    const moteur: Moteur = {
+      async lire(_image, passe, signal) {
+        appels.push({ psm: passe.psm, annule: signal.aborted });
+        if (appels.length === 1) {
+          // Recto sans type : la passe d'en-tête suit ; l'annulation tombe pendant sa préparation.
+          setTimeout(() => controleur.abort(), 0);
+          return texte('Prénom(s) : AYA-LAURE ESTHER');
+        }
+        return new Promise<TexteLu>(() => {});
+      },
+      arreter() {},
+    };
+    const preparee: ImagePreparee = { envoi: ENVOI, lecture: { largeur, hauteur, pixels }, angle: 0 };
+    const erreur = await executerLecture(ENVOI, controleur.signal, dependances(moteur, preparee)).catch((e: unknown) => e);
+    expect(erreur).toMatchObject({ name: 'AbortError' });
+    expect(appels.filter((a) => a.annule)).toEqual([]);
+  });
+
+  describe('budget des passes ajoutées : jamais au prix du plafond de la page', () => {
+    /** Horloge factice : chaque lecture du moteur prend `ms`. Seule l'horloge de la page est remplacée. */
+    function horlogeLente(ms: number) {
+      let t = 0;
+      const espion = vi.spyOn(performance, 'now').mockImplementation(() => t);
+      return { avancer: () => void (t += ms), rendre: () => espion.mockRestore() };
+    }
+    /** Recto sans type ni nom ; sa mise en page situe pourtant le titre (la relecture sous le titre est possible). */
+    const titre = tsv([{ texte: "CARTE NATIONALE D'IDENTITÉ", haut: 40, hauteur: 30 }]);
+
+    it('le plafond de 25 s de la page laisse une marge au budget', () => {
+      expect(BUDGET_LECTURE_MS).toBeLessThanOrEqual(DELAI_ABANDON_MS - 3_000);
+    });
+
+    it('téléphone lent : en-tête et relecture sous le titre sautées, la lecture d’avant et ses prénoms restent', async () => {
+      const horloge = horlogeLente(6_000);
+      try {
+        const largeurs: number[] = [];
+        const { moteur, passes } = moteurFactice((passe, image) => {
+          horloge.avancer();
+          largeurs.push(image.largeur);
+          if (passe.modele === 'mrz') return texte('illisible');
+          return texte('Prénom(s)\nAYA-LAURE ESTHER\nDate de naissance\n01/01/1990', passe.miseEnPage ? titre : '');
+        });
+        const sautees: Passe[] = [];
+        const lecture = await executerLecture(ENVOI, undefined, {
+          ...dependances(moteur, imageAvecEncre()),
+          passeSautee: (passe) => sautees.push(passe),
+        });
+        expect(passes.map((p, i) => nomPasse(p, largeurs, i))).toEqual(['fra3', 'fra11', 'mrz6', 'mrz6', 'fra3']);
+        expect(sautees).toEqual([PASSES.enTeteInverse, PASSES.sousTitre]);
+        expect(lecture.resultat).toEqual({ prenom: 'AYA-LAURE ESTHER', decoupage: 'libelles' });
+        expect(lecture.imageAEnvoyer).toBe(ENVOI);
+      } finally {
+        horloge.rendre();
+      }
+    });
+
+    it('téléphone moyen : la première lecture d’en-tête tient, la seconde non', async () => {
+      const horloge = horlogeLente(4_800);
+      try {
+        const largeurs: number[] = [];
+        const { moteur, passes } = moteurFactice((passe, image) => {
+          horloge.avancer();
+          largeurs.push(image.largeur);
+          return texte(passe.modele === 'mrz' ? 'illisible' : 'Prénom(s)\nAYA-LAURE ESTHER');
+        });
+        const sautees: Passe[] = [];
+        await executerLecture(ENVOI, undefined, { ...dependances(moteur, imageAvecEncre()), passeSautee: (p) => sautees.push(p) });
+        // 4,8 s + (0,6 + 0,8 + 2) × 4,8 s = 21,1 s : la première passe d'en-tête tient ; après elle, 25,9 s : non.
+        expect(passes.map((p, i) => nomPasse(p, largeurs, i)).slice(0, 3)).toEqual(['fra3', 'en-tête', 'fra11']);
+        expect(sautees).toEqual([PASSES.enTete]);
+      } finally {
+        horloge.rendre();
+      }
+    });
+  });
+
+  it('panne pendant l’en-tête : on garde ce que le recto a donné', async () => {
+    const { moteur } = moteurFactice((_passe, image) => {
+      if (image.largeur === LARGEUR_EN_TETE) return Promise.reject(new Error('panne'));
+      return texte('Nom : KOUAMÉ\nPrénoms : AFFOUÉ ESTELLE');
+    });
+    const lecture = await executerLecture(ENVOI, undefined, dependances(moteur, imageAvecEncre()));
+    expect(lecture.resultat).toEqual({ nom: 'KOUAMÉ', prenom: 'AFFOUÉ ESTELLE', decoupage: 'libelles' });
+  });
+});
+
 describe('creerEnCaptant', () => {
   const portee = globalThis as { Worker?: unknown };
   let avant: unknown;
@@ -482,7 +753,7 @@ describe('creerEnCaptant', () => {
 });
 
 describe('garde-fous du code de lecture', () => {
-  const fichiers = ['moteur.ts', 'image.ts', 'index.ts'].map((f) => [f, readFileSync(new URL(`./${f}`, import.meta.url), 'utf8')] as const);
+  const fichiers = ['moteur.ts', 'image.ts', 'index.ts', 'diagnostic.ts'].map((f) => [f, readFileSync(new URL(`./${f}`, import.meta.url), 'utf8')] as const);
 
   it('aucun appel à console, aucun logger passé à tesseract.js', () => {
     for (const [, source] of fichiers) {

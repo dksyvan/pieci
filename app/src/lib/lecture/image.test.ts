@@ -1,15 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
+  aDeLEncre,
   accentuer,
   bandeBasse,
   dimensionsReduites,
   enPgm,
+  enTete,
   estimerAngle,
   etapesReduction,
   etirerContraste,
+  MARGE_EN_TETE,
   PART_BANDE_BASSE,
+  PART_EN_TETE,
+  preparerEnTete,
   recadrer,
   redresser,
+  seuillerEnTete,
+  sousLeBandeau,
   tourner180,
   versGris,
   type ImageGrise,
@@ -176,5 +183,102 @@ describe('recadrer, bandeBasse, tourner180, enPgm', () => {
     expect(new TextDecoder().decode(pgm.slice(0, entete.length))).toBe(entete);
     expect(pgm.length).toBe(entete.length + 40);
     expect(pgm.at(-1)).toBe(39);
+  });
+});
+
+describe('en-tête : seuillage local, cadre, encre', () => {
+  /** Bandeau gris moyen (un orange en gris) portant une « lettre » claire, et une lettre sombre plus bas. */
+  function bandeau(): ImageGrise {
+    const largeur = 200;
+    const hauteur = 60;
+    const pixels = new Uint8Array(largeur * hauteur).fill(150);
+    for (let y = 20; y < 41; y++) for (let x = 20; x < 31; x++) pixels[y * largeur + x] = 250;
+    return { largeur, hauteur, pixels };
+  }
+  const valeur = (image: ImageGrise, x: number, y: number) => image.pixels[y * image.largeur + x];
+  /** Point de la sortie (agrandie 1,5 fois, encadrée) qui correspond au point (x, y) de l'origine. */
+  const sortie = (x: number, y: number) => [Math.round((x + 0.5) * 1.5 - 0.5) + MARGE_EN_TETE, Math.round((y + 0.5) * 1.5 - 0.5) + MARGE_EN_TETE] as const;
+
+  it('inversé : le texte clair d’un bandeau devient noir, le bandeau uni blanc', () => {
+    const seuillee = seuillerEnTete(bandeau(), true);
+    expect(seuillee.largeur).toBe(200 * 1.5 + 2 * MARGE_EN_TETE);
+    expect(seuillee.hauteur).toBe(60 * 1.5 + 2 * MARGE_EN_TETE);
+    expect(valeur(seuillee, ...sortie(25, 30))).toBe(0);
+    expect(valeur(seuillee, ...sortie(150, 30))).toBe(255);
+    expect(new Set(seuillee.pixels)).toEqual(new Set([0, 255]));
+  });
+
+  it('non inversé : le texte clair reste blanc', () => {
+    expect(valeur(seuillerEnTete(bandeau(), false), ...sortie(25, 30))).toBe(255);
+  });
+
+  it('cadre blanc tout autour, même quand l’encre touche le bord', () => {
+    const noire: ImageGrise = { largeur: 40, hauteur: 40, pixels: new Uint8Array(1600).fill(250) };
+    for (let y = 0; y < 40; y++) for (let x = 0; x < 6; x++) noire.pixels[y * 40 + x] = 10;
+    const seuillee = seuillerEnTete(noire, false);
+    for (let y = 0; y < seuillee.hauteur; y++) {
+      for (let x = 0; x < seuillee.largeur; x++) {
+        const dansLeCadre = x < MARGE_EN_TETE || y < MARGE_EN_TETE || x >= seuillee.largeur - MARGE_EN_TETE || y >= seuillee.hauteur - MARGE_EN_TETE;
+        if (dansLeCadre) expect(valeur(seuillee, x, y)).toBe(255);
+      }
+    }
+    expect(aDeLEncre(seuillee)).toBe(true);
+  });
+
+  it('image unie : aucune encre, donc pas de lecture', () => {
+    const unie: ImageGrise = { largeur: 300, hauteur: 80, pixels: new Uint8Array(300 * 80).fill(140) };
+    expect(aDeLEncre(seuillerEnTete(unie, true))).toBe(false);
+    expect(aDeLEncre(seuillerEnTete(unie, false))).toBe(false);
+  });
+
+  it('pas d’agrandissement au-delà de 2400 px de large', () => {
+    const large: ImageGrise = { largeur: 2000, hauteur: 10, pixels: new Uint8Array(20_000).fill(200) };
+    expect(seuillerEnTete(large, true).largeur).toBe(2400 + 2 * MARGE_EN_TETE);
+  });
+
+  it('aDeLEncre : au moins un pixel noir sur mille', () => {
+    const image: ImageGrise = { largeur: 100, hauteur: 100, pixels: new Uint8Array(10_000).fill(255) };
+    image.pixels[5] = 0;
+    expect(aDeLEncre(image)).toBe(false);
+    image.pixels.fill(0, 0, 10);
+    expect(aDeLEncre(image)).toBe(true);
+  });
+
+  it('enTete : le haut de l’image', () => {
+    expect(enTete(fausseCarte(0, 400, 300)).hauteur).toBe(Math.ceil(300 * PART_EN_TETE));
+  });
+
+  it('preparerEnTete : même résultat que la version d’un bloc, et s’arrête sur un signal levé', async () => {
+    expect(await preparerEnTete(bandeau(), true)).toEqual(seuillerEnTete(bandeau(), true));
+    const grande: ImageGrise = { largeur: 1600, hauteur: 400, pixels: new Uint8Array(1600 * 400).fill(150) };
+    const controleur = new AbortController();
+    const preparation = preparerEnTete(grande, true, controleur.signal);
+    controleur.abort();
+    await expect(preparation).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(preparerEnTete(bandeau(), true, controleur.signal)).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});
+
+describe('sousLeBandeau', () => {
+  function carteABandeau(finBandeau: number): ImageGrise {
+    const largeur = 100;
+    const hauteur = 200;
+    const pixels = new Uint8Array(largeur * hauteur).fill(240);
+    pixels.fill(150, 0, finBandeau * largeur);
+    return { largeur, hauteur, pixels };
+  }
+
+  it('saute le reste du bandeau sous le titre', () => {
+    const sous = sousLeBandeau(carteABandeau(60), 20);
+    expect(sous.hauteur).toBe(140);
+    expect(sous.pixels[0]).toBe(240);
+  });
+
+  it('sans bandeau, rien n’est sauté', () => {
+    expect(sousLeBandeau(carteABandeau(0), 20).hauteur).toBe(180);
+  });
+
+  it('ne saute jamais plus de 40 % de l’image restante', () => {
+    expect(sousLeBandeau(carteABandeau(190), 0).hauteur).toBeGreaterThanOrEqual(200 - Math.ceil(200 * 0.4));
   });
 });

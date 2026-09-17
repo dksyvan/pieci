@@ -25,6 +25,12 @@ import type { LectureFusionnee } from '@partage/fusion-lecture';
  * d'IndexedDB). Aucun journal.
  */
 
+/**
+ * Remplacé au build par vite.config.ts : `true` seulement pour la version
+ * d'essai (`VITE_DIAGNOSTIC_LECTURE=1`). Voir diagnostic.ts.
+ */
+declare const __DIAGNOSTIC_LECTURE__: boolean;
+
 /** Ce que rend `lirePiece`. */
 export interface LecturePiece {
   /** Champs lus, à relire ; `null` si rien d'exploitable. */
@@ -106,6 +112,12 @@ export async function lirePiece(fichier: Blob, options: OptionsLecture = {}): Pr
   } catch {
     if (signal?.aborted) throw new DOMException('Lecture annulée', 'AbortError');
     throw new LectureImpossible('moteur_indisponible');
+  }
+  // Version d'essai seulement (voir diagnostic.ts) : la branche entière
+  // disparaît d'un build normal, où `__DIAGNOSTIC_LECTURE__` vaut `false`.
+  if (__DIAGNOSTIC_LECTURE__) {
+    const diagnostic = await import('./diagnostic').catch(() => null);
+    if (diagnostic?.diagnosticDemande()) return diagnostic.lireAvecDiagnostic(moteur, fichier, signal);
   }
   return moteur.executerLecture(fichier, signal);
 }

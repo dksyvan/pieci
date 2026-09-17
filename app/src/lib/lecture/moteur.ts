@@ -2,7 +2,21 @@ import { fusionner, LONGUEUR_MAX_CHAMP, type LectureFusionnee } from '@partage/f
 import { lireMrz, type LectureMrz } from '@partage/mrz';
 import { familleMrz, lireRecto, type Decoupage, type LectureRecto } from '@partage/recto';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
-import { bandeBasse, ceder, enPgm, preparerImage, recadrer, tourner180, type ImageGrise, type ImagePreparee } from './image';
+import {
+  aDeLEncre,
+  bandeBasse,
+  ceder,
+  enPgm,
+  enTete,
+  MARGE_EN_TETE,
+  preparerEnTete,
+  preparerImage,
+  recadrer,
+  sousLeBandeau,
+  tourner180,
+  type ImageGrise,
+  type ImagePreparee,
+} from './image';
 import { LectureImpossible, type LecturePiece } from './index';
 
 /**
@@ -20,12 +34,18 @@ import { LectureImpossible, type LecturePiece } from './index';
  *    dans le bas de l'image — et lue avec le modèle « mrz » (liste
  *    A-Z 0-9 <, bloc unique, redressement fin par Tesseract), puis passée à
  *    `lireMrz`. Le modèle « mrz » (1,3 Mo) n'est téléchargé qu'à ce moment ;
- * 4. sans bande lue et sans nom ET prénoms, seconde lecture du recto en texte
+ * 4. sans bande lue et sans type : passe d'en-tête, sur le haut de l'image
+ *    agrandi et seuillé (texte clair, puis sombre), pour le type seul ;
+ * 5. sans nom ET prénoms, si le titre de la pièce a été situé : relecture de
+ *    l'image sous ce titre (le bandeau écartait le premier champ). Ces deux
+ *    passes ajoutées sont sautées si elles risquent de faire dépasser le
+ *    plafond de la page (`BUDGET_LECTURE_MS`) ;
+ * 6. toujours pas de nom ET prénoms, seconde lecture du recto en texte
  *    épars (psm 11), champ par champ : c'est la stratégie qui a donné 78 % de
  *    paires utilisables et 0 % de valeurs fausses sur 90 rectos fictifs ;
- * 5. toujours rien de sûr : contre-vérification qu'il ne s'agit pas d'un dos
+ * 7. toujours rien de sûr : contre-vérification qu'il ne s'agit pas d'un dos
  *    de carte mal cadré ou tête en bas (bas de l'image, image retournée) ;
- * 6. `fusionner` réunit bande et recto.
+ * 8. `fusionner` réunit bande et recto.
  *
  * Le dos d'une carte : si une bande de carte (format TD1, trois lignes) est
  * lue ou même seulement reconnue, même écourtée, `estDosDeCarte` est vrai,
@@ -211,6 +231,118 @@ export function zoneBande(tsv: string, hauteurImage: number): { haut: number; ba
   return bas - haut >= 8 ? { haut: Math.floor(haut), bas: Math.ceil(bas) } : null;
 }
 
+/**
+ * Distance d'édition d'un motif à la portion la plus proche d'un texte
+ * (algorithme de Sellers : le motif peut commencer et finir n'importe où).
+ * Coût : longueur du texte × longueur du motif.
+ */
+function distanceDansTexte(texte: string, motif: string): number {
+  const m = motif.length;
+  let precedente = new Uint16Array(m + 1);
+  let courante = new Uint16Array(m + 1);
+  for (let j = 0; j <= m; j++) precedente[j] = j;
+  let meilleure = m;
+  for (let i = 1; i <= texte.length; i++) {
+    courante[0] = 0;
+    const car = texte.charCodeAt(i - 1);
+    for (let j = 1; j <= m; j++) {
+      const substitution = precedente[j - 1] + (car === motif.charCodeAt(j - 1) ? 0 : 1);
+      courante[j] = Math.min(substitution, precedente[j] + 1, courante[j - 1] + 1);
+    }
+    if (courante[m] < meilleure) meilleure = courante[m];
+    const echange = precedente;
+    precedente = courante;
+    courante = echange;
+  }
+  return meilleure;
+}
+
+/** Lettres seules, en capitales sans accents, confusions de l'OCR rétablies (0 → O, 1 → I, 5 → S). */
+function lettresCompactes(texte: string): string {
+  return texte
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/0/g, 'O')
+    .replace(/[1|!]/g, 'I')
+    .replace(/5/g, 'S')
+    .replace(/[^A-Z]/g, '');
+}
+
+/**
+ * Formes de la mention « Carte nationale d'identité », en lettres collées, et
+ * nombre d'erreurs tolérées : environ une pour six lettres. Collées, parce que
+ * l'OCR soude ou coupe les mots d'un bandeau (« CARTENATIONALE DIDENTITE »,
+ * « NATIONALE D'IDENTIT »), ce que la recherche par mots de shared/recto.ts ne
+ * rattrape pas.
+ */
+const MENTIONS_CNI: ReadonlyArray<readonly [string, number]> = [
+  ['NATIONALEDIDENTITE', 3],
+  ['CARTENATIONALEDIDENT', 3],
+  ['NATIONALIDENTITYCARD', 3],
+];
+
+/**
+ * Le texte porte-t-il la mention « Carte nationale d'identité », même mal lue ?
+ * Règle donnée par le porteur du projet : cette mention en haut d'une carte,
+ * c'est une CNI. Appelée seulement sur le texte de la passe d'en-tête (le haut
+ * de l'image), et jamais si le texte parle d'une carte consulaire.
+ */
+export function mentionCarteNationale(texte: string): boolean {
+  if (typeof texte !== 'string' || !texte || texte.length > CARACTERES_MAX) return false;
+  const lettres = lettresCompactes(texte);
+  if (lettres.length < 14) return false;
+  if (distanceDansTexte(lettres, 'CONSULAIRE') <= 2) return false;
+  return MENTIONS_CNI.some(([motif, tolerance]) => distanceDansTexte(lettres, motif) <= tolerance);
+}
+
+/**
+ * Type de pièce lu dans l'en-tête : celui de shared/recto.ts d'abord, sinon la
+ * mention « Carte nationale d'identité » reconnue plus largement.
+ */
+export function typeEnTete(texte: string): TypePiece | undefined {
+  return lireRecto(texte)?.typePiece ?? (mentionCarteNationale(texte) ? 'CNI' : undefined);
+}
+
+/**
+ * Bas du titre de la pièce (« Carte nationale d'identité », « Permis de
+ * conduire »…), en pixels de l'image d'origine, d'après la sortie TSV d'une
+ * lecture où chaque coordonnée vaut `facteur` pixels d'origine. On regroupe
+ * les mots par ligne, on garde les lignes qui nomment à elles seules un type de
+ * pièce, et l'on rend le bas de la plus basse de celles situées dans la moitié
+ * haute de l'image, un peu élargi. `decalage` : pixels ajoutés en haut de
+ * l'image lue (cadre blanc de l'en-tête). `null` si aucune.
+ */
+export function basDuTitre(tsv: string, hauteurImage: number, facteur = 1, decalage = 0): number | null {
+  if (typeof tsv !== 'string' || !tsv || tsv.length > TSV_MAX || !(hauteurImage > 0) || !(facteur > 0)) return null;
+  const lignes = new Map<string, { bas: number; hauteur: number; texte: string }>();
+  for (const rangee of tsv.split('\n')) {
+    const colonnes = rangee.split('\t');
+    if (colonnes.length < 12 || colonnes[0] !== '5') continue;
+    const haut = (Number(colonnes[7]) - decalage) / facteur;
+    const hauteur = Number(colonnes[9]) / facteur;
+    if (!Number.isFinite(haut) || !Number.isFinite(hauteur) || hauteur <= 0) continue;
+    const cle = `${colonnes[2]}.${colonnes[3]}.${colonnes[4]}`;
+    const mot = colonnes.slice(11).join(' ');
+    const ligne = lignes.get(cle);
+    if (ligne) {
+      ligne.bas = Math.max(ligne.bas, haut + hauteur);
+      ligne.hauteur = Math.max(ligne.hauteur, hauteur);
+      ligne.texte += ` ${mot}`;
+    } else {
+      lignes.set(cle, { bas: haut + hauteur, hauteur, texte: mot });
+    }
+  }
+  let bas: number | null = null;
+  for (const ligne of lignes.values()) {
+    if (ligne.bas > hauteurImage * 0.5) continue;
+    if (!mentionCarteNationale(ligne.texte) && lireRecto(ligne.texte)?.typePiece === undefined) continue;
+    const fin = ligne.bas + Math.max(2, ligne.hauteur * 0.1);
+    if (bas === null || fin > bas) bas = fin;
+  }
+  return bas === null ? null : Math.min(hauteurImage, Math.ceil(bas));
+}
+
 /** Du plus sûr au moins sûr : un découpage mêlé de deux lectures vaut le moins sûr des deux. */
 const RANG_DECOUPAGE: Readonly<Record<Decoupage, number>> = {
   libelles: 0,
@@ -225,6 +357,13 @@ const RANG_DECOUPAGE: Readonly<Record<Decoupage, number>> = {
  * la première l'emporte, la seconde comble ses trous. Si nom et prénoms
  * viennent de lectures différentes, `decoupage` prend la valeur la moins sûre
  * des deux, pour que l'interface fasse vérifier la séparation au moindre doute.
+ *
+ * Exception : un nom deviné (découpage `position` ou `devine`) cède la place
+ * au nom d'une lecture plus sûre (lu sous son libellé). Relevé en revue : un
+ * bout d'en-tête pris pour le nom à la première passe masquait le vrai nom que
+ * la passe suivante lisait. Avec `devine`, les prénoms aussi étaient devinés :
+ * ils suivent le nom. Avec `position`, les prénoms, eux, ont été lus sous leur
+ * libellé : ils restent, et comptent comme tels pour `decoupage`.
  */
 export function combinerLectures(premiere: LectureRecto | null, seconde: LectureRecto | null): LectureRecto | null {
   if (!premiere) return seconde;
@@ -232,18 +371,38 @@ export function combinerLectures(premiere: LectureRecto | null, seconde: Lecture
   const sortie: LectureRecto = {};
   const typePiece = premiere.typePiece ?? seconde.typePiece;
   if (typePiece) sortie.typePiece = typePiece;
-  const sourceNom = premiere.nom ? premiere : seconde.nom ? seconde : null;
-  const sourcePrenom = premiere.prenom ? premiere : seconde.prenom ? seconde : null;
+  const nomPlusSur = Boolean(
+    premiere.nom && seconde.nom && premiere.decoupage && seconde.decoupage &&
+      RANG_DECOUPAGE[seconde.decoupage] < RANG_DECOUPAGE[premiere.decoupage],
+  );
+  const prenomsPlusSurs = nomPlusSur && premiere.decoupage === 'devine' && Boolean(seconde.prenom);
+  const sourceNom = premiere.nom && !nomPlusSur ? premiere : seconde.nom ? seconde : null;
+  const sourcePrenom = premiere.prenom && !prenomsPlusSurs ? premiere : seconde.prenom ? seconde : null;
   if (sourceNom?.nom) sortie.nom = sourceNom.nom;
   if (sourcePrenom?.prenom) sortie.prenom = sourcePrenom.prenom;
-  const decoupages = [sourceNom?.decoupage, sourcePrenom?.decoupage].filter((d): d is Decoupage => d !== undefined);
+  // Découpage `position` : seul le nom est deviné, les prénoms viennent de leur libellé.
+  const decoupagePrenom = sourcePrenom?.decoupage === 'position' ? 'libelles' : sourcePrenom?.decoupage;
+  const decoupages = [sourceNom?.decoupage, decoupagePrenom].filter((d): d is Decoupage => d !== undefined);
   if (decoupages.length) {
     sortie.decoupage = decoupages.reduce((a, b) => (RANG_DECOUPAGE[b] > RANG_DECOUPAGE[a] ? b : a));
   }
   return sortie.typePiece || sortie.nom || sortie.prenom ? sortie : null;
 }
 
-const paireComplete = (lecture: LectureRecto | null) => Boolean(lecture?.nom && lecture.prenom);
+/**
+ * Nom et prénoms lus tous les deux, le nom autrement que par sa position : un
+ * nom deviné au-dessus des prénoms peut être un bout d'en-tête ou la valeur
+ * d'un autre champ, et les passes suivantes (sous le titre, texte épars)
+ * doivent encore avoir la chance de le lire sous son libellé.
+ */
+const paireComplete = (lecture: LectureRecto | null) =>
+  Boolean(lecture?.nom && lecture.prenom && lecture.decoupage !== 'position');
+
+/**
+ * Nom et prénoms lus, même le nom par sa position : assez pour savoir que c'est un recto, et
+ * se passer de la contre-vérification « dos de carte ».
+ */
+const nomEtPrenomsLus = (lecture: LectureRecto | null) => Boolean(lecture?.nom && lecture.prenom);
 
 const DECOUPAGES = Object.keys(RANG_DECOUPAGE) as Decoupage[];
 
@@ -551,9 +710,16 @@ async function obtenirMoteur(signal: AbortSignal): Promise<Moteur> {
 export interface Dependances {
   preparer(fichier: Blob): Promise<ImagePreparee | null>;
   moteur(signal: AbortSignal): Promise<Moteur>;
+  /**
+   * Une passe ajoutée a été sautée faute de temps (voir `BUDGET_LECTURE_MS`).
+   * Absent en production ; le mode diagnostic de la version d'essai le note.
+   * Reçoit le réglage de la passe, rien de lu.
+   */
+  passeSautee?(passe: Passe): void;
 }
 
-const DEPENDANCES: Dependances = { preparer: preparerImage, moteur: obtenirMoteur };
+/** Exportées pour le mode diagnostic de la version d'essai (diagnostic.ts), qui enveloppe le moteur. */
+export const DEPENDANCES: Dependances = { preparer: preparerImage, moteur: obtenirMoteur };
 
 /** Durées dans la chronologie de performance du navigateur (outils de développement) : des temps, aucun contenu. */
 function mesurer(etape: string, debut: number): void {
@@ -569,6 +735,56 @@ const maintenant = () => (typeof performance !== 'undefined' ? performance.now()
 const PASSE_RECTO: Passe = { modele: 'fra', psm: '3', miseEnPage: true };
 const PASSE_RECTO_EPARS: Passe = { modele: 'fra', psm: '11' };
 const PASSE_BANDE: Passe = { modele: 'mrz', psm: '6', alphabet: ALPHABET_BANDE, redresser: true };
+/** Haut de l'image seuillé, texte clair rendu noir (bandeau de couleur à mention blanche). */
+const PASSE_EN_TETE_INVERSE: Passe = { modele: 'fra', psm: '3', miseEnPage: true };
+/** Haut de l'image seuillé, texte sombre (mention foncée que la lecture du recto a manquée). */
+const PASSE_EN_TETE: Passe = { modele: 'fra', psm: '3', miseEnPage: true };
+/** Image sous le titre de la pièce. */
+const PASSE_SOUS_TITRE: Passe = { modele: 'fra', psm: '3' };
+/** En dessous de cette hauteur (px), l'image sous le titre n'est pas lue. */
+const HAUTEUR_MIN_SOUS_TITRE = 40;
+
+/**
+ * Budget des passes AJOUTÉES (en-tête, sous le titre), en millisecondes depuis
+ * le début de `executerLecture`.
+ *
+ * Au plafond de la page (25 s, `DELAI_ABANDON_MS` de machine.ts), la lecture
+ * est annulée et rien n'est rempli, pas même les prénoms déjà lus. Sur le
+ * terrain (16/09/2026), la lecture d'avant ces passes tenait sous ce plafond
+ * sur les deux téléphones : les prénoms se remplissaient. Sur un téléphone
+ * lent, les ajouter pourrait l'en faire sortir, et tout perdre. Une passe
+ * ajoutée n'est donc lancée que si elle et tout ce qui peut encore la suivre
+ * tiennent dans ce budget, d'après la durée de la première lecture ; sinon la
+ * lecture se déroule comme avant. 3 s de marge sous le plafond : chargement du
+ * module de lecture, écarts d'estimation.
+ */
+export const BUDGET_LECTURE_MS = 22_000;
+
+/**
+ * Durée estimée d'une passe, en durées de la première lecture du recto.
+ * Mesuré dans Chrome sur PC (64 photos fictives ; médiane, 90e centile) :
+ * en-tête 0,49 et 0,80 ; sous le titre 0,43 et 0,64 ; texte épars 0,68 et
+ * 0,87 ; bande 0,51 et 0,90 ; image retournée 0,65 et 0,86. Comptés un peu
+ * au-dessus de la médiane ; la contre-vérification, c'est deux bandes et
+ * l'image retournée.
+ */
+const COUT_EN_TETE = 0.6;
+const COUT_SOUS_TITRE = 0.5;
+const COUT_EPARS = 0.8;
+const COUT_CONTRE_VERIFICATION = 2;
+
+/**
+ * Les passes, pour le mode diagnostic de la version d'essai (diagnostic.ts),
+ * qui les reconnaît à leur identité. Des réglages, rien de lu.
+ */
+export const PASSES = {
+  recto: PASSE_RECTO,
+  epars: PASSE_RECTO_EPARS,
+  bande: PASSE_BANDE,
+  enTeteInverse: PASSE_EN_TETE_INVERSE,
+  enTete: PASSE_EN_TETE,
+  sousTitre: PASSE_SOUS_TITRE,
+} as const;
 
 /**
  * Ligne 1 d'une bande de carte (TD1) écourtée : code, État (1 et 0 pris pour
@@ -675,6 +891,7 @@ export async function executerLecture(
     let debutPasse = maintenant();
     const recto = await sousGarde(moteur.lire(image.lecture, PASSE_RECTO, signal), signal);
     mesurer('recto', debutPasse);
+    const dureeRecto = maintenant() - debutPasse;
     let lectureRecto = lireRecto(recto.texte);
     await ceder();
 
@@ -703,6 +920,86 @@ export async function executerLecture(
     // tromper coûte une photo du devant ; l'inverse enverrait un numéro et une
     // date de naissance lisibles.
     const estDos = () => (mrz ? mrz.typePiece !== 'Passeport' : carte !== undefined);
+
+    /**
+     * La passe ajoutée de coût `cout` tient-elle dans `BUDGET_LECTURE_MS`, avec
+     * ce qui la suivra si elle ne trouve rien : le texte épars sans paire
+     * complète, la contre-vérification sans nom ni prénoms ? Sinon elle est
+     * sautée, et signalée au mode diagnostic.
+     */
+    const tientDansLeBudget = (cout: number, passe: Passe): boolean => {
+      let suite = cout;
+      if (!paireComplete(lectureRecto)) suite += COUT_EPARS;
+      if (!nomEtPrenomsLus(lectureRecto) && lectureRecto?.typePiece !== 'Passeport') suite += COUT_CONTRE_VERIFICATION;
+      if (maintenant() - debut + suite * dureeRecto <= BUDGET_LECTURE_MS) return true;
+      dependances.passeSautee?.(passe);
+      return false;
+    };
+
+    /**
+     * En-tête : le type n'a pas été lu. Mesuré sur des cartes fictives à
+     * bandeau orange et mention blanche : sur photo, la lecture du recto
+     * écarte le bandeau (et souvent le premier champ, le nom, juste dessous),
+     * alors que les prénoms passent. C'est le symptôme relevé sur le terrain.
+     *
+     * Le haut de l'image (`PART_EN_TETE`) est agrandi et seuillé localement
+     * (image.ts, `preparerEnTete`), d'abord texte clair rendu noir, puis, si
+     * rien, texte sombre : deux lectures au plus, d'un tiers d'image chacune.
+     * Seul le type en est gardé (`typeEnTete`), et le bas du titre, pour la
+     * passe suivante. Mesuré dans Chrome sur PC : 48 types sur 48 photos
+     * fictives avec la première, 0,25 s de plus en médiane. Chaque lecture
+     * n'a lieu que si elle tient dans le budget (`tientDansLeBudget`).
+     */
+    let typeDuHaut: TypePiece | undefined;
+    let basTitre = basDuTitre(recto.tsv, image.lecture.hauteur);
+    if (!mrz && !estDos() && !lectureRecto?.typePiece) {
+      try {
+        debutPasse = maintenant();
+        const haut = enTete(image.lecture);
+        for (const [inverse, passe] of [[true, PASSE_EN_TETE_INVERSE], [false, PASSE_EN_TETE]] as const) {
+          await ceder();
+          // Le seuillage d'une image agrandie prend du temps : une annulation l'interrompt entre
+          // deux tranches, et aucune lecture n'est lancée avec un signal déjà levé (relevé en revue).
+          if (signal.aborted) throw annulation();
+          if (!tientDansLeBudget(COUT_EN_TETE, passe)) break;
+          const prepare = await preparerEnTete(haut, inverse, signal);
+          if (signal.aborted) throw annulation();
+          if (!aDeLEncre(prepare)) continue;
+          const lue = await sousGarde(moteur.lire(prepare, passe, signal), signal);
+          typeDuHaut = typeEnTete(lue.texte);
+          const facteur = (prepare.hauteur - 2 * MARGE_EN_TETE) / haut.hauteur;
+          basTitre ??= basDuTitre(lue.tsv, image.lecture.hauteur, facteur, MARGE_EN_TETE);
+          if (typeDuHaut) break;
+        }
+        mesurer('en-tete', debutPasse);
+      } catch (erreur) {
+        if (signal.aborted) throw erreur;
+      }
+    }
+
+    /**
+     * Sous le titre : nom et prénoms pas encore lus tous les deux, et le titre
+     * de la pièce situé (par la lecture du recto ou par l'en-tête). On relit
+     * l'image privée de tout ce qui est au-dessus : sans le bandeau, la mise en
+     * page n'écarte plus le premier champ. Une lecture, qui ne fait que combler
+     * les trous de la première. Mesuré : nom retrouvé sur les photos fictives
+     * à bandeau orange, 0,2 à 0,3 s sur PC. Seulement si elle tient dans le
+     * budget (`tientDansLeBudget`).
+     */
+    if (!mrz && !estDos() && !paireComplete(lectureRecto) && basTitre !== null && tientDansLeBudget(COUT_SOUS_TITRE, PASSE_SOUS_TITRE)) {
+      try {
+        debutPasse = maintenant();
+        const sous = sousLeBandeau(image.lecture, basTitre);
+        // Une bande de quelques pixels : rien à y lire (et Leptonica s'en plaindrait dans la console).
+        if (sous.hauteur < HAUTEUR_MIN_SOUS_TITRE) throw new Error('trop bas');
+        const lue = await sousGarde(moteur.lire(sous, PASSE_SOUS_TITRE, signal), signal);
+        carte ??= familleCarte(lue.texte);
+        if (!estDos()) lectureRecto = combinerLectures(lectureRecto, lireRecto(lue.texte));
+        mesurer('sous-titre', debutPasse);
+      } catch (erreur) {
+        if (signal.aborted) throw erreur;
+      }
+    }
 
     if (!mrz && !estDos() && !paireComplete(lectureRecto)) {
       try {
@@ -744,7 +1041,7 @@ export async function executerLecture(
      * Une panne ici laisse la question sans réponse : pas de verdict
      * (`moteur_indisponible`), et la page ne l'enverra pas.
      */
-    if (!mrz && !estDos() && !paireComplete(lectureRecto) && lectureRecto?.typePiece !== 'Passeport') {
+    if (!mrz && !estDos() && !nomEtPrenomsLus(lectureRecto) && lectureRecto?.typePiece !== 'Passeport') {
       try {
         debutPasse = maintenant();
         if (!bandeLue) {
@@ -778,6 +1075,9 @@ export async function executerLecture(
     }
 
     const dosDeCarte = estDos();
+    // Le type lu dans l'en-tête ne comble qu'un trou, et seulement maintenant :
+    // plus tôt, un « Passeport » lu en haut ferait sauter la contre-vérification.
+    if (typeDuHaut && !lectureRecto?.typePiece) lectureRecto = combinerLectures(lectureRecto, { typePiece: typeDuHaut });
 
     // Dos de carte : rien du verso n'est un recto, seule la bande compte. Faute
     // de bande lisible, on garde au moins le type quand la carte est ivoirienne.

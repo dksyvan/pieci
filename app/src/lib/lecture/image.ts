@@ -115,10 +115,15 @@ const executer = (operation: Operation): ImageGrise => {
   return operation.sortie;
 };
 
-async function executerParTranches(operation: Operation): Promise<ImageGrise> {
+/**
+ * `signal` : levé, le traitement s'arrête entre deux tranches et la promesse
+ * échoue avec une `DOMException` « AbortError », comme la lecture.
+ */
+async function executerParTranches(operation: Operation, signal?: AbortSignal): Promise<ImageGrise> {
   const { largeur, hauteur } = operation.sortie;
   const pas = Math.max(1, Math.floor(PIXELS_PAR_TRANCHE / Math.max(1, largeur)));
   for (let y = 0; y < hauteur; y += pas) {
+    if (signal?.aborted) throw new DOMException('Lecture annulée', 'AbortError');
     operation.traiter(y, Math.min(hauteur, y + pas));
     if (y + pas < hauteur) await ceder();
   }
@@ -370,6 +375,200 @@ export const PART_BANDE_BASSE = 0.4;
 
 export function bandeBasse(image: ImageGrise): ImageGrise {
   return recadrer(image, image.hauteur * (1 - PART_BANDE_BASSE), image.hauteur);
+}
+
+/**
+ * Part haute de l'image lue par la passe d'en-tête (voir `executerLecture`,
+ * moteur.ts) : le tiers haut, avec du jeu. Le cadre de visée cale la pièce à
+ * 8 % du bord, mais une photo de galerie ou prise de loin met le bandeau plus
+ * bas : sur les photos fictives du banc où la carte n'occupe que la moitié de
+ * l'image, le bas du bandeau tombe à 34 % de la hauteur.
+ */
+export const PART_EN_TETE = 0.4;
+
+/**
+ * Agrandissement de l'en-tête, et largeur au-delà de laquelle on n'agrandit
+ * plus : 1,5 fois une photo de 1600 px, 2400 px. Mesuré sur 48 photos
+ * fictives : ×2 ne lit pas mieux et coûte 40 % de plus.
+ */
+const AGRANDISSEMENT_EN_TETE = 1.5;
+const LARGEUR_MAX_EN_TETE = 2400;
+
+/**
+ * Seuillage local de Sauvola : un pixel est de l'encre s'il est plus sombre
+ * que m × (1 + k × (s / R − 1)), m et s étant la moyenne et l'écart-type des
+ * pixels voisins (carré de 31 px de côté). Une zone unie (bandeau, fond) a un
+ * écart-type faible : son seuil tombe sous sa propre teinte, elle devient
+ * blanche. En dessous de `ECART_MIN`, rien n'est de l'encre : le grain d'une
+ * photo sombre ne doit pas se changer en poivre.
+ */
+const DEMI_FENETRE = 15;
+/**
+ * Cadre blanc autour de l'en-tête préparé, en pixels. Sans lui, une tache
+ * d'encre qui touche le bord (la photo d'identité coupée par le bas de
+ * l'en-tête, seuillée en inversé) fait écrire à Leptonica « Error in
+ * pixScanForForeground: invalid box » dans la console de la page. Mesuré sur un
+ * recto fictif : deux messages sans cadre, aucun avec, et le même type lu sur
+ * 64 photos.
+ */
+export const MARGE_EN_TETE = 20;
+const SAUVOLA_K = 0.2;
+const SAUVOLA_R = 128;
+const ECART_MIN = 8;
+
+export function enTete(image: ImageGrise): ImageGrise {
+  return recadrer(image, 0, image.hauteur * PART_EN_TETE);
+}
+
+/**
+ * En-tête préparé pour la lecture : agrandi (bilinéaire), puis seuillé en noir
+ * et blanc par Sauvola. Avec `inverse`, c'est le texte CLAIR qui devient noir.
+ *
+ * Pourquoi. Le bandeau d'une carte est souvent de couleur, avec la mention
+ * écrite en blanc ou en clair. Dans l'image grise, ce texte blanc sur un
+ * orange moyen ne se détache pas assez : Tesseract classe le bandeau comme une
+ * illustration et l'écarte, et avec lui le premier champ écrit juste dessous
+ * (mesuré sur des cartes fictives à bandeau orange : mention et nom perdus sur
+ * toutes les photos, prénoms lus). Inverser l'image grise n'y change rien
+ * (texte identique à l'octet près : Tesseract seuille de la même façon) ; la
+ * seuiller localement, si : le bandeau devient blanc, le texte clair noir.
+ *
+ * Les moyennes locales se prennent sur l'image d'origine (sommes cumulées :
+ * coût constant par pixel), le seuil sur l'image agrandie.
+ */
+function operationSeuillageLocal(source: ImageGrise, inverse: boolean): Operation {
+  const { largeur: W, hauteur: H, pixels: p } = source;
+  const facteur = Math.max(1, Math.min(AGRANDISSEMENT_EN_TETE, LARGEUR_MAX_EN_TETE / Math.max(1, W)));
+  const largeur = Math.max(1, Math.round(W * facteur));
+  const hauteur = Math.max(1, Math.round(H * facteur));
+  const LS = largeur + 2 * MARGE_EN_TETE;
+  const HS = hauteur + 2 * MARGE_EN_TETE;
+  const pixels = new Uint8Array(LS * HS).fill(255);
+
+  // Sommes cumulées des valeurs (entiers : au plus 2 400 × 1 000 × 255) et de
+  // leurs carrés (flottants : dépassent 2³²). Valeurs inversées d'emblée.
+  const L = W + 1;
+  const somme = new Uint32Array(L * (H + 1));
+  const carres = new Float64Array(L * (H + 1));
+  for (let y = 0; y < H; y++) {
+    let ligne = 0;
+    let ligne2 = 0;
+    for (let x = 0; x < W; x++) {
+      const v = inverse ? 255 - p[y * W + x] : p[y * W + x];
+      ligne += v;
+      ligne2 += v * v;
+      somme[(y + 1) * L + x + 1] = somme[y * L + x + 1] + ligne;
+      carres[(y + 1) * L + x + 1] = carres[y * L + x + 1] + ligne2;
+    }
+  }
+
+  return {
+    sortie: { largeur: LS, hauteur: HS, pixels },
+    traiter(y0, y1) {
+      if (W < 2 || H < 2) return;
+      // Lignes de sortie [y0, y1[ : celles du cadre blanc restent blanches.
+      for (let y = Math.max(0, y0 - MARGE_EN_TETE); y < Math.min(hauteur, y1 - MARGE_EN_TETE); y++) {
+        const debutLigne = (y + MARGE_EN_TETE) * LS + MARGE_EN_TETE;
+        const sy = Math.min(H - 1.001, Math.max(0, (y + 0.5) / facteur - 0.5));
+        const ys = Math.floor(sy);
+        const fy = sy - ys;
+        const cy = Math.min(H - 1, Math.floor(y / facteur));
+        const haut = Math.max(0, cy - DEMI_FENETRE);
+        const bas = Math.min(H, cy + DEMI_FENETRE + 1);
+        for (let x = 0; x < largeur; x++) {
+          const sx = Math.min(W - 1.001, Math.max(0, (x + 0.5) / facteur - 0.5));
+          const xs = Math.floor(sx);
+          const fx = sx - xs;
+          const i = ys * W + xs;
+          const dessus = p[i] + (p[i + 1] - p[i]) * fx;
+          const dessous = p[i + W] + (p[i + W + 1] - p[i + W]) * fx;
+          const brut = dessus + (dessous - dessus) * fy;
+          const v = inverse ? 255 - brut : brut;
+
+          const cx = Math.min(W - 1, Math.floor(x / facteur));
+          const gauche = Math.max(0, cx - DEMI_FENETRE);
+          const droite = Math.min(W, cx + DEMI_FENETRE + 1);
+          const n = (bas - haut) * (droite - gauche);
+          const a = bas * L + droite;
+          const b = haut * L + droite;
+          const c = bas * L + gauche;
+          const d = haut * L + gauche;
+          const m = (somme[a] - somme[b] - somme[c] + somme[d]) / n;
+          const variance = (carres[a] - carres[b] - carres[c] + carres[d]) / n - m * m;
+          const s = variance > 0 ? Math.sqrt(variance) : 0;
+          pixels[debutLigne + x] = s >= ECART_MIN && v < m * (1 + SAUVOLA_K * (s / SAUVOLA_R - 1)) ? 0 : 255;
+        }
+      }
+    },
+  };
+}
+
+/**
+ * Écart de teinte, en niveaux de gris, entre une ligne du bandeau et le fond
+ * clair de la carte ; et part de l'image au-delà de laquelle on cesse de
+ * chercher le bas du bandeau.
+ */
+const ECART_BANDEAU = 25;
+const PART_MAX_BANDEAU = 0.4;
+
+/**
+ * L'image sous la ligne `haut` (le bas du titre de la pièce), privée du reste
+ * du bandeau de couleur qui descend souvent plus bas que le titre.
+ *
+ * Le bandeau se reconnaît ligne par ligne : la moyenne des pixels du milieu de
+ * la ligne (60 % central, loin des bords de la photo) est nettement plus sombre
+ * que le fond de la carte, pris comme le 80e centile de ces moyennes. On saute
+ * ces lignes-là. Sans bandeau, rien n'est sauté.
+ *
+ * Pourquoi : laisser ne serait-ce qu'une vingtaine de pixels de bandeau en haut
+ * de l'image suffit à ce que la mise en page de Tesseract écarte encore le nom,
+ * juste dessous (mesuré sur une photo fictive, coupe 7 px plus haut ou plus bas
+ * selon l'agrandissement de l'en-tête : nom lu ou perdu).
+ */
+export function sousLeBandeau(image: ImageGrise, haut: number): ImageGrise {
+  const sous = recadrer(image, haut, image.hauteur);
+  const { largeur: W, hauteur: H, pixels } = sous;
+  const x0 = Math.floor(W * 0.2);
+  const x1 = Math.max(x0 + 1, Math.floor(W * 0.8));
+  const moyennes = new Float64Array(H);
+  for (let y = 0; y < H; y++) {
+    let somme = 0;
+    for (let x = x0; x < x1; x++) somme += pixels[y * W + x];
+    moyennes[y] = somme / (x1 - x0);
+  }
+  const fond = Float64Array.from(moyennes).sort()[Math.floor(H * 0.8)] ?? 255;
+  let y = 0;
+  while (y < H * PART_MAX_BANDEAU && moyennes[y] < fond - ECART_BANDEAU) y++;
+  return y ? recadrer(sous, y, H) : sous;
+}
+
+/**
+ * Une image seuillée porte-t-elle assez d'encre pour mériter une lecture ?
+ * Sous un pixel noir sur mille, il n'y a rien à lire, et Tesseract n'y
+ * gagnerait que des erreurs de Leptonica recopiées dans la console de la page
+ * (« Error in pixScanForForeground: invalid box » : mesuré sur un recto propre
+ * à fond blanc, dont l'en-tête inversé est tout blanc).
+ */
+export const ENCRE_MIN = 0.001;
+
+export function aDeLEncre(image: ImageGrise): boolean {
+  const { pixels } = image;
+  const seuil = Math.max(1, pixels.length * ENCRE_MIN);
+  let noirs = 0;
+  for (let i = 0; i < pixels.length; i++) {
+    if (pixels[i] === 0 && ++noirs >= seuil) return true;
+  }
+  return false;
+}
+
+/** Version d'un bloc, pour les tests. */
+export function seuillerEnTete(image: ImageGrise, inverse: boolean): ImageGrise {
+  return executer(operationSeuillageLocal(image, inverse));
+}
+
+/** Version par tranches, pour la lecture (fil principal) ; s'arrête entre deux tranches si `signal` est levé. */
+export function preparerEnTete(image: ImageGrise, inverse: boolean, signal?: AbortSignal): Promise<ImageGrise> {
+  return executerParTranches(operationSeuillageLocal(image, inverse), signal);
 }
 
 /**

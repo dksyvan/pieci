@@ -40,6 +40,51 @@ function sansGitignoreOcr(): Plugin {
   }
 }
 
+/**
+ * Version d'essai du mode diagnostic de la lecture (src/lib/lecture/diagnostic.ts).
+ *
+ * Le drapeau n'est lu QUE dans l'environnement du processus, jamais dans un
+ * fichier .env : un .env.local oublié (ignoré par git) l'aurait activé sans
+ * bruit. Et la version d'essai s'écrit dans dist-essai.local/, pas dans le
+ * dist/ que wrangler.toml publie : un `wrangler deploy` lancé après un essai ne
+ * peut pas la mettre en ligne (relevé en revue).
+ *
+ * Procédure : `node scripts/copier-ocr.mjs && npx tsc -b &&
+ * VITE_DIAGNOSTIC_LECTURE=1 npx vite build`, puis servir ce dossier (par
+ * exemple `VITE_DIAGNOSTIC_LECTURE=1 npx vite preview --host`). Pas de
+ * pré-rendu : scripts/prerender.mjs écrit dans dist/, il refuse donc de tourner
+ * avec le drapeau (plugin ci-dessous), et la page se construit dans le
+ * navigateur.
+ *
+ * Sous PowerShell, le drapeau reste posé pour toute la session :
+ * `$env:VITE_DIAGNOSTIC_LECTURE='1'; npx vite build`, puis
+ * `Remove-Item Env:VITE_DIAGNOSTIC_LECTURE` avant tout `npm run build` (qui,
+ * sinon, échoue au pré-rendu : c'est voulu). Sur le téléphone, même réseau
+ * Wi-Fi : l'adresse « Network » de `vite preview --host`, suivie de
+ * `/declarer?diagnostic`. En HTTP, pas de viseur dans la page : c'est
+ * l'appareil photo du système qui s'ouvre (voir camera.ts).
+ */
+const ESSAI_DIAGNOSTIC = process.env.VITE_DIAGNOSTIC_LECTURE === '1'
+/** Suffixe « .local » : ignoré par git (app/.gitignore), comme tout ce qui ne vaut que sur ce poste. */
+const DOSSIER_ESSAI = 'dist-essai.local'
+
+function gardeVersionEssai(): Plugin {
+  return {
+    name: 'pieci:garde-version-essai',
+    config(config, { command }) {
+      if (!ESSAI_DIAGNOSTIC) return
+      // Build de publication (intégration continue, Cloudflare) : jamais la version d'essai.
+      if (command === 'build' && (process.env.CI || process.env.CF_PAGES || process.env.WORKERS_CI)) {
+        throw new Error('VITE_DIAGNOSTIC_LECTURE=1 refusé dans un build de publication (CI).')
+      }
+      // Serveur en mode intergiciel : c'est scripts/prerender.mjs, qui écrirait dans dist/.
+      if (command === 'serve' && config.server?.middlewareMode) {
+        throw new Error(`Version d'essai : pas de pré-rendu (il écrirait dans dist/). Construire avec « npx vite build » vers ${DOSSIER_ESSAI}/.`)
+      }
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Chargé pour la substitution de %VITE_SITE_URL% dans index.html, et pour
@@ -48,6 +93,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
+    // Version d'essai à part : voir ESSAI_DIAGNOSTIC.
+    build: ESSAI_DIAGNOSTIC ? { outDir: DOSSIER_ESSAI } : {},
     resolve: {
       alias: { '@partage': partage },
     },
@@ -56,6 +103,10 @@ export default defineConfig(({ mode }) => {
     // construction du service worker par vite-plugin-pwa.
     define: {
       __OCR_DOSSIER__: JSON.stringify(DOSSIER_OCR),
+      // Mode diagnostic de la lecture (src/lib/lecture/diagnostic.ts) : compilé
+      // seulement pour la version d'essai (voir ESSAI_DIAGNOSTIC). Partout
+      // ailleurs `false`, et le code qu'il garde est supprimé du build.
+      __DIAGNOSTIC_LECTURE__: JSON.stringify(ESSAI_DIAGNOSTIC),
     },
     // Le dossier partagé vit hors de la racine du projet : il faut l'autoriser
     // explicitement, sinon le serveur de dev refuse de le servir.
@@ -74,6 +125,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
+      gardeVersionEssai(),
       react(),
       tailwindcss(),
       sansGitignoreOcr(),

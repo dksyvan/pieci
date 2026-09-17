@@ -13,6 +13,7 @@ import { COMMUNES, type LatLng } from '@partage/communes';
 import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneValide } from '@partage/telephone';
 import { initialesPrenom, nomAffiche } from '@partage/partage';
 import { CapturePiece, type EtatCapture } from '../components/CapturePiece';
+import { DiagnosticLecture } from '../components/DiagnosticLecture';
 import { LieuField } from '../components/LieuField';
 import { BandeauPush } from '../components/BandeauPush';
 import { CartePiece } from '../components/CartePiece';
@@ -75,6 +76,13 @@ import {
  */
 
 const AUTRE_DEPOT = '__autre__';
+
+/**
+ * Remplacé au build par vite.config.ts : `true` seulement pour la version
+ * d'essai (`VITE_DIAGNOSTIC_LECTURE=1`). Dans un build normal, le mode
+ * diagnostic et son composant disparaissent du code livré.
+ */
+declare const __DIAGNOSTIC_LECTURE__: boolean;
 
 /**
  * Garanties de confidentialité, dans l'ordre du formulaire : photo, nom et
@@ -1163,6 +1171,9 @@ export function Declarer() {
               </button>
             </fieldset>
           </form>
+
+          {/* Version d'essai seulement, et avec ?diagnostic dans l'adresse. */}
+          {__DIAGNOSTIC_LECTURE__ && <DiagnosticLecture />}
         </div>
 
         <aside>

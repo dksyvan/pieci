@@ -707,6 +707,370 @@ describe('lireRecto — régressions : lieu de naissance lu comme prénoms', () 
   });
 });
 
+describe('lireRecto — CNI : le type et le nom sortent (retour de terrain du 16/09/2026)', () => {
+  /*
+   * Sur une vraie CNI photographiée (iPhone et Android), seuls les prénoms se
+   * remplissaient : ni le nom (court, quatre lettres), ni le type. Faute de
+   * l'image et du texte réellement lus, cette batterie couvre les mises en page
+   * et les défauts de Tesseract plausibles. Avant la correction (version du
+   * terrain), 28 textes sur 44 perdaient ou abîmaient le nom, les prénoms ou le
+   * type (nom juste 20, type juste 36, prénoms justes 32, 3 valeurs fausses) ;
+   * les autres sont des témoins, qui doivent le rester. Les 9 derniers textes
+   * viennent d'un second passage (17/09/2026) : 8 échouaient encore après la
+   * première correction. Causes trouvées :
+   * - une ligne d'en-tête abîmée ou anglaise (« IDENTITY CARD », « CARTF
+   *   NATIONALF ») juste au-dessus de « Nom » passait pour un nom inexpliqué, et
+   *   le vrai nom, sous son libellé, était écarté par prudence ;
+   * - un parasite de la photo (« Sai ee », « a ») faisait de même, ou coupait la
+   *   valeur (« a » est une butée) ; collé au nom sur sa ligne (« ee KOFI »), il
+   *   entrait dans la valeur, ou la faisait refuser au repli par position ;
+   * - une date d'expiration en haut de carte passait pour la date de naissance :
+   *   tout libellé seul lu après elle était ignoré ;
+   * - un nom de deux lettres était refusé (trois lettres exigées) ;
+   * - « Nam », « |Nom », « Nom de famille » n'étaient pas des libellés ;
+   * - « KOFI Prénom(s) » (ligne du nom fusionnée au libellé) passait pour une
+   *   colonne de libellés, et rien n'était lu ;
+   * - l'intitulé « CARTE NATIONALE D'IDENTITÉ » n'était reconnu qu'à trois
+   *   erreurs près, mots dans l'ordre : quatre I lus « l », mots collés, intitulé
+   *   coupé sur deux lignes par une autre, ou bord de carte coupé, et plus de type ;
+   * - second passage : une ligne de restes courts en capitales (« IE », « SS »)
+   *   entre le nom et « Prénom(s) » faisait écarter le nom, juste sous « Nom »
+   *   elle sortait comme nom ; « Wi KOFI » sortait « WI KOFI » ; « Nom  N° de la
+   *   carte » ou « Nom  Sexe » sur une ligne n'était pas un libellé seul, et sa
+   *   valeur dessous n'était pas lue ; des restes courts entre « CARTE
+   *   NATIONALE » et « D'IDENTITÉ » faisaient perdre le type.
+   *
+   * Tous les textes sont inventés. Nom attendu et type sont exigés à chaque fois.
+   */
+  const TERRAIN: [id: string, texte: string, attendu: LectureRecto, interdits: string[]][] = [
+    ['empilé propre, nom de 4 lettres', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nCARTE NATIONALE D'IDENTITÉ\nNom\nKOFI\nPrénom(s)\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990\nLieu de naissance\nTIASSALÉ\nSexe Taille\nF 1,65\nN° de la carte\nCI000000000",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, ['1990', 'TIASSAL', 'CI000', '1,65']],
+    ['en-tête : quatre I lus « l », É lu F', "REPUBLIOUE DE C0TE D’lVOIRE\nCARTE NATlONALE D'lDENTlTF\nNom\nYAO\nPrénom(s)\nKOUAMÉ JEAN-PAUL\nDate de naissance\n01/01/1985",
+      { typePiece: 'CNI', nom: 'YAO', prenom: 'KOUAMÉ JEAN-PAUL', decoupage: 'libelles' }, ['1985']],
+    ['en-tête : mots collés', "REPUBLIQUEDECOTED'IVOIRE\nCARTENATIONALED'IDENTITE\nNom\nBAH\nPrénom(s)\nAWA ANNE-SOPHIE\nDate de naissance\n01/01/2001",
+      { typePiece: 'CNI', nom: 'BAH', prenom: 'AWA ANNE-SOPHIE', decoupage: 'libelles' }, ['2001']],
+    ['en-tête coupé par une autre ligne', "CARTE NATIONALE\nRÉPUBLIQUE DE CÔTE D'IVOIRE\nD'IDENTITÉ\nNom\nTANO\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'TANO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['en-tête en casse mixte, sans apostrophe', "République de Côte d Ivoire\nCarte Nationale d Identite\nNom\nKOFI\nPrénom(s)\nADJOUA ANNE-MARIE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'ADJOUA ANNE-MARIE', decoupage: 'libelles' }, []],
+    ['intitulé anglais juste au-dessus de « Nom »', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nCARTE NATIONALE D'IDENTITÉ\nNATIONAL IDENTITY CARD\nNom\nGBEU\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'GBEU', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['« IDENTITY CARD » au-dessus, prénoms sur la ligne du libellé', "CARTE NATIONALE D'IDENTITÉ\nIDENTITY CARD\nNom\nKOFI\nPrénom(s) AYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['libellés « N0M » et « PRENOM(S) » au-dessus', "CARTE NATI0NALE D'IDENTITE\nN0M\nLOBA\nPRENOM(S)\nAFFOUÉ ANNE-SOPHIE\nDATE DE NAISSANCE\n01/01/1979",
+      { typePiece: 'CNI', nom: 'LOBA', prenom: 'AFFOUÉ ANNE-SOPHIE', decoupage: 'libelles' }, ['1979']],
+    ['libellé « Nom(s) »', "CARTE NATIONALE D'IDENTITÉ\nNom(s)\nKOFI\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['bilingue « Nom / Surname », nom de 3 lettres', "CARTE NATIONALE D'IDENTITÉ / NATIONAL IDENTITY CARD\nNom / Surname\nBAH\nPrénoms / Given names\nMOUSSA JEAN-BAPTISTE\nDate de naissance / Date of birth\n01 01 1995",
+      { typePiece: 'CNI', nom: 'BAH', prenom: 'MOUSSA JEAN-BAPTISTE', decoupage: 'libelles' }, ['1995']],
+    ['libellé à gauche « Nom : »', "REPUBLIQUE DE COTE D'IVOIRE\nCARTE NATIONALE D'IDENTITE\nNom : YAO\nPrénom(s) : KOUAMÉ JEAN-PAUL\nNé(e) le : 01/01/1990 à DIMBOKRO",
+      { typePiece: 'CNI', nom: 'YAO', prenom: 'KOUAMÉ JEAN-PAUL', decoupage: 'libelles' }, ['1990', 'DIMBOKRO']],
+    ['libellé « Nom » perdu, en-tête abîmé au-dessus', "CARTF NATIONALF DIDENTITF\nKOFI\nPrénom(s)\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'position' }, ['1990']],
+    ['libellé « Nam » (o lu a)', "CARTE NATIONALE D'IDENTITÉ\nNam\nTANO\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'TANO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['libellé « |Nom » (bord du cadre collé)', "CARTE NATIONALE D'IDENTITÉ\n|Nom\nKOFI\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    // « fi Wi » entre le nom et « Prénom(s) » : des restes courts, pas une autre ligne de nom ; le nom est lu sous son libellé.
+    ['parasites de la photo autour des libellés', "CARTE NATIONALE D'IDENTITÉ\nSai ee\nNom\nKOFI\nfi Wi\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ["date d'expiration en haut de la carte", "CARTE NATIONALE D'IDENTITÉ\nDate d'expiration 01/01/2030\nNom\nKOFI\nPrénom(s)\nAYA MARIE-LAURE\nLieu de naissance\nTIASSALÉ",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, ['2030', 'TIASSAL']],
+    ['ligne du nom fusionnée avec « Prénom(s) »', "CARTE NATIONALE D'IDENTITÉ\nNom\nKOFI Prénom(s)\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'position' }, ['1990']],
+    ['colonnes : libellés puis valeurs (psm 3)', "CARTE NATIONALE D'IDENTITÉ\nNom\nPrénom(s)\nYAO\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'YAO', prenom: 'AYA MARIE-LAURE', decoupage: 'colonnes' }, ['1990']],
+    ['nom de deux lettres', "CARTE NATIONALE D'IDENTITÉ\nNom\nKY\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KY', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['lettre isolée devant le nom', "CARTE NATIONALE D'IDENTITÉ\nNom\na KOFI\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'position' }, []],
+    ['guilloches entre toutes les lignes', "~ — _ =\nCARTE NATIONALE D'IDENTITÉ\n- ~\nNom\n. :\nKOFI\n, . ;\nPrénom(s)\n|| ,\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['libellé « Nom de famille »', "CARTE NATIONALE D'IDENTITÉ\nNom de famille\nTANO\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'TANO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['texte épars (psm 11) : champs dispersés', "CARTE NATIONALE D'IDENTITÉ\nNom\nKOFI\nPrénom(s)\nAYA MARIE-LAURE\nSexe\nTaille\nF\n1,65\nDate de naissance\nLieu de naissance\n01/01/1990\nTIASSALÉ",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, ['1990', 'TIASSAL', '1,65']],
+    ["intitulé coupé après « D' »", "RÉPUBLIQUE DE CÔTE D'IVOIRE\nCARTE NATIONALE D'\nIDENTITÉ\nNom\nYAO\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'YAO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['intitulé très abîmé, lu avant la République', "CAKTE NATI0NALF D IDENT1TÉ\nREPUBL1QUE DE COTE D'IVOIRE\nNOM\nGBEU\nPRÉNOM(S)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'GBEU', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['« Nom KOFI » sans deux-points, intitulé à lettres inversées', "CARTE NATIONALE D'IDENTTIE\nNom KOFI\nPrénom(s) AYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['parasite devant le libellé « Nom »', "CARTE NATIONALE D'IDENTITÉ\nEe Nom\nKOFI\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['carte coupée à gauche : « CARTE » perdu', "PUBLIQUE DE CÔTE D'IVOIRE\nNATIONALE D'IDENTITÉ\nNom\nLOBA\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'LOBA', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['bords coupés des deux côtés', "TE NATIONALE D'IDENTI\nNom\nKOFI\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ["mots de l'intitulé sur trois lignes", "NATIONALE\nREPUBLIQUE DE COTE D'IVOIRE\nCARTE D IDENTITE\nNom\nTANO\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'TANO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['libellés en minuscules, accents perdus', "republique de cote d'ivoire\ncarte nationale d'identite\nnom\nYAO\nprenom(s)\nAYA MARIE-LAURE\ndate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'YAO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, ['1990']],
+    ['libellé « Nom » perdu, parasites de la photo au-dessus du nom', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nCARTE NATIONALE D'IDENTITÉ\nWi ee\nKOFI\nPrénom(s)\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'position' }, ['1990']],
+    // Parasites de la photo collés à la valeur, sur sa ligne (« ee KOFI ») : ils ne font pas partie du nom.
+    ['libellé « Nom » perdu, parasite collé devant le nom', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nCARTE NATIONALE D'IDENTITÉ\nee KOFI\nPrénom(s)\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'position' }, ['1990']],
+    ['parasites collés au nom et aux prénoms, sous leurs libellés', "CARTE NATIONALE D'IDENTITÉ\nNom\nfi TANO\nPrénom(s)\nAYA MARIE-LAURE ee",
+      { typePiece: 'CNI', nom: 'TANO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['parasite collé après le nom, prénoms sur la ligne du libellé', "CARTE NATIONALE D'IDENTITÉ\nLOBA ee\nPrénom(s) : AYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'LOBA', prenom: 'AYA MARIE-LAURE', decoupage: 'position' }, []],
+    // Second passage (17/09/2026), batterie combinatoire de défauts : restes courts en capitales
+    // lus entre deux lignes, parasite à capitale, libellé d'une autre colonne sur la ligne du nom.
+    ['reste court en capitales entre le nom et « Prénom(s) »', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nCARTE NATIONALE D'IDENTITÉ\nNom\nSEKA\nIE\nPrénom(s)\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'SEKA', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, ['1990']],
+    ['reste court en capitales juste sous « Nom »', "CARTE NATIONALE D'IDENTITÉ\nNom\nBE\nTANO\nPrénom(s) AYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'TANO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['libellé « Nom » perdu, reste court au-dessus des prénoms', "CARTE NATIONALE D'IDENTITÉ\nGBEU\nSS\nPrénom(s)\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'GBEU', prenom: 'AYA MARIE-LAURE', decoupage: 'position' }, ['1990']],
+    ['parasite à capitale collé devant le nom', "CARTE NATIONALE D'IDENTITÉ\nNom\nWi KOFI\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['deux capitales sans syllabe collées au nom et aux prénoms', "CARTE NATIONALE D'IDENTITÉ\nNom\nEE TANO\nPrénom(s)\nAYA MARIE-LAURE II",
+      { typePiece: 'CNI', nom: 'TANO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+    ['libellé « Nom » perdu, parasite et « a » collés devant le nom', "CARTE NATIONALE D'IDENTITÉ\nom a TANO\nPrénom(s) AYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'TANO', prenom: 'AYA MARIE-LAURE', decoupage: 'position' }, []],
+    ['« Nom » et « N° de la carte » sur la même ligne', "CARTE NATIONALE D'IDENTITÉ\nNom N° de la carte\nKOFI CI000000000\nPrénom(s)\nAYA MARIE-LAURE\nDate de naissance\n01/01/1990",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, ['CI000', '1990']],
+    ['« Nom  Sexe » et « Prénom(s)  Taille », valeurs dessous', "CARTE NATIONALE D'IDENTITÉ\nNom Sexe\nKOFI F\nPrénom(s) Taille\nAYA MARIE-LAURE 1,65",
+      { typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, ['1,65']],
+    ['intitulé coupé par des restes courts', "CARTE NATIONALE\nIE\nWi ee\nD'IDENTITÉ\nNom\nYAO\nPrénom(s)\nAYA MARIE-LAURE",
+      { typePiece: 'CNI', nom: 'YAO', prenom: 'AYA MARIE-LAURE', decoupage: 'libelles' }, []],
+  ];
+
+  it.each(TERRAIN)('%s', (_, texte, attendu, interdits) => {
+    const lecture = lireRecto(texte);
+    expect(lecture).toEqual(attendu);
+    const s = JSON.stringify(lecture);
+    for (const cle of Object.keys(lecture ?? {})) expect(CLES_AUTORISEES.has(cle)).toBe(true);
+    expect(s).not.toMatch(/\d/);
+    for (const interdit of interdits) expect(sansAccents(s)).not.toContain(sansAccents(interdit));
+    expect(lireRecto(texte)).toEqual(lecture);
+  });
+
+  it('un parasite en minuscules ne sort pas ; un mot de liaison, si : il signale un libellé mal lu', () => {
+    // Sans capitales dans la valeur, rien n'est retiré.
+    expect(lireRecto('Nom : Kofi ee\nPrénoms : Aya')).toEqual({ nom: 'KOFI EE', prenom: 'AYA', decoupage: 'libelles' });
+    // Relevé sur le banc de bruit : retirer « et » faisait sortir « PRÉNOMSDIABATÉ KOUAKOU AHOU MOUSSA » comme nom.
+    const lecture = lireRecto('PERMIS DE CONDUIRE\nN0m et Prén0ms.DIABATÉ KOUAK0U AHOU MOUSSA\nNe lc 26/03/1975 à BOUAFLÉ');
+    expect(lecture?.nom ?? '').not.toContain('PRÉNOMS');
+    expect(lecture?.typePiece).toBe('Permis de conduire');
+    // Une particule de patronyme mal lue n'est pas un parasite ; deux capitales qui font une syllabe restent.
+    expect(lireRecto('Nom\nTIÉ Bi\nPrénoms\nAYA')).toEqual({ nom: 'TIÉ BI', prenom: 'AYA', decoupage: 'libelles' });
+    expect(lireRecto('Nom : KY\nPrénoms : AYA')).toEqual({ nom: 'KY', prenom: 'AYA', decoupage: 'libelles' });
+    expect(lireRecto('Nom\nKY\nPrénom(s)\nAYA')).toEqual({ nom: 'KY', prenom: 'AYA', decoupage: 'libelles' });
+  });
+
+  it('au moins 25 textes, tous distincts', () => {
+    expect(TERRAIN.length).toBeGreaterThanOrEqual(25);
+    expect(new Set(TERRAIN.map(([, texte]) => texte)).size).toBe(TERRAIN.length);
+  });
+
+  describe('repli par position : ce qu’il ne prend jamais pour un nom', () => {
+    it.each([
+      ["l'en-tête juste au-dessus des prénoms", "CARTE NATIONALE D'IDENTITÉ\nPrénom(s) : AYA"],
+      ["l'en-tête abîmé juste au-dessus du libellé", "CARTF NATIONALF DIDENTITF\nPrénom(s)\nAYA MARIE"],
+      ['un libellé « Nom » resté sans valeur', "CARTE NATIONALE D'IDENTITÉ\nNom :\n~\nPrénoms : AYA"],
+      ['une date', "CARTE NATIONALE D'IDENTITÉ\n01/01/1990\nPrénoms : AYA"],
+      ['le lieu de naissance, avec son libellé', "CARTE NATIONALE D'IDENTITÉ\nLieu de naissance : TIASSALÉ\nPrénoms : AYA"],
+      ['un lieu remonté au-dessus des prénoms, son libellé orphelin plus bas', "CARTE NATIONALE D'IDENTITÉ\nTIASSALÉ\nPrénoms : AYA\nLieu de naissance"],
+      ['deux lignes de noms : on ne sait pas laquelle', "CARTE NATIONALE D'IDENTITÉ\nKOFI\nYAO\nPrénoms : AYA"],
+      ['une ligne en minuscules (parasite)', "CARTE NATIONALE D'IDENTITÉ\nKofi\nPrénoms : AYA"],
+      ['un mot de deux lettres qui n’est pas un nom', "CARTE NATIONALE D'IDENTITÉ\nNom : CI\nPrénoms : AYA"],
+      ['un autre champ (sexe)', "CARTE NATIONALE D'IDENTITÉ\nSexe M\nPrénoms : AYA"],
+      ['les prénoms eux-mêmes', "CARTE NATIONALE D'IDENTITÉ\nAYA MARIE\nPrénoms : AYA MARIE"],
+      ['une nationalité', "CARTE NATIONALE D'IDENTITÉ\nIVOIRIENNE\nPrénoms : AYA"],
+      ['le libellé du nom du père', "CARTE NATIONALE D'IDENTITÉ\nNom et prénoms du père\nPrénoms : AYA"],
+      // Revue du 16/09/2026 : valeur d'un AUTRE nom, son libellé lu juste au-dessus.
+      ['la valeur de « Nom d’usage »', "CARTE NATIONALE D'IDENTITÉ\nNom d'usage\nYAO\nPrénom(s) : AYA"],
+      ['la valeur de « Épouse »', "CARTE NATIONALE D'IDENTITÉ\nÉpouse\nYAO\nPrénom(s) : AYA"],
+      ['la valeur de « Père »', "CARTE NATIONALE D'IDENTITÉ\nPère\nKOFFI YAO\nPrénom(s) : AYA"],
+      ['la valeur de « Nom du père »', "CARTE NATIONALE D'IDENTITÉ\nNom du père\nKOFFI YAO\nPrénom(s) : AYA"],
+      ['la valeur de « Mère », libellés empilés', "CARTE NATIONALE D'IDENTITÉ\nMère\nAMENAN ADJOUA\nPrénom(s)\nAYA"],
+      ['la valeur de « Nom d’usage », libellés empilés', "CARTE NATIONALE D'IDENTITÉ\nNom d'usage\nYAO\nPrénom(s)\nAYA"],
+      // Bruit en capitales et restes d'en-tête.
+      ['un bruit de deux lettres (« BE »)', "CARTE NATIONALE D'IDENTITÉ\nBE\nPrénom(s) : AYA-LAURE ESTHER"],
+      ['un bruit de deux lettres (« WA »)', "CARTE NATIONALE D'IDENTITÉ\nWA\nPrénom(s) : AYA-LAURE ESTHER"],
+      ['une lettre répétée (« EEE »)', "CARTE NATIONALE D'IDENTITÉ\nEEE\nPrénom(s) : AYA-LAURE ESTHER"],
+      ['trois consonnes (« KBR »)', "CARTE NATIONALE D'IDENTITÉ\nKBR\nPrénom(s) AYA"],
+      ['le sigle « RCI »', "CARTE NATIONALE D'IDENTITÉ\nRCI\nPrénom(s) AYA"],
+      ['la devise, « libellé : valeur »', "CARTE NATIONALE D'IDENTITÉ\nUNION - DISCIPLINE - TRAVAIL\nPrénom(s) : AYA-LAURE ESTHER"],
+      ['« TITULAIRE »', "CARTE NATIONALE D'IDENTITÉ\nTITULAIRE\nPrénom(s)\nAYA"],
+      ['« FÉMININ »', "CARTE NATIONALE D'IDENTITÉ\nFÉMININ\nPrénom(s)\nAYA"],
+      // Un libellé « Nom » abîmé resté seul : sa valeur est perdue.
+      ['un libellé « Nom » abîmé seul (« WOM »)', "CARTE NATIONALE D'IDENTITÉ\nWOM\nPrénom(s)\nAYA"],
+      ['un libellé anglais seul (« NAME »)', "CARTE NATIONALE D'IDENTITÉ\nNAME\nPrénom(s)\nAYA"],
+      // Numéro, date ou taille dont l'OCR a lu les chiffres comme des lettres.
+      ['un numéro à deux chiffres restés (« CI0O1OO »)', "CARTE NATIONALE D'IDENTITÉ\nCI0O1OO\nPrénom(s) AYA"],
+      ['un numéro à deux chiffres restés (« AB1C2D »)', "CARTE NATIONALE D'IDENTITÉ\nAB1C2D\nPrénom(s) AYA"],
+      ['un numéro tout en lettres (« CI OOI SSO IOO »)', "CARTE NATIONALE D'IDENTITÉ\nCI OOI SSO IOO\nPrénom(s) AYA"],
+      ['une date tout en lettres (« OI OI IOOO »)', "CARTE NATIONALE D'IDENTITÉ\nOI OI IOOO\nPrénom(s) AYA"],
+      ['une taille (« I,SO M »)', "CARTE NATIONALE D'IDENTITÉ\nI,SO M\nPrénom(s) AYA"],
+      // Lieu de naissance remonté, libellé perdu, mise en page « libellé : valeur ».
+      ['un lieu remonté, date de naissance lue sur sa ligne sans lieu', "CARTE NATIONALE D'IDENTITÉ\nTIASSALÉ\nPrénom(s) AYA-LAURE ESTHER\nDate de naissance 01/01/1990"],
+      ['un lieu remonté, « Né(e) le … à » sans lieu', "CARTE NATIONALE D'IDENTITÉ\nTIASSALÉ\nPrénom(s) : AYA-LAURE ESTHER\nNé(e) le : 01/01/1990 à"],
+      // Second passage (17/09/2026) : les restes courts sautés ne font pas oublier ces garde-fous.
+      ['un lieu remonté, un reste court avant les prénoms', "CARTE NATIONALE D'IDENTITÉ\nTIASSALÉ\nIE\nPrénom(s) AYA-LAURE ESTHER\nDate de naissance 01/01/1990"],
+      ['la valeur de « Nom d’usage », un reste court avant les prénoms', "CARTE NATIONALE D'IDENTITÉ\nNom d'usage\nYAO\nIE\nPrénom(s)\nAYA"],
+      ['deux lignes de noms séparées par un reste court', "CARTE NATIONALE D'IDENTITÉ\nKOFI\nIE\nYAO\nPrénoms : AYA"],
+      ['« Ep KOFI » : la valeur d’« Épouse », pas un parasite devant le nom', "CARTE NATIONALE D'IDENTITÉ\nEp KOFI\nPrénom(s) AYA"],
+    ])('%s', (_, texte) => {
+      const lecture = lireRecto(texte);
+      expect(lecture?.typePiece).toBe('CNI');
+      expect(lecture?.nom).toBeUndefined();
+      expect(lecture?.prenom).toBeDefined();
+    });
+
+    it.each([
+      ['un bout du bandeau (« CART »)', "CART\nPrénom(s) : AYA-LAURE ESTHER"],
+      ['un bout du bandeau (« RÉPU »)', "RÉPU\nPrénom(s)\nAYA-LAURE ESTHER\nDate de naissance"],
+      ['un bout du bandeau (« TETE »)', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nTETE\nPrénom(s) AYA-LAURE ESTHER"],
+      ['un bout du bandeau (« NATIO »)', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nNATIO\nPrénom(s) AYA-LAURE ESTHER"],
+      ['un bout du bandeau (« D’IDENTI »)', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nD'IDENTI\nPrénom(s) AYA-LAURE ESTHER"],
+      ['la devise sous la République', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nUNION - DISCIPLINE - TRAVAIL\nPrénom(s) : AYA-LAURE ESTHER\nNé(e) le : 01/01/1990"],
+      ['la devise, libellés empilés', "RÉPUBLIQUE DE CÔTE D'IVOIRE\nUNION - DISCIPLINE - TRAVAIL\nPrénom(s)\nAYA-LAURE ESTHER"],
+      ['la devise en anglais', "REPUBLIC OF COTE D'IVOIRE\nUNITY DISCIPLINE WORK\nGiven names\nAYA"],
+    ])('%s (sans type lu)', (_, texte) => {
+      const lecture = lireRecto(texte);
+      expect(lecture?.nom).toBeUndefined();
+      expect(lecture?.prenom).toBeDefined();
+    });
+  });
+
+  describe('repli par position : libellé « Nom » abîmé retiré de la valeur', () => {
+    it.each([
+      ["NUM : KOFI", "CARTE NATIONALE D'IDENTITÉ\nNUM : KOFI\nPrénom(s) : AYA", 'position'],
+      ['NOW KOFI', "CARTE NATIONALE D'IDENTITÉ\nNOW KOFI\nPrénom(s) : AYA", 'position'],
+      ['NCM KOFI', "CARTE NATIONALE D'IDENTITÉ\nNCM KOFI\nPrénom(s) : AYA", 'position'],
+      ['N OM KOFI', "CARTE NATIONALE D'IDENTITÉ\nN OM KOFI\nPrénom(s) : AYA", 'position'],
+      ['NOIM KOFI', "CARTE NATIONALE D'IDENTITÉ\nNOIM KOFI\nPrénom(s) : AYA", 'position'],
+      ['NAME KOFI', "NATIONAL IDENTITY CARD\nNAME KOFI\nGiven names AYA", 'position'],
+      ['LAST NAME KOFI', "NATIONAL IDENTITY CARD\nLAST NAME KOFI\nFIRST NAME AYA", 'position'],
+      // « SUMAME » (rn lu m) est désormais un libellé : la valeur est lue par libellés.
+      ['SUMAME KOFI', "CARTE NATIONALE D'IDENTITÉ\nSUMAME KOFI\nPrénom(s) : AYA", 'libelles'],
+    ] as const)('%s → KOFI', (_, texte, decoupage) => {
+      expect(lireRecto(texte)).toEqual({ typePiece: 'CNI', nom: 'KOFI', prenom: 'AYA', decoupage });
+    });
+
+    it('« Nom / Sumame » : la valeur sous le libellé, pas le libellé', () => {
+      expect(lireRecto('PASSEPORT\nNom / Sumame\nYAO\nPrénoms / Given names\nAYA')).toEqual({
+        typePiece: 'Passeport', nom: 'YAO', prenom: 'AYA', decoupage: 'libelles',
+      });
+    });
+  });
+
+  describe('libellé d’une autre colonne sur la ligne de « Nom » ou de « Prénom(s) »', () => {
+    // La valeur dessous n'est lue que si la valeur de l'autre colonne se voit juste après le nom
+    // (sexe M ou F, taille ou numéro en chiffres) : sans elle, la ligne peut porter un autre champ.
+    it.each([
+      ['colonne du lieu de naissance : sa valeur est faite de mots', "CARTE NATIONALE D'IDENTITÉ\nNom Lieu de naissance\nKOFI TIASSALÉ\nPrénom(s)\nAYA", 'nom'],
+      ['colonne de la profession', "CARTE NATIONALE D'IDENTITÉ\nNom\nKOFI\nPrénom(s) Profession\nAYA COMMERÇANTE", 'prenom'],
+      ['colonne du sexe, mais aucune lettre M ou F sous elle', "CARTE NATIONALE D'IDENTITÉ\nNom Sexe\nTIASSALÉ\nPrénom(s) Taille\nAYA TIASSALÉ\nDate de naissance\n01/01/1990", 'nom'],
+      ['un chiffre lu dans le lieu n’est pas la taille (« DIMBOKR0 »)', "CARTE NATIONALE D'IDENTITÉ\nNom Sexe\nKOFI F\nPrénom(s) Taille\nAYA DIMBOKR0", 'prenom'],
+      ['« N GORAN » : ce N n’est pas le sexe', "CARTE NATIONALE D'IDENTITÉ\nPrénom(s) Sexe\nAWA N GORAN TIASSALÉ", 'prenom'],
+      ['un libellé abîmé à chiffres n’est pas la taille (« D4T3 »)', "CARTE NATIONALE D'IDENTITÉ\nNom\nKOFI\nPrénom(s) Taille\nAYA TIASSALÉ D4T3 DE NAISSANCE", 'prenom'],
+    ] as const)('%s', (_, texte, absent) => {
+      const lecture = lireRecto(texte);
+      expect(lecture?.typePiece).toBe('CNI');
+      expect(lecture?.[absent]).toBeUndefined();
+      const s = sansAccents(JSON.stringify(lecture));
+      for (const interdit of ['TIASSAL', 'DIMBOKR', 'COMMER', '1990']) expect(s).not.toContain(interdit);
+    });
+
+    it('un prénom proche d’un libellé (MARIE, à une lettre de MAIRIE) n’arrête rien', () => {
+      expect(lireRecto("CARTE NATIONALE D'IDENTITÉ\nNom Sexe\nKOFI F\nPrénom(s) Taille\nMARIE ESTELLE 1,65")).toEqual({
+        typePiece: 'CNI', nom: 'KOFI', prenom: 'MARIE ESTELLE', decoupage: 'libelles',
+      });
+    });
+
+    it('en colonnes : « Nom  Sexe / Prénom(s)  Taille » puis les valeurs', () => {
+      expect(lireRecto("CARTE NATIONALE D'IDENTITÉ\nNom Sexe\nPrénom(s) Taille\nTANO F\nAYA-LAURE ESTHER 1,65")).toEqual({
+        typePiece: 'CNI', nom: 'TANO', prenom: 'AYA-LAURE ESTHER', decoupage: 'colonnes',
+      });
+    });
+  });
+
+  it('les filtres du repli ne retirent pas les patronymes courts courants', () => {
+    // Mots de nom de famille seuls, sans prénom : aucune personne désignée.
+    const PATRONYMES = [
+      'KOFI', 'YAO', 'BAH', 'KONÉ', 'TANO', 'LOBA', 'GBEU', 'ASSI', 'AKA', 'ZADI', 'SÉRI', 'SORO', 'TIA', 'ADOU',
+      'OBOU', 'BOSSO', 'AKÉ', 'TAPÉ', 'GUEI', 'IRIÉ', 'DJÉ', 'KRA', 'BLÉ', 'TRA', 'APO', "N'DRI", 'TOURÉ', 'SEKA',
+      'MIAN', 'BOLI', 'OKOU', 'ESSO', 'DOSSO', 'YAPI', 'AKRÉ', 'BROU', 'TIÉ BI', 'IRIÉ BI', 'ZORO', 'YÉO',
+    ];
+    for (const nom of PATRONYMES) {
+      const attendu = { typePiece: 'CNI', nom, prenom: 'AYA', decoupage: 'position' };
+      expect(lireRecto(`CARTE NATIONALE D'IDENTITÉ\n${nom}\nPrénom(s) : AYA`)).toEqual(attendu);
+      expect(lireRecto(`CARTE NATIONALE D'IDENTITÉ\n${nom}\nPrénom(s)\nAYA\nDate de naissance\n01/01/1990`)).toEqual(attendu);
+    }
+  });
+});
+
+describe('detecterTypePiece — intitulé abîmé, coupé ou collé', () => {
+  it.each([
+    ["CARTE NATlONALE D'lDENTlTF", 'CNI'],
+    ["CARTENATIONALED'IDENTITE", 'CNI'],
+    ["CAKTE NATI0NALF D IDENT1TÉ", 'CNI'],
+    ["CARTE NATIONALE\nD'IDENTITÉ", 'CNI'],
+    ["CARTE NATIONALE\nRÉPUBLIQUE DE CÔTE D'IVOIRE\nD'IDENTITÉ", 'CNI'],
+    ["TE NATIONALE D'IDENTI", 'CNI'],
+    ['NATI0NAL IDENTITY CARO', 'CNI'],
+    ["C4RTE N4TION4LE D'IDENT1TE", 'CNI'],
+    ["CARTE NATIONALE D'IDENTITÉ\nProfession : ETUDIANT", 'CNI'],
+    ['PERMlS DE CONDUlRE', 'Permis de conduire'],
+    ['PERMIS DECQHDUIRE', 'Permis de conduire'],
+    ['PERMISDECONDUIRE\nNationalité IVOIRIENNE', 'Permis de conduire'],
+    ["CARTE D'IDENTITÉ C0NSULA1RE\nNationalité : BURKINABE", 'Carte consulaire'],
+    ["CARTE D'IDENTITE CONSULAIKE\nNATIONALITE BURKINABE", 'Carte consulaire'],
+    ['CARTECONSULAlRE', 'Carte consulaire'],
+    ["CARTE D'ÉTUDlANT", 'Carte étudiante'],
+    ["CARTED'ETUDIANT", 'Carte étudiante'],
+    ['PA5SEP0RT', 'Passeport'],
+    ['PASSE PORT / PASS PORT', 'Passeport'],
+    // Second passage (17/09/2026) : restes courts lus entre les deux moitiés, lettres espacées.
+    ["CARTE NATIONALE\nIE\nWi ee\nD'IDENTITÉ", 'CNI'],
+    ["C A R T E  N A T I O N A L E  D ' I D E N T I T É", 'CNI'],
+  ] as const)('%j → %s', (texte, type) => {
+    expect(detecterTypePiece(texte)).toBe(type);
+  });
+
+  it.each([
+    "RÉPUBLIQUE DE CÔTE D'IVOIRE",
+    'CARTE CMU\nCOUVERTURE MALADIE UNIVERSELLE',
+    'Nationalité IVOIRIENNE\nIdentifiant 000',
+    "CARTE D'IDENTITÉ\nNationalité : IVOIRIENNE",
+    "CARTE D'ELECTEUR",
+    'CARTE PROFESSIONNELLE\nNATIONALITE IVOIRIENNE',
+    "CARTE NATIONALE D'ELECTEUR",
+    "IMEN FICTIF\nCARTE D'\nKONAN",
+    'PARMIS DX CANDUIRX',
+    // Revue du 16/09/2026 : « … nationale » et « … d'identité » de deux intitulés qui ne sont pas la CNI.
+    "CARTE D'IDENTITÉ SCOLAIRE\nNom : KOFI\nPrénoms : AYA\nClasse : 3e",
+    "LYCÉE MODERNE DE KORO\nCARTE D'IDENTITÉ SCOLAIRE",
+    "CARTE D'IDENTITÉ\nSCOLAIRE\nNom : KOFI",
+    "MINISTÈRE DE L'ÉDUCATION NATIONALE\nCARTE D'IDENTITÉ SCOLAIRE",
+    "INSTITUT NATIONAL POLYTECHNIQUE\nCARTE D'IDENTITÉ D'ÉTUDIANT\nNom : KOFI\nPrénoms : AYA",
+    "UNIVERSITÉ NATIONALE DES LAGUNES\nNom : KOFI\nN° pièce d'identité : C0012",
+    "POLICE NATIONALE\nCARTE D'IDENTITÉ PROFESSIONNELLE",
+    "GENDARMERIE NATIONALE\nCARTE D'IDENTITÉ MILITAIRE",
+    "ORDRE NATIONAL DES MÉDECINS\nCARTE D'IDENTITÉ PROFESSIONNELLE",
+    "ASSEMBLÉE NATIONALE\nCARTE D'IDENTITÉ PARLEMENTAIRE",
+    "CAISSE NATIONALE D'ASSURANCE MALADIE\nCOUVERTURE MALADIE UNIVERSELLE\nPièce d'identité",
+    "MUTUELLE NATIONALE\nCARTE D'ADHÉRENT\nPièce d'identité",
+    "RÉPUBLIQUE DE CÔTE D'IVOIRE\nATTESTATION D'IDENTITÉ",
+    "ATTESTATION D'IDENTITÉ\nNuméro national d'identification",
+    "COMMISSION ÉLECTORALE\nCARTE D'ÉLECTEUR\nLISTE ÉLECTORALE NATIONALE\nN° pièce d'identité",
+    "LOTERIE NATIONALE\nPHOTO D'IDENTITÉ",
+    "BANQUE NATIONALE\nVÉRIFICATION D'IDENTITÉ",
+    'RÉCÉPISSÉ DE DEMANDE\nIDENTITÉ NATIONALE',
+  ])('pas de type pour %j', (texte) => {
+    expect(detecterTypePiece(texte)).toBeUndefined();
+  });
+
+  it('un intitulé du haut l’emporte sur un mot lu plus bas', () => {
+    expect(detecterTypePiece("CARTE NATlONALE D'lDENTlTF\nNom : KOFI\nCONSULAT")).toBe('CNI');
+    expect(detecterTypePiece("CARTE D'IDENTITÉ CONSULAIKE\nCARTE NATIONALF")).toBe('Carte consulaire');
+  });
+});
+
 describe('familleMrz — la famille seulement, aucun champ', () => {
   it('passeport, carte d’identité ivoirienne, carte étrangère', () => {
     expect(familleMrz('P<CIVKOUADIO<<AYA<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')).toBe('passeport');
@@ -864,7 +1228,7 @@ describe('lireRecto — bruit OCR simulé (déterministe)', () => {
   const sep = () => choix([' : ', ': ', ' ', ' .......... ', ':']);
   const casse = (s: string) => choix([s, s.toUpperCase(), s.toUpperCase()]);
 
-  const GABARITS: { nom: string; type: TypePiece; lignes: (id: Identite) => string[] }[] = [
+  const GABARITS: { nom: string; type: TypePiece; sansNom?: true; lignes: (id: Identite) => string[] }[] = [
     {
       nom: 'CNI — libellés empilés', type: 'CNI',
       lignes: (id) => ["RÉPUBLIQUE DE CÔTE D'IVOIRE", "CARTE NATIONALE D'IDENTITÉ", casse('Nom'), id.nom, casse('Prénom(s)'), id.prenom,
@@ -908,6 +1272,22 @@ describe('lireRecto — bruit OCR simulé (déterministe)', () => {
     {
       nom: 'Colonnes (libellés puis valeurs)', type: 'CNI',
       lignes: (id) => ["CARTE NATIONALE D'IDENTITE", 'Nom', 'Prénom(s)', id.nom, id.prenom, 'Date de naissance', id.date],
+    },
+    {
+      // Revue du 16/09/2026 : ligne du nom perdue, libellé du lieu perdu, lieu remonté au-dessus
+      // des prénoms. Aucun nom à trouver : seul compte ce qui NE doit PAS sortir.
+      nom: 'CNI — lieu remonté, ligne du nom perdue', type: 'CNI', sansNom: true,
+      lignes: (id) => ["RÉPUBLIQUE DE CÔTE D'IVOIRE", "CARTE NATIONALE D'IDENTITÉ", id.lieu, casse('Prénom(s)') + sep() + id.prenom,
+        casse('Date de naissance') + sep() + id.date, 'Sexe : F Taille : 1,65', 'N°' + sep() + id.numero],
+    },
+    {
+      // Second passage (17/09/2026) : le libellé d'une autre colonne sur la ligne de « Nom » et de
+      // « Prénom(s) », sa valeur à côté du nom sur la ligne dessous. Ajouté en dernier : les
+      // gabarits d'avant gardent leurs textes.
+      nom: 'CNI — deux colonnes sur la ligne des libellés', type: 'CNI',
+      lignes: (id) => ["RÉPUBLIQUE DE CÔTE D'IVOIRE", "CARTE NATIONALE D'IDENTITÉ", casse('Nom') + ' ' + choix(['Sexe', 'N° de la carte']),
+        id.nom + ' ' + choix(['F', 'M', id.numero]), casse('Prénom(s)') + ' ' + choix(['Taille', 'Sexe']), id.prenom + ' ' + choix(['1,65', 'F', '1,80']),
+        casse('Date de naissance'), id.date, casse('Lieu de naissance'), id.lieu],
     },
   ];
 
@@ -1014,7 +1394,21 @@ describe('lireRecto — bruit OCR simulé (déterministe)', () => {
   });
 
   // Même générateur et même détecteur (lieu abîmé compris) sur les graines 1 à 30 (432 000
-  // textes) : 0 fuite également. Le prototype en laissait 16 sur les 31 graines.
+  // textes) : 0 fuite également. Le prototype en laissait 16 sur les 31 graines. Refait
+  // après la correction « nom et type de la CNI » : 0 fuite et 0 type faux sur les 31 graines
+  // (446 400 textes) ; une fuite trouvée en cours de route (graine 15, « 6ivennamés ») a
+  // été corrigée, voir `colle` dans recto.ts. Refait après la revue du 16/09/2026, avec le gabarit
+  // « lieu remonté » : avant les garde-fous `lieuPeutEtreRemonte` et `traceDeLieu`, il laissait
+  // sortir le lieu comme nom dans 318, 273, 237 et 171 textes sur 400 (0, 2, 5 et 10 % de bruit,
+  // graine fixe) ; après, 0 fuite sur la graine fixe et sur les graines 1 à 30 (446 400 textes).
+  // Refait après le second passage (17/09/2026), avec le gabarit « deux colonnes » : 0 fuite et
+  // 0 type faux sur les 31 graines (545 600 textes), comme la version du terrain. Hors de ce
+  // test, avec des restes courts en capitales parmi les parasites (« IE », « SS », « Wi TE »,
+  // collés ou non) : 2 fuites sur 545 600 textes (0 pour la version du terrain). L'une est un
+  // lieu lu sous « Prénoms », la valeur des prénoms perdue : la version du terrain le rendait
+  // aussi, sans le reste court entre les deux. L'autre, un lieu seul au-dessus de « Prénom(s) »
+  // et rien de lu dessous, ne se distingue pas d'un nom au libellé perdu : découpage `position`,
+  // la relecture tranche.
   it('aucune fuite de chiffre, de date, de numéro ni de lieu de naissance', () => {
     for (const [cellule, m] of mesures) expect({ cellule, fuites: m.fuites }).toEqual({ cellule, fuites: 0 });
   });
@@ -1032,7 +1426,9 @@ describe('lireRecto — bruit OCR simulé (déterministe)', () => {
   it('texte propre : type et paire nom + prénoms toujours justes', () => {
     for (const g of GABARITS) {
       const m = mesures.get(`${g.nom}|0`)!;
-      expect({ gabarit: g.nom, type: pct(m.type), utilisable: pct(m.utilisable) }).toEqual({ gabarit: g.nom, type: 100, utilisable: 100 });
+      // Sans ligne du nom, aucune paire n'est utilisable : c'est l'absence de fuite qui est mesurée.
+      const utilisable = g.sansNom ? 0 : 100;
+      expect({ gabarit: g.nom, type: pct(m.type), utilisable: pct(m.utilisable) }).toEqual({ gabarit: g.nom, type: 100, utilisable });
     }
   });
 
@@ -1044,16 +1440,20 @@ describe('lireRecto — bruit OCR simulé (déterministe)', () => {
    * qu'il faut remarquer à la relecture.
    */
   it.each([
-    // mise en page                      plancher, plafond      mesuré ici │ moyenne des graines 1 à 30
-    ['CNI — libellés empilés', 45, 6], //                  50 %, 2 %  │ 50 %, 2 %
-    ['CNI — libellé : valeur', 82, 6], //                  87 %, 3 %  │ 85 %, 2 %
-    ['CNI / passeport — bilingue empilé', 46, 10], //      51 %, 7 %  │ 51 %, 7 %
-    ['Permis — libellé : valeur', 80, 6], //               84 %, 3 %  │ 85 %, 2 %
-    ['Permis — champs numérotés', 65, 5], //               69 %, 2 %  │ 70 %, 2 %
-    ['Nom et prénoms (combiné)', 77, 12], //               82 %, 9 %  │ 79 %, 11 % (découpage deviné)
-    ['Carte étudiante — libellé : valeur', 79, 7], //      84 %, 4 %  │ 84 %, 3 %
-    ['Carte consulaire — libellé : valeur', 80, 6], //     85 %, 3 %  │ 85 %, 2 %
-    ['Colonnes (libellés puis valeurs)', 37, 17], //       42 %, 13 % │ 38 %, 14 %
+    // Mesures refaites après le second passage (17/09/2026) ; entre parenthèses, la version du
+    // terrain (dernier commit). « Faux » : la plus haute des deux parts, nom ou prénoms ; sur les
+    // graines 1 à 30, comptée sur l'ensemble des textes.
+    // mise en page                      plancher, plafond      mesuré ici          │ graines 1 à 30
+    ['CNI — libellés empilés', 62, 6], //                  67 %, 2 % (50 %, 2 %)  │ 71 %, 2 % (50 %, 2 %)
+    ['CNI — libellé : valeur', 86, 6], //                  91 %, 3 % (87 %, 3 %)  │ 90 %, 2 % (85 %, 2 %)
+    ['CNI / passeport — bilingue empilé', 66, 6], //       71 %, 2 % (51 %, 7 %)  │ 71 %, 3 % (51 %, 7 %)
+    ['Permis — libellé : valeur', 84, 6], //               88 %, 3 % (84 %, 3 %)  │ 90 %, 2 % (85 %, 2 %)
+    ['Permis — champs numérotés', 67, 5], //               72 %, 2 % (69 %, 2 %)  │ 72 %, 2 % (70 %, 2 %)
+    ['Nom et prénoms (combiné)', 84, 10], //               89 %, 6 % (82 %, 9 %)  │ 86 %, 7 % (79 %, 11 %) (découpage deviné)
+    ['Carte étudiante — libellé : valeur', 84, 7], //      88 %, 4 % (84 %, 4 %)  │ 89 %, 3 % (84 %, 3 %)
+    ['Carte consulaire — libellé : valeur', 85, 6], //     90 %, 3 % (85 %, 3 %)  │ 90 %, 3 % (85 %, 2 %)
+    ['Colonnes (libellés puis valeurs)', 44, 17], //       49 %, 14 % (42 %, 13 %) │ 47 %, 14 % (38 %, 14 %)
+    ['CNI — deux colonnes sur la ligne des libellés', 37, 10], // 42 %, 6 % (0 %, 5 %) │ 39 %, 6 % (0 %, 5 %)
   ] as const)('%s, 5 %% de bruit : au moins %i %% de paires utilisables, au plus %i %% de valeurs fausses', (gabarit, plancher, plafond) => {
     const m = mesures.get(`${gabarit}|0.05`)!;
     expect(pct(m.utilisable)).toBeGreaterThanOrEqual(plancher);
