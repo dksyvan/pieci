@@ -34,13 +34,21 @@ import type { Guide } from './types';
  */
 export const cniPerdue: Guide = {
   slug: 'cni-perdue-que-faire',
-  titre: 'CNI perdue en Côte d’Ivoire : que faire, dans l’ordre',
+  /**
+   * Le titre ne dit plus « CNI », et c'est l'export Search Console qui l'a
+   * tranché : sur 46 impressions, cette page sortait à la position 13,7 — page
+   * 2. Les requêtes qui l'appellent sont « j'ai perdu ma carte d'identité
+   * ivoirienne », « pièce d'identité perdue », « j'ai perdue ma carte
+   * d'identité ». Aucune ne contient le sigle. L'adresse, elle, ne bouge pas :
+   * elle est indexée, et on ne renomme pas une URL qui marche.
+   */
+  titre: 'Carte d’identité perdue en Côte d’Ivoire : que faire',
   description:
-    'Vous avez perdu votre carte nationale d’identité ? Les gestes des premières heures, comment la retrouver avant de payer, et le duplicata étape par étape.',
+    'J’ai perdu ma carte d’identité ivoirienne : les gestes des premières heures, comment la retrouver avant de payer, et le duplicata étape par étape.',
   chapo:
     'Perdre sa pièce d’identité, c’est perdre l’accès à presque tout : la banque, les démarches, parfois le travail. Avant de vous lancer dans une refabrication, sachez qu’une carte perdue est très souvent une carte ramassée. Voici la marche à suivre, dans l’ordre.',
   miseAJour: '2026-09-17',
-  question: 'J’ai perdu ma CNI, que dois-je faire ?',
+  question: 'J’ai perdu ma carte d’identité, que dois-je faire ?',
   /**
    * L'ordre des sections suit celui des besoins du lecteur, pas celui de la
    * rédaction : on vérifie d'abord que la carte n'a pas déjà été ramassée —

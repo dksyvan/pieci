@@ -106,9 +106,15 @@ export const cniVolee: Guide = {
 
 export const passeportPerdu: Guide = {
   slug: 'passeport-perdu',
-  titre: 'Passeport perdu en Côte d’Ivoire : la marche à suivre',
+  /**
+   * C'est la page que Google montre le plus — 107 impressions sur 564, un
+   * cinquième du site — et celle qui convertit le moins : 1,9 % à la position
+   * 7,9, là où l'on attend 3 à 4 %. Le titre reprend donc les mots de la
+   * requête qui l'appelle, « passeport ivoirien perdu ».
+   */
+  titre: 'Passeport ivoirien perdu : que faire, dans l’ordre',
   description:
-    'Perdre son passeport quand un voyage approche. Ce qu’il faut faire tout de suite, et comment maximiser vos chances de le retrouver avant de le refaire.',
+    'J’ai perdu mon passeport ivoirien : ce qu’il faut faire tout de suite, comment maximiser vos chances de le retrouver, et la marche à suivre pour le refaire.',
   chapo:
     'Le passeport est la pièce dont la perte se remarque le plus tard — on ne le sort qu’au moment de partir. C’est aussi celle qu’on retrouve le plus souvent chez soi.',
   miseAJour: '2026-08-24',
@@ -170,9 +176,15 @@ export const passeportPerdu: Guide = {
 
 export const permisPerdu: Guide = {
   slug: 'permis-conduire-perdu',
-  titre: 'Permis de conduire perdu : que faire en attendant',
+  /**
+   * 24 impressions, zéro clic. La requête qui l'appelle est « déclaration de
+   * perte de permis de conduire en ligne côte d'ivoire » : elle demande une
+   * démarche, la page répondait « que faire en attendant ». On répondait à
+   * côté de la question, et Google le mesure.
+   */
+  titre: 'Permis de conduire perdu : déclaration et démarches',
   description:
-    'Vous conduisez sans permis sur vous, sans l’avoir voulu. Comment vous protéger d’un contrôle et retrouver le document.',
+    'Permis de conduire perdu en Côte d’Ivoire : la déclaration de perte, comment vous protéger d’un contrôle, et les démarches pour retrouver le document.',
   chapo:
     'Contrairement à une pièce d’identité, l’absence de permis se paie tout de suite : au premier contrôle. Voilà comment limiter les dégâts.',
   miseAJour: '2026-08-24',
@@ -258,9 +270,15 @@ export const permisPerdu: Guide = {
 
 export const carteGrisePerdue: Guide = {
   slug: 'carte-grise-perdue',
-  titre: 'Carte grise perdue : ce que ça bloque et quoi faire',
+  /**
+   * Le seul clic venu d'une requête administrative est arrivé ici, sur
+   * « duplicata carte grise côte d'ivoire ». Le mot qui amène du monde est
+   * donc « duplicata », et il ne figurait ni dans le titre ni dans la
+   * description.
+   */
+  titre: 'Carte grise perdue en Côte d’Ivoire : le duplicata',
   description:
-    'La carte grise n’est pas une pièce d’identité, mais sa perte bloque autant : contrôle, vente, assurance. Les gestes utiles.',
+    'J’ai égaré ma carte grise : ce que ça bloque — contrôle, vente, assurance —, où la chercher d’abord, et comment demander un duplicata en Côte d’Ivoire.',
   chapo:
     'La carte grise ne prouve pas qui vous êtes, elle prouve que le véhicule est à vous. Sa perte se règle donc autrement — et elle se retrouve souvent dans le véhicule lui-même.',
   miseAJour: '2026-08-24',
