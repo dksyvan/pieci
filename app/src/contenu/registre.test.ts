@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { COMMUNES } from '@partage/communes';
 import { TYPES_PIECE } from '@partage/types';
-import { PAGES_REGISTRE, pageRegistreParSlug, slugifier } from './registre';
+import { COMMUNES_PUBLIEES, PAGES_REGISTRE, pageRegistreParSlug, slugifier } from './registre';
 import { GUIDES } from './index';
 
 /**
  * Les pages d'agrégat du registre.
  *
  * Le risque propre à ces pages n'est pas la panne, c'est le silence : une
- * commune ajoutée à COMMUNES sans texte de contexte produirait une page
- * publiée, indexée, et vide de tout ce qui la distingue des quinze autres.
- * Rien dans le build ne le signalerait.
+ * commune publiée sans texte de contexte produirait une page indexée, vide de
+ * tout ce qui la distingue des quinze autres. Rien dans le build ne le
+ * signalerait.
+ *
+ * C'est ce test qui a attrapé l'extension de `COMMUNES` à tout le pays : elle
+ * aurait mis en ligne cent soixante-cinq pages sans une ligne propre. Les
+ * pages publiées viennent donc de `CONTEXTE_COMMUNE`, pas de `COMMUNES`.
  */
 
 describe('slugifier', () => {
@@ -32,8 +36,27 @@ describe('slugifier', () => {
 });
 
 describe('couverture', () => {
-  it('publie une page par commune et une par type', () => {
-    expect(PAGES_REGISTRE).toHaveLength(Object.keys(COMMUNES).length + TYPES_PIECE.length);
+  it('publie une page par commune rédigée et une par type', () => {
+    expect(PAGES_REGISTRE).toHaveLength(COMMUNES_PUBLIEES.length + TYPES_PIECE.length);
+  });
+
+  /**
+   * Les pages publiées sont un sous-ensemble choisi, pas toute la table des
+   * communes — celle-ci couvre le pays entier depuis le 18 septembre 2026,
+   * pour que quelqu'un à Man puisse déclarer. Mais chaque page publiée doit
+   * désigner une commune qui existe vraiment : une faute de frappe dans
+   * `CONTEXTE_COMMUNE` fabriquerait une page indexée pour un lieu qu'aucune
+   * déclaration ne portera jamais.
+   */
+  it('ne publie que des communes qui existent dans la table', () => {
+    const inconnues = COMMUNES_PUBLIEES.filter((c) => !(c in COMMUNES));
+    expect(inconnues, 'communes publiées absentes de COMMUNES').toEqual([]);
+  });
+
+  it('couvre beaucoup plus de communes qu’elle n’en publie', () => {
+    // Le garde-fou de l'inverse : si les deux listes se rejoignaient, c'est
+    // qu'on serait revenu à publier une page par commune.
+    expect(Object.keys(COMMUNES).length).toBeGreaterThan(COMMUNES_PUBLIEES.length * 5);
   });
 
   it('n’a aucun slug en double entre communes et types', () => {

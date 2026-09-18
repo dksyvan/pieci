@@ -5,15 +5,35 @@ import { COMMUNES } from '@partage/communes';
 import { normaliser } from '@partage/matching';
 import { useApp } from '../context/useApp';
 import type { PieceTrouveePublique } from '../lib/api';
-import { PAGES_REGISTRE, pageRegistreParSlug, slugifier } from '../contenu/registre';
+import {
+  COMMUNES_PUBLIEES,
+  PAGES_REGISTRE,
+  pageRegistreParSlug,
+  slugifier,
+} from '../contenu/registre';
 import { formaterCompte, statsServeur } from '../lib/stats';
 import { PieceCard } from '../components/PieceCard';
 import { IconeCarte, IconeFleche, IconeRecherche } from '../components/Icones';
 
-const COMMUNES_LISTEES = Object.keys(COMMUNES);
+/**
+ * Les communes proposées en filtre : celles qui ont une page, pas les cent
+ * quatre-vingts de la table.
+ *
+ * `COMMUNES` couvre tout le pays depuis le 18 septembre 2026, pour qu'on
+ * puisse déclarer depuis n'importe où. Les filtres, eux, mènent à une page
+ * rédigée : en aligner cent quatre-vingts en haut du registre donnerait un mur
+ * de jetons dont la plupart ouvriraient une page vide.
+ */
+const COMMUNES_LISTEES = COMMUNES_PUBLIEES;
 
-/** Mots des noms de commune : « Yopougon » cherché n'est jamais un prénom. */
-const MOTS_DE_LIEU = new Set(COMMUNES_LISTEES.flatMap((c) => normaliser(c).split(' ')));
+/**
+ * Mots des noms de lieu : « Yopougon » cherché n'est jamais un prénom.
+ *
+ * Ici, en revanche, on prend la table entière : une pièce trouvée à Man porte
+ * « Man » dans sa fiche, et ce mot ne doit pas être pris pour un prénom parce
+ * que la ville n'a pas de page à elle.
+ */
+const MOTS_DE_LIEU = new Set(Object.keys(COMMUNES).flatMap((c) => normaliser(c).split(' ')));
 
 /**
  * La pièce répond-elle à la recherche libre ?

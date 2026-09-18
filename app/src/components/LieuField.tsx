@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { COMMUNES, type LatLng } from '@partage/communes';
+import { COMMUNES, COMMUNES_ABIDJAN, type LatLng } from '@partage/communes';
 import { communeLaPlusProche, resoudreCommune } from '@partage/lieux';
 import type { ReperesAutour } from '@partage/api-types';
 import { getReperes } from '../lib/api';
@@ -35,6 +35,9 @@ const MAX = 150;
  * reste.
  */
 const PRECISION_MAX_M = 1500;
+
+/** Les villes du pays, hors district d'Abidjan, dans l'ordre alphabétique. */
+const AUTRES_COMMUNES = Object.keys(COMMUNES).filter((c) => !COMMUNES_ABIDJAN.includes(c));
 
 export function LieuField({
   lieu,
@@ -136,6 +139,15 @@ export function LieuField({
     setCoords(valeur ? COMMUNES[valeur] : null);
   };
 
+  /**
+   * La liste, en deux groupes.
+   *
+   * Elle compte cent quatre-vingts entrées depuis qu'elle couvre le pays
+   * entier, et une liste plate de cette longueur oblige un habitant d'Abidjan
+   * — d'où vient l'essentiel des déclarations — à faire défiler tout
+   * l'alphabet pour trouver sa commune. Les deux groupes lui rendent ses dix
+   * lignes, sans rien retirer aux autres.
+   */
   const listeCommunes = (
     <select
       id="commune"
@@ -144,11 +156,20 @@ export function LieuField({
       onChange={(e) => choisirCommune(e.target.value)}
     >
       <option value="">— Choisir la commune —</option>
-      {Object.keys(COMMUNES).map((c) => (
-        <option key={c} value={c}>
-          {c}
-        </option>
-      ))}
+      <optgroup label="Abidjan">
+        {COMMUNES_ABIDJAN.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Reste de la Côte d’Ivoire">
+        {AUTRES_COMMUNES.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </optgroup>
     </select>
   );
 

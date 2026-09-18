@@ -1,4 +1,3 @@
-import { COMMUNES } from '@partage/communes';
 import { TYPES_PIECE, type TypePiece } from '@partage/types';
 
 /**
@@ -157,11 +156,27 @@ function pageType(type: TypePiece): PageRegistre {
   };
 }
 
-/** Toutes les pages d'agrégat, communes d'abord. */
+/**
+ * Toutes les pages d'agrégat, communes d'abord.
+ *
+ * La liste des communes publiées est celle de `CONTEXTE_COMMUNE`, et non
+ * `COMMUNES`. Les deux ont divergé le 18 septembre 2026, quand la table des
+ * communes est passée de seize points à tout le pays pour que quelqu'un à Man
+ * puisse déclarer depuis chez lui. Publier une page par commune reviendrait
+ * alors à mettre en ligne cent soixante-cinq pages identiques au nom près,
+ * vides, qui se feraient concurrence entre elles et affaibliraient les seize
+ * qui ont quelque chose à dire.
+ *
+ * Une commune entre ici en écrivant son paragraphe de contexte, et pas
+ * autrement. C'est du travail éditorial, et c'est voulu.
+ */
 export const PAGES_REGISTRE: PageRegistre[] = [
-  ...Object.keys(COMMUNES).map(pageCommune),
+  ...Object.keys(CONTEXTE_COMMUNE).map(pageCommune),
   ...TYPES_PIECE.map(pageType),
 ];
+
+/** Les communes qui ont leur page, pour les filtres affichés au registre. */
+export const COMMUNES_PUBLIEES: readonly string[] = Object.keys(CONTEXTE_COMMUNE);
 
 /** Résout un segment d'URL en filtre, ou `undefined` s'il ne correspond à rien. */
 export function pageRegistreParSlug(slug: string | undefined): PageRegistre | undefined {

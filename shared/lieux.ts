@@ -210,15 +210,17 @@ export function resoudreCommune(texte: string): LieuResolu {
 /**
  * Distance au-delà de laquelle une position n'est plus rattachée à une commune.
  *
- * `COMMUNES` ne contient que seize points : les communes d'Abidjan et cinq
- * villes du pays. Prendre « la plus proche » sans regarder la distance — ce que
- * faisait le bouton « Je suis sur place » — envoie quelqu'un de Man sur Daloa,
- * à deux cents kilomètres, sans que rien ne le signale. Sa pièce part alors sur
- * une page de registre où son propriétaire ne la cherchera jamais.
+ * `COMMUNES` couvre les communes d'Abidjan et les villes du pays. Prendre « la
+ * plus proche » sans regarder la distance — ce que faisait le bouton « Je suis
+ * sur place » quand la table ne comptait que seize points — envoyait quelqu'un
+ * de Man sur Daloa, à 135 km, sans que rien ne le signale. Sa pièce partait
+ * alors sur une page de registre où son propriétaire ne la chercherait jamais.
  *
- * Vingt-cinq kilomètres couvre la plus étendue des communes d'Abidjan depuis
- * son centre, et la périphérie des villes citées. Au-delà, on préfère ne rien
- * dire : la liste déroulante et le champ libre restent, et ils ne mentent pas.
+ * La table couvre désormais le pays, mais le garde-fou reste : une position en
+ * mer, en brousse ou hors des frontières trouvera toujours une ville « la plus
+ * proche », et ce n'est pas une raison pour l'affirmer. Vingt-cinq kilomètres,
+ * c'est la distance au-delà de laquelle on préfère se taire — la liste
+ * déroulante et le champ libre restent, et ils ne mentent pas.
  */
 export const RAYON_COMMUNE_KM = 25;
 
