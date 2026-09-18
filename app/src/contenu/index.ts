@@ -20,6 +20,7 @@ import {
   pieceperdueAbobo,
   pieceperdueAdjame,
   pieceperdueBouake,
+  pieceperdueKorhogo,
 } from './guides-local';
 import {
   protegerSesPapiers,
@@ -78,6 +79,7 @@ export const RUBRIQUES: Rubrique[] = [
       pieceperdueCocody,
       pieceperdueAbobo,
       pieceperdueBouake,
+      pieceperdueKorhogo,
     ],
   },
   {

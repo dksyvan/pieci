@@ -108,6 +108,7 @@ const GUIDE_COMMUNE: Record<string, string> = {
   Abobo: 'piece-perdue-abobo',
   Adjamé: 'piece-perdue-adjame',
   Bouaké: 'piece-perdue-bouake',
+  Korhogo: 'piece-perdue-korhogo',
 };
 
 /** Ce qu'il faut savoir sur chaque type de document, et rien de générique. */

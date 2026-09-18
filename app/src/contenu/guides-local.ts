@@ -525,5 +525,147 @@ export const pieceperdueBouake: Guide = {
       ],
     },
   ],
-  connexes: ['piece-perdue-abidjan', 'cni-perdue-que-faire', 'j-ai-trouve-une-cni'],
+  connexes: ['piece-perdue-korhogo', 'piece-perdue-abidjan', 'cni-perdue-que-faire'],
+};
+
+/**
+ * Korhogo, et le Nord qui se déplace.
+ *
+ * Ce guide ne redit pas celui de Bouaké, qui traite des villes de l'intérieur
+ * en général : deux pages qui se disputent la même requête s'affaiblissent
+ * l'une l'autre. L'angle propre à Korhogo est le mouvement — saisonnier vers
+ * le Sud, transfrontalier vers le Mali et le Burkina, et celui qu'amène la
+ * campagne de l'anacarde. Une pièce perdue ici ne reste pas ici, et une pièce
+ * trouvée ici n'est pas toujours celle d'un habitant.
+ *
+ * C'est aussi le seul guide territorial qui parle de la carte consulaire.
+ * Elle n'est pas un cas rare dans le Nord, et personne d'autre ne la couvre.
+ */
+export const pieceperdueKorhogo: Guide = {
+  slug: 'piece-perdue-korhogo',
+  titre: 'Pièce perdue à Korhogo : ce qui change dans le Nord',
+  description:
+    'À Korhogo, la pièce trouvée n’est pas toujours celle d’un habitant, et celle qu’on perd part souvent vers le Sud. Comment chercher quand tout bouge.',
+  chapo:
+    'Dans le Nord, on se déplace par saisons : vers les plantations du Sud, vers Abidjan, vers le Mali et le Burkina. Une pièce perdue à Korhogo suit ces routes-là, et la chercher sur place ne suffit pas toujours.',
+  miseAJour: '2026-09-18',
+  question: 'J’ai perdu ma pièce à Korhogo, comment la retrouver ?',
+  sections: [
+    {
+      titre: 'Ce qui joue en votre faveur',
+      blocs: [
+        {
+          type: 'paragraphe',
+          texte:
+            'Korhogo reste une ville où l’on se reconnaît. Une pièce ramassée y est montrée, commentée, gardée par quelqu’un qui cherchera à qui la rendre plutôt qu’à s’en débarrasser. Commencez donc par les endroits où l’information circule d’elle-même.',
+        },
+        {
+          type: 'liste',
+          items: [
+            'Le grand marché et les commerçants que vous voyez chaque semaine.',
+            'La gare routière, pour tout trajet vers Abidjan, Bouaké ou la frontière.',
+            'Les établissements scolaires et l’université, si la perte a eu lieu un jour de cours.',
+            'Le quartier : le chef de quartier, l’imam, le pasteur, la pharmacie du coin.',
+          ],
+        },
+        {
+          type: 'paragraphe',
+          texte:
+            'Repassez physiquement au dernier endroit où vous avez sorti la pièce. Beaucoup de commerces gardent derrière le comptoir ce qu’ils ramassent, sans savoir qu’il faudrait le signaler quelque part.',
+        },
+      ],
+    },
+    {
+      titre: 'Ce qui joue contre vous : ici, tout le monde bouge',
+      blocs: [
+        {
+          type: 'paragraphe',
+          texte:
+            'C’est la particularité du Nord, et elle défait le bouche-à-oreille. Trois mouvements se superposent, et chacun emmène des pièces avec lui.',
+        },
+        {
+          type: 'etapes',
+          items: [
+            {
+              titre: 'Le va-et-vient avec le Sud',
+              texte:
+                'Beaucoup partent travailler dans les plantations ou à Abidjan et reviennent après la campagne. Une pièce perdue à Korhogo peut être déclarée trouvée à Abidjan des semaines plus tard — et l’inverse est tout aussi fréquent.',
+            },
+            {
+              titre: 'La campagne de l’anacarde',
+              texte:
+                'Acheteurs, pisteurs et transporteurs arrivent d’ailleurs pendant la saison, travaillent quelques semaines et repartent. Le réseau local ne les atteint pas, et ils ne connaissent personne à qui rendre une pièce.',
+            },
+            {
+              titre: 'Le passage vers le Mali et le Burkina',
+              texte:
+                'Korhogo est sur la route des frontières du Nord. Une partie des gens qui y transitent n’y dorment même pas une nuit.',
+            },
+          ],
+        },
+        {
+          type: 'encadre',
+          titre: 'Déclarez la ville de la perte, pas celle où vous êtes',
+          texte:
+            'C’est l’erreur la plus fréquente chez les voyageurs. Si vous avez perdu la pièce à Korhogo et que vous lisez ceci depuis Abidjan, indiquez Korhogo : c’est là que quelqu’un la cherchera pour la rendre. Le rapprochement, lui, se fait sur votre nom et fonctionne d’un bout à l’autre du pays.',
+        },
+      ],
+    },
+    {
+      titre: 'Si vous partez ou si vous revenez',
+      blocs: [
+        {
+          type: 'liste',
+          items: [
+            'Créez l’alerte avant de prendre la route, pas après votre arrivée : elle reste active pendant que vous voyagez.',
+            'Notez la compagnie et l’heure du car. C’est souvent à ce détail qu’on se reconnaît quand une pièce est remise au chauffeur.',
+            'Appelez la gare d’arrivée autant que celle du départ : ce qui est trouvé dans un véhicule descend avec lui.',
+            'Ne fermez pas l’alerte en rentrant chez vous. Une pièce peut réapparaître des mois après, et elle sera déclarée depuis n’importe où.',
+          ],
+        },
+        {
+          type: 'paragraphe',
+          texte: [
+            'Si votre pièce n’a pas encore été déclarée, ',
+            { texte: 'créez l’alerte avec votre nom', href: '/perdu' },
+            ' : vous serez prévenu automatiquement le jour où elle apparaît, sans avoir à revenir vérifier.',
+          ],
+        },
+      ],
+    },
+    {
+      titre: 'Si vous n’êtes pas ivoirien',
+      blocs: [
+        {
+          type: 'paragraphe',
+          texte:
+            'Le Nord compte des communautés malienne, burkinabè et guinéenne installées de longue date, et beaucoup de travailleurs saisonniers. Perdre sa carte consulaire ou son passeport y pose un problème particulier : les démarches de remplacement passent par une représentation diplomatique, souvent loin, et le réseau local sur lequel s’appuie un habitant fait défaut.',
+        },
+        {
+          type: 'paragraphe',
+          texte:
+            'Pièci accepte la carte consulaire comme n’importe quelle autre pièce. La recherche se fait par le nom, sans numéro à fournir, et sans qu’il soit nécessaire de justifier de quoi que ce soit pour consulter le registre.',
+        },
+      ],
+    },
+    {
+      titre: 'Si quelqu’un a trouvé une pièce à Korhogo',
+      blocs: [
+        {
+          type: 'paragraphe',
+          texte: [
+            'Ne la laissez pas sur un poteau et ne publiez pas sa photo en clair : le numéro et la date de naissance suffisent à usurper une identité. ',
+            { texte: 'Déclarez-la ici', href: '/declarer' },
+            ' — le numéro est flouté avant publication, et votre téléphone n’est jamais affiché.',
+          ],
+        },
+        {
+          type: 'paragraphe',
+          texte:
+            'Si son propriétaire est reparti vers le Sud, c’est précisément là que la déclaration en ligne change quelque chose : elle l’atteindra là où il est, alors qu’aucun voisinage ne l’atteindrait plus.',
+        },
+      ],
+    },
+  ],
+  connexes: ['piece-perdue-bouake', 'cni-perdue-que-faire', 'trouve-piece-etranger'],
 };
