@@ -90,6 +90,14 @@ const CONTEXTE_COMMUNE: Record<string, string> = {
     'Daloa vit au rythme du commerce agricole et voit passer beaucoup de monde en saison. Les pertes suivent le marché et la gare routière.',
   Korhogo:
     'Korhogo est le point d’attache du Nord et le départ de nombreux trajets vers le Sud. Une pièce perdue ici peut être déclarée depuis Abidjan, et inversement.',
+  Man:
+    'Man est le passage obligé de tout l’Ouest : les cars vers Danané, Biankouma et les frontières en partent et y reviennent. Une pièce ramassée ici appartient souvent à quelqu’un qui ne faisait que traverser.',
+  Gagnoa:
+    'Gagnoa est le centre du Gôh et de son cacao. Les jours de marché, la ville se remplit de gens venus des villages pour vendre ou faire une démarche, repartis le soir même — parfois sans leur pièce.',
+  Divo:
+    'Entre le cacao, l’hévéa et les sites d’orpaillage des environs, Divo emploie une main-d’œuvre qui change avec les saisons. Les pièces y sont souvent trouvées loin du domicile de leur propriétaire.',
+  Soubré:
+    'Soubré est au cœur de la première région cacaoyère du pays. Chaque campagne y attire des travailleurs venus de toute la Côte d’Ivoire et d’au-delà : une pièce trouvée ici est rarement celle d’un habitant.',
 };
 
 /** Guide territorial correspondant, quand il existe. */
