@@ -858,6 +858,46 @@
   /* La distance est une information de service : présente, jamais au premier plan. */
   .repere-loin { font-size: var(--t-mono); color: var(--color-sourdine); white-space: nowrap; }
 
+  /* ---- Choix de la situation, sur /partager ----------------------------
+     Des cartes plutôt qu'une liste déroulante : il n'y a que trois choix, ils
+     demandent chacun une ligne d'explication, et c'est ce choix qui décide de
+     tout le reste de la page. Le cacher derrière un menu reviendrait à le
+     faire prendre au hasard. */
+  .moments { display: grid; gap: var(--s-2); }
+
+  .moment {
+    display: grid;
+    gap: 2px;
+    border: 1px solid var(--color-filet-2);
+    background: var(--color-papier);
+    padding: var(--s-3);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 140ms var(--e-micro), background-color 140ms var(--e-micro);
+  }
+  .moment:hover { border-color: var(--color-encre); background: var(--color-papier-2); }
+  .moment.actif {
+    border-color: var(--color-encre);
+    background: var(--color-papier-2);
+    box-shadow: inset 2px 0 0 var(--color-cachet);
+  }
+
+  .moment-titre { font-size: var(--t-body); color: var(--color-encre); font-weight: 600; }
+  .moment-quand { font-size: var(--t-fine); color: var(--color-sourdine); line-height: var(--lh-dense); }
+
+  /* Les règles du partage : numérotées, parce qu'elles se lisent dans l'ordre
+     d'une décision — où poster, quand, combien de fois. */
+  .regles {
+    margin: var(--s-2) 0 0;
+    padding-left: 1.3em;
+    display: grid;
+    gap: var(--s-2);
+    font-size: var(--t-fine);
+    line-height: var(--lh-body);
+    color: var(--color-sourdine);
+  }
+  .regles li::marker { color: var(--color-cachet); font-variant-numeric: tabular-nums; }
+
   .constat {
     display: flex;
     align-items: baseline;

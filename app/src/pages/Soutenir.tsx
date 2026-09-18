@@ -61,8 +61,8 @@ export function Soutenir() {
                 : 'Il n’attend que sa première déclaration'} — plus on est nombreux, plus les pièces
               retrouvent leur propriétaire. On est ensemble.
             </p>
-            <Link to="/trouvees" className="lien" style={{ marginTop: 'var(--s-3)' }}>
-              Voir le registre
+            <Link to="/partager" className="lien" style={{ marginTop: 'var(--s-3)' }}>
+              Le message à coller dans un groupe
               <IconeFleche taille={15} />
             </Link>
           </div>

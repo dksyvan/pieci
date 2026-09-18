@@ -9,6 +9,7 @@ import { Piece } from './pages/Piece';
 import { Saisie } from './pages/Saisie';
 import { Suivi } from './pages/Suivi';
 import { Soutenir } from './pages/Soutenir';
+import { Partager } from './pages/Partager';
 import { Guides } from './pages/Guides';
 import { GuideDetail } from './pages/GuideDetail';
 
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="perdu" element={<Perdu />} />
         <Route path="suivi" element={<Suivi />} />
         <Route path="soutenir" element={<Soutenir />} />
+        <Route path="partager" element={<Partager />} />
         <Route path="guides" element={<Guides />} />
         <Route path="guides/:slug" element={<GuideDetail />} />
       </Route>

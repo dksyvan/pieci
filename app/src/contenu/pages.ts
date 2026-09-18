@@ -111,6 +111,18 @@ export const PAGES_FIXES: PageFixe[] = [
     priorite: '0.5',
   },
   {
+    /**
+     * Outil, pas argumentaire : la page sert à quelqu'un qui a déjà décidé
+     * d'en parler. Priorité basse pour la même raison — elle n'a aucune
+     * requête à gagner, elle a des gens à armer.
+     */
+    chemin: '/partager',
+    titre: 'Partager Pièci dans un groupe WhatsApp ou Facebook',
+    description:
+      'Le message à coller dans un groupe quand quelqu’un vient de trouver ou de perdre une pièce d’identité, et les règles pour ne pas passer pour du spam.',
+    priorite: '0.3',
+  },
+  {
     chemin: '/soutenir',
     titre: 'Soutenir Pièci',
     description:

@@ -116,6 +116,9 @@ export function Layout() {
                   {label}
                 </Link>
               ))}
+              <Link to="/partager" className="label">
+                Partager
+              </Link>
               <Link to="/soutenir" className="label" style={{ color: 'var(--color-cachet)' }}>
                 Soutenir
               </Link>
