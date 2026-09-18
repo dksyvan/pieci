@@ -103,10 +103,6 @@ export const cniPerdue: Guide = {
            * officiels, pas celles ramassées dans la rue — et le lecteur a le
            * droit de le savoir. Mais pas d'étape à son nom, pas de bouton :
            * une page qui met les deux à parité renvoie son lecteur ailleurs au
-           * moment précis où elle pouvait l'aider. La mention d'indépendance
-           * tient dans la même phrase, et elle n'est pas une politesse :
-           * quelqu'un qui lit le nom de l'office sur cette page doit repartir
-           * en sachant que Pièci n'est pas l'administration.
            */
           type: 'paragraphe',
           texte: [
@@ -115,7 +111,7 @@ export const cniPerdue: Guide = {
               texte: 'service de recherche',
               href: 'https://www.oneci.ci/nos-produits/carte-identite/rechercher-cni-perdue',
             },
-            ', qui demande le numéro NNI — celui qui est écrit sur la carte que vous venez justement de perdre. Pièci est un service indépendant, sans lien avec l’administration.',
+            ', qui demande le numéro NNI — celui qui est écrit sur la carte que vous venez justement de perdre.',
           ],
         },
         {
