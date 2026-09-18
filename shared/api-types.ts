@@ -187,3 +187,23 @@ export function depuisPieceBrute(p: PieceTrouveePubliqueBrute): PieceTrouveePubl
     lng: p.lng,
   };
 }
+
+/**
+ * Un lieu nommé proche d'une position, proposé au déclarant.
+ *
+ * Jumeau de `Repere` dans `api/src/reperes/photon.ts` : l'API se compile seule,
+ * sans alias vers `shared/`, la forme est donc écrite des deux côtés.
+ */
+export interface RepereApi {
+  /** Ce qui s'affiche, et ce qui part dans le champ : « Carrefour Timotel ». */
+  nom: string;
+  /** Mètres, arrondis. Sert à ordonner, et à dire « à 80 m ». */
+  distance: number;
+}
+
+/** Réponse de `GET /reperes?lat=&lng=`. */
+export interface ReperesAutour {
+  reperes: RepereApi[];
+  /** Le quartier, quand la carte le connaît : « Niangon Sud ». */
+  quartier: string | null;
+}

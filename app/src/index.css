@@ -821,6 +821,43 @@
   }
   .depot:hover { border-color: var(--color-encre); background: var(--color-papier-2); }
 
+  /* ---- Repères proposés après « Je suis sur place » --------------------
+     Des pastilles, et non une liste à cocher : ce sont des suggestions qu'on
+     touche du pouce, sur un téléphone, souvent debout dans la rue. D'où la
+     cible large (44 px de haut avec le remplissage) et le retour à la ligne
+     libre — un nom de carrefour ivoirien est parfois long, et le tronquer
+     ferait perdre ce qui permet de reconnaître l'endroit. */
+  .reperes { margin-top: var(--s-3); }
+
+  .reperes-intro {
+    font-size: var(--t-micro);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-sourdine);
+    margin-bottom: var(--s-2);
+  }
+
+  .reperes-liste { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+  .repere {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    border: 1px solid var(--color-filet-2);
+    background: var(--color-papier);
+    padding: 10px var(--s-3);
+    text-align: left;
+    color: var(--color-encre);
+    font-size: var(--t-fine);
+    line-height: var(--lh-dense);
+    cursor: pointer;
+    transition: border-color 140ms var(--e-micro), background-color 140ms var(--e-micro);
+  }
+  .repere:hover { border-color: var(--color-encre); background: var(--color-papier-2); }
+
+  /* La distance est une information de service : présente, jamais au premier plan. */
+  .repere-loin { font-size: var(--t-mono); color: var(--color-sourdine); white-space: nowrap; }
+
   .constat {
     display: flex;
     align-items: baseline;

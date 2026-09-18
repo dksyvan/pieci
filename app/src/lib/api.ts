@@ -8,6 +8,7 @@ import {
   type PieceTrouveePublique,
   type PieceTrouveePubliqueBrute,
   type PointDepotApi,
+  type ReperesAutour,
 } from '@partage/api-types';
 
 /**
@@ -42,6 +43,7 @@ export type {
   PhotoUploadee,
   PieceTrouveePublique,
   PointDepotApi,
+  ReperesAutour,
 };
 
 /** Erreur renvoyée par l'API, avec son statut HTTP et, s'il y en a un, son code métier. */
@@ -86,6 +88,25 @@ export function urlMedia(chemin: string): string {
 
 export function getPointsDepot(): Promise<PointDepotApi[]> {
   return requete('/points-depot');
+}
+
+/**
+ * Les lieux nommés autour d'une position, pour « Je suis sur place ».
+ *
+ * L'appel passe par notre API et jamais par le service de cartographie
+ * directement : c'est lui qui porte l'en-tête d'identification et le cache, et
+ * surtout le service n'apprend ainsi ni l'adresse ni la position de la
+ * personne qui déclare — il ne voit que notre serveur.
+ *
+ * Ne lève pas. Un repère est un confort : s'il manque, le champ libre est déjà
+ * là et il suffit.
+ */
+export async function getReperes(lat: number, lng: number): Promise<ReperesAutour> {
+  try {
+    return await requete<ReperesAutour>(`/reperes?lat=${lat}&lng=${lng}`);
+  } catch {
+    return { reperes: [], quartier: null };
+  }
 }
 
 export async function getPiecesTrouvees(): Promise<PieceTrouveePublique[]> {

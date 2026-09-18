@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { COMMUNES, type LatLng } from '@partage/communes';
-import { haversine } from '@partage/matching';
-import { resoudreCommune } from '@partage/lieux';
+import { communeLaPlusProche, resoudreCommune } from '@partage/lieux';
+import type { ReperesAutour } from '@partage/api-types';
+import { getReperes } from '../lib/api';
+import { libelle, memeLieu } from '../lib/repere';
 import { IconeCarte, IconeValide } from './Icones';
 
 interface LieuFieldProps {
@@ -17,25 +19,23 @@ interface LieuFieldProps {
   erreur?: string;
 }
 
-type Etat = 'repos' | 'chargement' | 'ok' | 'erreur';
+type Etat = 'repos' | 'chargement' | 'ok' | 'erreur' | 'refus';
 
 /** Longueur retenue par l'API pour ce champ (`quartier`, varchar 150). */
 const MAX = 150;
 
 /**
- * Lieu écrit librement, commune déduite.
+ * Précision au-delà de laquelle on ne propose plus de repère.
  *
- * Une liste de communes demandait à quelqu'un qui pense « Gesco » de traduire
- * en « Yopougon » — une commune d'un million d'habitants, qui ne dit presque
- * rien à celui qui cherche sa pièce. On demande donc l'endroit tel qu'on le
- * nomme, et la commune se déduit (voir `shared/lieux.ts`).
- *
- * La déduction est toujours montrée, avec de quoi la corriger. Ce n'est pas
- * une politesse : elle tolère les fautes de frappe, donc elle se trompe
- * parfois — « Kouassi » est à une lettre de « Koumassi ». Un rapprochement
- * silencieux enverrait la pièce sur la mauvaise page de registre sans que
- * personne ne puisse s'en apercevoir.
+ * Le téléphone rend toujours une position, mais pas toujours celle du GPS :
+ * faute de satellites, il répond avec l'antenne relais ou la borne Wi-Fi, et
+ * annonce alors une marge de plusieurs kilomètres. Proposer « la pharmacie »
+ * sur un relevé pareil, c'est envoyer quelqu'un chercher au mauvais carrefour.
+ * Passé ce seuil on garde la commune, qui reste juste, et on se tait sur le
+ * reste.
  */
+const PRECISION_MAX_M = 1500;
+
 export function LieuField({
   lieu,
   setLieu,
@@ -47,6 +47,7 @@ export function LieuField({
   erreur,
 }: LieuFieldProps) {
   const [etat, setEtat] = useState<Etat>('repos');
+  const [autour, setAutour] = useState<ReperesAutour>({ reperes: [], quartier: null });
   const [corrigeAMain, setCorrigeAMain] = useState(false);
   /**
    * La liste de secours n'apparaît qu'une fois le champ quitté.
@@ -66,36 +67,71 @@ export function LieuField({
     setCoords(deduite ? COMMUNES[deduite] : null);
   }, [lieu, corrigeAMain, etat, setCommune, setCoords]);
 
+  /**
+   * Relève la position, en déduit la commune, puis demande les lieux nommés.
+   *
+   * Trois choses à savoir sur ce qui se passe ici :
+   *
+   * - `enableHighAccuracy` allume le GPS. Sans lui, le navigateur a le droit
+   *   de répondre avec l'antenne relais — plusieurs centaines de mètres, et
+   *   aucun repère ne veut plus rien dire ;
+   * - la commune n'est retenue que si elle est vraiment sous les pieds (voir
+   *   `communeLaPlusProche`). Prendre « la plus proche » sans regarder la
+   *   distance envoyait quelqu'un de Man sur Daloa, à deux cents kilomètres ;
+   * - les repères ne remplissent rien tout seuls. Ils se proposent, et c'est
+   *   la personne qui touche : le lieu le plus proche n'est pas toujours celui
+   *   qui parle aux gens du coin, et elle seule le sait.
+   */
   const localiser = () => {
     if (!navigator.geolocation) {
       setEtat('erreur');
       return;
     }
     setEtat('chargement');
+    setAutour({ reperes: [], quartier: null });
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
-        let plusProche: string | null = null;
-        let distanceMin = Infinity;
-        Object.entries(COMMUNES).forEach(([nom, [lat, lng]]) => {
-          const d = haversine(latitude, longitude, lat, lng);
-          if (d < distanceMin) {
-            distanceMin = d;
-            plusProche = nom;
-          }
-        });
+        const { latitude, longitude, accuracy } = position.coords;
+
         setCoords([latitude, longitude]);
-        if (plusProche) setCommune(plusProche);
+        setCommune(communeLaPlusProche(latitude, longitude)?.commune ?? '');
+        setCorrigeAMain(false);
         setEtat('ok');
+
+        if (accuracy > PRECISION_MAX_M) return;
+        void getReperes(latitude, longitude).then(setAutour);
       },
-      () => setEtat('erreur'),
-      { timeout: 8000 },
+      (err) => setEtat(err.code === err.PERMISSION_DENIED ? 'refus' : 'erreur'),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
     );
   };
+
+  /**
+   * Ce qu'on propose de taper du doigt.
+   *
+   * Le libellé s'arrête au quartier : la commune a sa propre ligne juste en
+   * dessous, et l'écrire deux fois ferait passer une aide pour du remplissage.
+   * Quand la carte ne connaît aucun lieu nommé — c'est fréquent, la couverture
+   * d'Abidjan est très inégale — il reste le quartier seul, et sinon rien du
+   * tout : le champ libre a toujours été là, il suffit.
+   */
+  const quartierUtile =
+    autour.quartier && !memeLieu(autour.quartier, commune) ? autour.quartier : null;
+
+  const propositions: Array<{ texte: string; metres: number | null }> = autour.reperes.length
+    ? autour.reperes.map((r) => ({
+        texte: libelle(r.nom, autour.quartier, commune),
+        metres: r.distance,
+      }))
+    : quartierUtile
+      ? [{ texte: quartierUtile, metres: null }]
+      : [];
 
   const choisirCommune = (valeur: string) => {
     setCorrigeAMain(true);
     setEtat('repos');
+    setAutour({ reperes: [], quartier: null });
     setCommune(valeur);
     setCoords(valeur ? COMMUNES[valeur] : null);
   };
@@ -131,7 +167,12 @@ export function LieuField({
             setLieu(e.target.value);
             setCorrigeAMain(false);
             setQuitte(false);
-            setEtat('repos');
+            // On ne retombe pas en 'repos' après un relevé réussi : c'est cet
+            // état qui protège la position exacte. Sans ça, ajouter « près de
+            // la pharmacie » derrière un repère ramenait les coordonnées au
+            // centre de la commune — et le rapprochement perdait les mètres
+            // qu'on venait de gagner.
+            if (etat !== 'ok') setEtat('repos');
           }}
           onBlur={() => setQuitte(true)}
           placeholder="Niangon Sud à Gauche, près de la pharmacie"
@@ -146,6 +187,25 @@ export function LieuField({
         <p className="erreur" id="lieu-erreur">
           {erreur}
         </p>
+      )}
+
+      {propositions.length > 0 && (
+        <div className="reperes">
+          <p className="reperes-intro">Un de ces endroits&nbsp;? Touche pour l’écrire.</p>
+          <div className="reperes-liste">
+            {propositions.map((p) => (
+              <button
+                key={p.texte}
+                type="button"
+                className="repere"
+                onClick={() => setLieu(p.texte.slice(0, MAX))}
+              >
+                {p.texte}
+                {p.metres !== null && <span className="repere-loin">{p.metres} m</span>}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Ce qui a été compris, toujours visible et toujours corrigeable. */}
@@ -169,6 +229,16 @@ export function LieuField({
           le champ quitté, ou dès qu'une soumission l'a réclamée. */}
       {!commune && lieu.trim().length > 0 && (quitte || Boolean(erreur)) && (
         <div style={{ marginTop: 'var(--s-2)' }}>{listeCommunes}</div>
+      )}
+
+      {/* Refuser n'est pas une panne : la phrase ne doit pas sonner comme un
+          reproche, et surtout ne pas laisser croire que la déclaration est
+          bloquée. Elle ne l'est pas. */}
+      {etat === 'refus' && (
+        <p className="erreur" role="alert">
+          Tu as refusé la position, c’est ton droit. Écris l’endroit à la main, le résultat sera
+          le même.
+        </p>
       )}
 
       {etat === 'erreur' && (

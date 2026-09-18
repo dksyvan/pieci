@@ -718,8 +718,15 @@ describe('dos de carte', () => {
    * Marche aléatoire (graine fixe) : quel que soit l'enchaînement, une image
    * que la lecture a reconnue comme un dos n'est plus jamais ni affichable ni
    * à envoyer, et l'image en cours de lecture n'est jamais affichable.
+   *
+   * Le délai est relevé à trente secondes, et ce n'est pas un aveu de lenteur :
+   * seize mille pas de marche prennent deux secondes seuls, et davantage quand
+   * toute la suite tourne en parallèle sur la même machine. Le plafond de cinq
+   * secondes par défaut faisait échouer ce test une fois sur deux selon la
+   * charge du poste — un test qui ment sur l'état du code, et qu'on finit par
+   * ignorer. Ce test n'a jamais mesuré une vitesse : il explore des états.
    */
-  it('jamais publié ni aperçu, quel que soit l’enchaînement (marche aléatoire)', () => {
+  it('jamais publié ni aperçu, quel que soit l’enchaînement (marche aléatoire)', { timeout: 30_000 }, () => {
     let graine = 0x5eed;
     const hasard = () => {
       graine = (graine + 0x6d2b79f5) | 0;

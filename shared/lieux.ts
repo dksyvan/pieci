@@ -1,5 +1,5 @@
 import { COMMUNES } from './communes';
-import { levenshtein, normaliser } from './matching';
+import { haversine, levenshtein, normaliser } from './matching';
 
 /**
  * Reconnaissance de la commune à partir d'un lieu écrit librement.
@@ -201,4 +201,45 @@ export function resoudreCommune(texte: string): LieuResolu {
   }
 
   return { commune: meilleur.commune, via: meilleur.via };
+}
+
+// ---------------------------------------------------------------------------
+// Commune déduite d'une position
+// ---------------------------------------------------------------------------
+
+/**
+ * Distance au-delà de laquelle une position n'est plus rattachée à une commune.
+ *
+ * `COMMUNES` ne contient que seize points : les communes d'Abidjan et cinq
+ * villes du pays. Prendre « la plus proche » sans regarder la distance — ce que
+ * faisait le bouton « Je suis sur place » — envoie quelqu'un de Man sur Daloa,
+ * à deux cents kilomètres, sans que rien ne le signale. Sa pièce part alors sur
+ * une page de registre où son propriétaire ne la cherchera jamais.
+ *
+ * Vingt-cinq kilomètres couvre la plus étendue des communes d'Abidjan depuis
+ * son centre, et la périphérie des villes citées. Au-delà, on préfère ne rien
+ * dire : la liste déroulante et le champ libre restent, et ils ne mentent pas.
+ */
+export const RAYON_COMMUNE_KM = 25;
+
+/**
+ * Commune la plus proche d'une position, ou `null` si aucune n'est assez près.
+ *
+ * Renvoie aussi la distance, pour que l'appelant puisse en dire quelque chose
+ * — « relevée par ta position » n'a pas le même sens à 200 m qu'à 20 km.
+ */
+export function communeLaPlusProche(
+  lat: number,
+  lng: number,
+  rayonKm: number = RAYON_COMMUNE_KM,
+): { commune: string; distanceKm: number } | null {
+  let meilleure: { commune: string; distanceKm: number } | null = null;
+
+  for (const [nom, [clat, clng]] of Object.entries(COMMUNES)) {
+    const distanceKm = haversine(lat, lng, clat, clng);
+    if (distanceKm > rayonKm) continue;
+    if (!meilleure || distanceKm < meilleure.distanceKm) meilleure = { commune: nom, distanceKm };
+  }
+
+  return meilleure;
 }
